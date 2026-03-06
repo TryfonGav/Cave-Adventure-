@@ -24,7 +24,7 @@ import com.caveadventure.world.GameMap;
 public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
-        MENU, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
+        MENU, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
         EVENT, SKILL_PICK
     }
 
@@ -57,6 +57,7 @@ public class GameScreen extends ScreenAdapter {
     private final ShopUI shopUI;
     private final Bestiary bestiary;
     private final StatsScreen statsScreen;
+    private final SettingsMenu settingsMenu;
 
     // State
     private GameState state;
@@ -98,6 +99,7 @@ public class GameScreen extends ScreenAdapter {
         this.shopUI = new ShopUI(game);
         this.bestiary = new Bestiary(game);
         this.statsScreen = new StatsScreen(game);
+        this.settingsMenu = new SettingsMenu(game);
         this.levelManager = new LevelManager();
 
         this.state = GameState.MENU;
@@ -211,6 +213,10 @@ public class GameScreen extends ScreenAdapter {
                 updateMenu(delta);
                 drawMenu();
                 break;
+            case SETTINGS:
+                updateSettings(delta);
+                drawSettings();
+                break;
             case PLAYING:
                 updatePlaying(delta);
                 drawPlaying();
@@ -269,6 +275,8 @@ public class GameScreen extends ScreenAdapter {
         else if (result == 1)
             loadSavedGame();
         else if (result == 2)
+            state = GameState.SETTINGS;
+        else if (result == 3)
             Gdx.app.exit();
     }
 
@@ -287,6 +295,19 @@ public class GameScreen extends ScreenAdapter {
         sf.setColor(0.6f, 0.55f, 0.45f, 0.8f);
         sf.draw(game.batch, "Difficulty: " + Difficulty.getCurrent().name + "  [D to change]", 10, 25);
         game.batch.end();
+    }
+
+    // --- Settings ---
+    private void updateSettings(float delta) {
+        if (settingsMenu.update(inputHandler, delta)) {
+            state = GameState.MENU;
+        }
+    }
+
+    private void drawSettings() {
+        Gdx.gl.glClearColor(0.04f, 0.04f, 0.08f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        settingsMenu.render();
     }
 
     // --- Playing (Exploration) ---

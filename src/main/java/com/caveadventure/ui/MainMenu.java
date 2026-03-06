@@ -20,7 +20,7 @@ public class MainMenu {
     private final GlyphLayout layout;
 
     private int selectedOption;
-    private final String[] options = { "New Game", "Continue", "Quit" };
+    private final String[] options = { "New Game", "Continue", "Settings", "Quit" };
     private float animTimer;
     private boolean hasSave;
 
@@ -113,9 +113,9 @@ public class MainMenu {
         game.shapeRenderer.rect(screenW / 2 - 250, titleY - 30, 500, 70);
 
         // Menu backgrounds
-        float menuStartY = screenH * 0.42f;
+        float menuStartY = screenH * 0.44f;
         for (int i = 0; i < options.length; i++) {
-            float optY = menuStartY - i * 55;
+            float optY = menuStartY - i * 50;
             if (i == selectedOption) {
                 float pulse = (float) Math.sin(animTimer * 4) * 0.05f + 0.25f;
                 game.shapeRenderer.setColor(0.2f, 0.3f, 0.5f, pulse);
@@ -146,7 +146,7 @@ public class MainMenu {
 
         // Menu options — use normal font
         for (int i = 0; i < options.length; i++) {
-            float optY = menuStartY - i * 55;
+            float optY = menuStartY - i * 50;
             boolean isDisabled = (i == 1 && !hasSave);
 
             if (isDisabled)

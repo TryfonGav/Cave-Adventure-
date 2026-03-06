@@ -2,6 +2,9 @@ package com.caveadventure;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Preferences;
+
+import java.io.File;
 
 /**
  * Desktop launcher for CaveAdventure.
@@ -10,9 +13,25 @@ public class Main {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("CaveAdventure");
-        config.setWindowedMode(960, 640);
-        config.useVsync(true);
-        config.setForegroundFPS(60);
+        
+        // Load preferences directly to apply before window creation
+        String prefsDir = ".prefs/";
+        Lwjgl3Preferences prefs = new Lwjgl3Preferences("CaveAdventureSettings", prefsDir);
+        
+        boolean fullscreen = prefs.getBoolean("fullscreen", false);
+        boolean vsync = prefs.getBoolean("vsync", true);
+        int resX = prefs.getInteger("resX", 960);
+        int resY = prefs.getInteger("resY", 640);
+        int fps = prefs.getInteger("fps", 60);
+
+        if (fullscreen) {
+            config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());
+        } else {
+            config.setWindowedMode(resX, resY);
+        }
+        
+        config.useVsync(vsync);
+        config.setForegroundFPS(fps);
         config.setResizable(true);
 
         // Force initial viewport update on first frame
