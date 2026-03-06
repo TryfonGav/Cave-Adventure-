@@ -1,0 +1,8 @@
+target/
+build-temp/
+*.zip
+*.pdf
+CaveAdventure/
+.idea/
+*.log
+*.class
