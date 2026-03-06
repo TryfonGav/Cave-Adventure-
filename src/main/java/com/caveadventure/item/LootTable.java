@@ -1,0 +1,161 @@
+package com.caveadventure.item;
+
+import com.caveadventure.entity.Enemy;
+
+import java.util.*;
+
+/**
+ * Generates loot drops from enemies and chests based on weighted tables.
+ */
+public class LootTable {
+
+    private static final Random random = new Random();
+
+    /**
+     * Generate loot from killing an enemy.
+     */
+    public static List<Item> getEnemyDrop(Enemy.EnemyType type) {
+        List<Item> loot = new ArrayList<>();
+
+        switch (type) {
+            case BAT:
+                if (chance(30))
+                    loot.add(new Item(Item.ItemType.COOKED_MEAT));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                break;
+
+            case SLIME:
+                if (chance(25))
+                    loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.ANTIDOTE));
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.GOLD_COINS));
+                break;
+
+            case CAVE_SPIDER:
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.ANTIDOTE));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.COOKED_MEAT));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.GOLD_COINS));
+                break;
+
+            case GOBLIN:
+                if (chance(35))
+                    loot.add(new Item(Item.ItemType.GOLD_COINS));
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.FOOD_RATION));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.RUSTY_SWORD));
+                if (chance(5))
+                    loot.add(new Item(Item.ItemType.LEATHER_ARMOR));
+                break;
+
+            case SKELETON:
+                if (chance(30))
+                    loot.add(new Item(Item.ItemType.GOLD_COINS));
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.IRON_SWORD));
+                if (chance(8))
+                    loot.add(new Item(Item.ItemType.CHAIN_MAIL));
+                if (chance(5))
+                    loot.add(new Item(Item.ItemType.BRONZE_KEY));
+                break;
+
+            case NECROMANCER:
+                if (chance(40))
+                    loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                if (chance(25))
+                    loot.add(new Item(Item.ItemType.ANTIDOTE));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.ANCIENT_RELIC));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.GOLD_NUGGET, 2));
+                break;
+
+            case SHADOW:
+                if (chance(30))
+                    loot.add(new Item(Item.ItemType.GOLD_NUGGET, 2));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.GEMSTONE));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.DIAMOND));
+                break;
+
+            case ICE_DRAKE:
+                if (chance(40))
+                    loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION));
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.GOLD_NUGGET, 3));
+                if (chance(8))
+                    loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+                if (chance(8))
+                    loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
+                if (chance(5))
+                    loot.add(new Item(Item.ItemType.SILVER_KEY));
+                break;
+
+            case BOSS_GOLEM:
+                loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION, 2));
+                loot.add(new Item(Item.ItemType.GOLD_COINS, 5));
+                loot.add(new Item(Item.ItemType.ANCIENT_RELIC));
+                if (chance(50))
+                    loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+                if (chance(50))
+                    loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
+                loot.add(new Item(Item.ItemType.GOLD_KEY));
+                break;
+        }
+
+        return loot;
+    }
+
+    /**
+     * Generate loot from opening a chest.
+     */
+    public static List<Item> getChestLoot() {
+        List<Item> loot = new ArrayList<>();
+
+        // Always some gold
+        loot.add(new Item(Item.ItemType.GOLD_COINS, 1 + random.nextInt(3)));
+
+        // Random additional items
+        float roll = random.nextFloat();
+        if (roll < 0.25f) {
+            loot.add(new Item(Item.ItemType.HEALTH_POTION));
+        } else if (roll < 0.40f) {
+            loot.add(new Item(Item.ItemType.FOOD_RATION));
+        } else if (roll < 0.50f) {
+            loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION));
+        } else if (roll < 0.58f) {
+            loot.add(new Item(Item.ItemType.IRON_SWORD));
+        } else if (roll < 0.65f) {
+            loot.add(new Item(Item.ItemType.CHAIN_MAIL));
+        } else if (roll < 0.72f) {
+            loot.add(new Item(Item.ItemType.GEMSTONE));
+        } else if (roll < 0.78f) {
+            loot.add(new Item(Item.ItemType.BRONZE_KEY));
+        } else if (roll < 0.83f) {
+            loot.add(new Item(Item.ItemType.TORCH, 2));
+        } else if (roll < 0.88f) {
+            loot.add(new Item(Item.ItemType.ANTIDOTE));
+        } else if (roll < 0.92f) {
+            loot.add(new Item(Item.ItemType.FIRE_AXE));
+        } else if (roll < 0.96f) {
+            loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+        } else {
+            loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
+        }
+
+        return loot;
+    }
+
+    private static boolean chance(int percent) {
+        return random.nextInt(100) < percent;
+    }
+}

@@ -2,7 +2,7 @@ target/
 build-temp/
 *.zip
 *.pdf
-CaveAdventure/
+/CaveAdventure/
 .idea/
 *.log
 *.class

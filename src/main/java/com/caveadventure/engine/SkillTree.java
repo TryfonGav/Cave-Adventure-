@@ -1,0 +1,294 @@
+package com.caveadventure.engine;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.CaveAdventure;
+import com.caveadventure.entity.Player;
+
+import java.util.*;
+
+/**
+ * Skill tree with 3 paths: Offensive, Defensive, Utility.
+ * Player chooses one skill on each level-up.
+ */
+public class SkillTree {
+
+    public enum SkillPath {
+        OFFENSIVE, DEFENSIVE, UTILITY
+    }
+
+    public enum Skill {
+        // Offensive
+        POWER_SURGE("Power Surge", SkillPath.OFFENSIVE, "+20% damage", new Color(0.9f, 0.3f, 0.2f, 1f)),
+        CRITICAL_MASTER("Critical Master", SkillPath.OFFENSIVE, "+15% crit chance", new Color(1f, 0.4f, 0.1f, 1f)),
+        FURY("Fury", SkillPath.OFFENSIVE, "Below 30% HP: +50% damage", new Color(1f, 0.2f, 0.1f, 1f)),
+        BERSERKER("Berserker", SkillPath.OFFENSIVE, "Each kill: +5% damage (resets)", new Color(0.9f, 0.1f, 0.1f, 1f)),
+
+        // Defensive
+        IRON_SKIN("Iron Skin", SkillPath.DEFENSIVE, "-15% damage taken", new Color(0.4f, 0.6f, 0.8f, 1f)),
+        REGEN("Regeneration", SkillPath.DEFENSIVE, "Heal 2HP per turn in battle", new Color(0.3f, 0.8f, 0.4f, 1f)),
+        STATUS_RESIST("Status Resist", SkillPath.DEFENSIVE, "50% chance to resist status",
+                new Color(0.5f, 0.7f, 0.3f, 1f)),
+        LAST_STAND("Last Stand", SkillPath.DEFENSIVE, "Survive lethal hit once", new Color(0.3f, 0.5f, 0.9f, 1f)),
+
+        // Utility
+        TREASURE_SENSE("Treasure Sense", SkillPath.UTILITY, "See chests on minimap", new Color(0.9f, 0.8f, 0.2f, 1f)),
+        TRAP_DETECT("Trap Detect", SkillPath.UTILITY, "See hidden traps", new Color(0.7f, 0.6f, 0.2f, 1f)),
+        LUCKY("Lucky", SkillPath.UTILITY, "+25% better loot", new Color(0.8f, 0.7f, 0.1f, 1f)),
+        HAGGLER("Haggler", SkillPath.UTILITY, "Shop prices -30%", new Color(0.6f, 0.8f, 0.3f, 1f));
+
+        public final String name;
+        public final SkillPath path;
+        public final String description;
+        public final Color color;
+
+        Skill(String name, SkillPath path, String desc, Color color) {
+            this.name = name;
+            this.path = path;
+            this.description = desc;
+            this.color = color;
+        }
+    }
+
+    private final CaveAdventure game;
+    private final OrthographicCamera camera;
+    private final GlyphLayout layout;
+    private final Set<Skill> unlockedSkills;
+
+    private boolean showingPicker;
+    private Skill[] choices;
+    private int selection;
+
+    public SkillTree(CaveAdventure game) {
+        this.game = game;
+        this.camera = new OrthographicCamera();
+        this.layout = new GlyphLayout();
+        this.unlockedSkills = new HashSet<>();
+        this.showingPicker = false;
+    }
+
+    public boolean hasSkill(Skill skill) {
+        return unlockedSkills.contains(skill);
+    }
+
+    public boolean isShowingPicker() {
+        return showingPicker;
+    }
+
+    /**
+     * Show skill picker with 3 random choices (one from each path).
+     */
+    public void showPicker() {
+        List<Skill> available = new ArrayList<>();
+        for (Skill s : Skill.values()) {
+            if (!unlockedSkills.contains(s))
+                available.add(s);
+        }
+        if (available.isEmpty())
+            return;
+
+        // Try to pick one from each path
+        choices = new Skill[Math.min(3, available.size())];
+        List<Skill> off = new ArrayList<>(), def = new ArrayList<>(), util = new ArrayList<>();
+        for (Skill s : available) {
+            switch (s.path) {
+                case OFFENSIVE:
+                    off.add(s);
+                    break;
+                case DEFENSIVE:
+                    def.add(s);
+                    break;
+                case UTILITY:
+                    util.add(s);
+                    break;
+            }
+        }
+        Random r = new Random();
+        int idx = 0;
+        if (!off.isEmpty() && idx < choices.length)
+            choices[idx++] = off.get(r.nextInt(off.size()));
+        if (!def.isEmpty() && idx < choices.length)
+            choices[idx++] = def.get(r.nextInt(def.size()));
+        if (!util.isEmpty() && idx < choices.length)
+            choices[idx++] = util.get(r.nextInt(util.size()));
+
+        // Fill remaining with any
+        while (idx < choices.length) {
+            Skill s = available.get(r.nextInt(available.size()));
+            boolean dup = false;
+            for (int i = 0; i < idx; i++)
+                if (choices[i] == s)
+                    dup = true;
+            if (!dup)
+                choices[idx++] = s;
+        }
+
+        showingPicker = true;
+        selection = 0;
+    }
+
+    public void update(InputHandler input) {
+        if (!showingPicker || choices == null)
+            return;
+
+        if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A))
+            selection = (selection - 1 + choices.length) % choices.length;
+        if (input.isKeyJustPressed(Input.Keys.RIGHT) || input.isKeyJustPressed(Input.Keys.D))
+            selection = (selection + 1) % choices.length;
+
+        if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
+            unlockedSkills.add(choices[selection]);
+            showingPicker = false;
+        }
+    }
+
+    public void render() {
+        if (!showingPicker || choices == null)
+            return;
+
+        camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.update();
+
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        game.shapeRenderer.setProjectionMatrix(camera.combined);
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        // Overlay
+        game.shapeRenderer.setColor(0, 0, 0, 0.7f);
+        game.shapeRenderer.rect(0, 0, sw, sh);
+
+        // Cards
+        float cardW = 180;
+        float cardH = 200;
+        float totalW = choices.length * cardW + (choices.length - 1) * 20;
+        float startX = sw / 2 - totalW / 2;
+        float cardY = sh / 2 - cardH / 2;
+
+        for (int i = 0; i < choices.length; i++) {
+            float cx = startX + i * (cardW + 20);
+            boolean sel = (i == selection);
+
+            // Card bg
+            game.shapeRenderer
+                    .setColor(sel ? new Color(0.12f, 0.15f, 0.2f, 0.95f) : new Color(0.08f, 0.08f, 0.12f, 0.9f));
+            game.shapeRenderer.rect(cx, cardY, cardW, cardH);
+
+            // Border
+            Color bc = sel ? choices[i].color : new Color(0.3f, 0.3f, 0.35f, 0.6f);
+            game.shapeRenderer.setColor(bc);
+            game.shapeRenderer.rect(cx, cardY, cardW, 2);
+            game.shapeRenderer.rect(cx, cardY + cardH - 2, cardW, 2);
+            game.shapeRenderer.rect(cx, cardY, 2, cardH);
+            game.shapeRenderer.rect(cx + cardW - 2, cardY, 2, cardH);
+
+            // Path color bar
+            game.shapeRenderer.setColor(choices[i].color.r, choices[i].color.g, choices[i].color.b, 0.8f);
+            game.shapeRenderer.rect(cx + 5, cardY + cardH - 30, cardW - 10, 25);
+
+            // Icon placeholder
+            game.shapeRenderer.setColor(choices[i].color.r, choices[i].color.g, choices[i].color.b, 0.6f);
+            game.shapeRenderer.rect(cx + cardW / 2 - 20, cardY + 80, 40, 40);
+        }
+
+        game.shapeRenderer.end();
+
+        // Text
+        game.batch.setProjectionMatrix(camera.combined);
+        game.batch.begin();
+
+        BitmapFont nf = game.font;
+        BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
+        BitmapFont lf = game.fontLarge != null ? game.fontLarge : game.font;
+
+        // Title
+        lf.setColor(0.9f, 0.8f, 0.3f, 1f);
+        layout.setText(lf, "LEVEL UP!");
+        lf.draw(game.batch, "LEVEL UP!", sw / 2 - layout.width / 2, cardY + cardH + 50);
+
+        nf.setColor(0.6f, 0.55f, 0.45f, 0.8f);
+        layout.setText(nf, "Choose a skill:");
+        nf.draw(game.batch, "Choose a skill:", sw / 2 - layout.width / 2, cardY + cardH + 22);
+
+        for (int i = 0; i < choices.length; i++) {
+            float cx = startX + i * (cardW + 20);
+            boolean sel = (i == selection);
+
+            // Path name on bar
+            sf.setColor(0, 0, 0, 1f);
+            sf.draw(game.batch, choices[i].path.name(), cx + 10, cardY + cardH - 10);
+
+            // Skill name
+            nf.setColor(sel ? choices[i].color : new Color(0.8f, 0.75f, 0.65f, 1f));
+            nf.draw(game.batch, choices[i].name, cx + 10, cardY + 70);
+
+            // Description
+            sf.setColor(0.6f, 0.55f, 0.5f, 0.9f);
+            sf.draw(game.batch, choices[i].description, cx + 10, cardY + 45, cardW - 20, -1, true);
+        }
+
+        // Hint
+        sf.setColor(0.5f, 0.45f, 0.4f, 0.6f);
+        layout.setText(sf, "A/D: Select   Enter: Confirm");
+        sf.draw(game.batch, "A/D: Select   Enter: Confirm", sw / 2 - layout.width / 2, cardY - 15);
+
+        game.batch.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    // --- Stat Query Methods ---
+    public float getDamageMultiplier(float hpPercent) {
+        float mult = 1f;
+        if (hasSkill(Skill.POWER_SURGE))
+            mult += 0.20f;
+        if (hasSkill(Skill.FURY) && hpPercent < 0.3f)
+            mult += 0.50f;
+        return mult * Difficulty.getCurrent().playerDamageMultiplier;
+    }
+
+    public float getCritBonus() {
+        return hasSkill(Skill.CRITICAL_MASTER) ? 0.15f : 0f;
+    }
+
+    public float getDamageReduction() {
+        return hasSkill(Skill.IRON_SKIN) ? 0.15f : 0f;
+    }
+
+    public int getRegenPerTurn() {
+        return hasSkill(Skill.REGEN) ? 2 : 0;
+    }
+
+    public boolean canResistStatus() {
+        return hasSkill(Skill.STATUS_RESIST) && new Random().nextFloat() < 0.5f;
+    }
+
+    public boolean hasLastStand() {
+        return hasSkill(Skill.LAST_STAND);
+    }
+
+    public boolean hasTrapDetect() {
+        return hasSkill(Skill.TRAP_DETECT);
+    }
+
+    public boolean hasTreasureSense() {
+        return hasSkill(Skill.TREASURE_SENSE);
+    }
+
+    public float getShopDiscount() {
+        return hasSkill(Skill.HAGGLER) ? 0.3f : 0f;
+    }
+
+    public float getLootBonus() {
+        return hasSkill(Skill.LUCKY) ? 0.25f : 0f;
+    }
+}
