@@ -43,6 +43,11 @@ public class ShopUI {
     // Shop inventory (regenerated each floor)
     private ShopItem[] shopItems;
 
+    private enum ShopMode { BUY, SELL }
+    private ShopMode shopMode = ShopMode.BUY;
+    private java.util.List<Item> sellableItems = new java.util.ArrayList<>();
+    private Player currentPlayer;
+
     private static final ShopItem[] ALL_SHOP_ITEMS = {
             new ShopItem(Item.ItemType.HEALTH_POTION, 2, "Restores 30 HP"),
             new ShopItem(Item.ItemType.BREAD, 1, "Restores 25 hunger"),
@@ -80,6 +85,8 @@ public class ShopUI {
         visible = true;
         selectedIndex = 0;
         statusMessage = null;
+        shopMode = ShopMode.BUY;
+        sellableItems.clear();
     }
 
     public void close() {
@@ -106,33 +113,60 @@ public class ShopUI {
 
         animProgress += (1f - animProgress) * delta * 10f;
 
-        // Navigate
-        if (input.isKeyJustPressed(Input.Keys.UP) || input.isKeyJustPressed(Input.Keys.W))
-            selectedIndex = (selectedIndex - 1 + shopItems.length) % shopItems.length;
-        if (input.isKeyJustPressed(Input.Keys.DOWN) || input.isKeyJustPressed(Input.Keys.S))
-            selectedIndex = (selectedIndex + 1) % shopItems.length;
+        currentPlayer = player;
 
-        // Buy
+        // Toggle BUY/SELL with TAB
+        if (input.isKeyJustPressed(Input.Keys.TAB)) {
+            shopMode = (shopMode == ShopMode.BUY) ? ShopMode.SELL : ShopMode.BUY;
+            selectedIndex = 0;
+            if (shopMode == ShopMode.SELL)
+                refreshSellableItems(player);
+        }
+
+        int listSize = (shopMode == ShopMode.BUY) ? shopItems.length : sellableItems.size();
+
+        // Navigate
+        if (listSize > 0) {
+            if (input.isKeyJustPressed(Input.Keys.UP) || input.isKeyJustPressed(Input.Keys.W))
+                selectedIndex = (selectedIndex - 1 + listSize) % listSize;
+            if (input.isKeyJustPressed(Input.Keys.DOWN) || input.isKeyJustPressed(Input.Keys.S))
+                selectedIndex = (selectedIndex + 1) % listSize;
+        }
+
+        // Buy / Sell
         if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.E)) {
-            ShopItem item = shopItems[selectedIndex];
-            int gold = countGold(player);
-            if (gold >= item.price) {
-                // Remove gold
-                removeGold(player, item.price);
-                // Add item
-                player.getInventory().addItem(new Item(item.type));
-                statusMessage = "Bought " + item.type.displayName + "!";
-                statusTimer = 2f;
-                purchased = true;
+            if (shopMode == ShopMode.BUY) {
+                ShopItem item = shopItems[selectedIndex];
+                int gold = countGold(player);
+                if (gold >= item.price) {
+                    removeGold(player, item.price);
+                    player.getInventory().addItem(new Item(item.type));
+                    statusMessage = "Bought " + item.type.displayName + "!";
+                    statusTimer = 2f;
+                    purchased = true;
+                } else {
+                    statusMessage = "Not enough gold! (" + gold + "/" + item.price + ")";
+                    statusTimer = 2f;
+                }
             } else {
-                statusMessage = "Not enough gold! (" + gold + "/" + item.price + ")";
-                statusTimer = 2f;
+                if (!sellableItems.isEmpty()) {
+                    Item treasure = sellableItems.get(selectedIndex);
+                    int price = sellPrice(treasure.getType());
+                    treasure.removeQuantity(1);
+                    if (treasure.getQuantity() <= 0)
+                        player.getInventory().getItems().remove(treasure);
+                    player.getInventory().addItem(new Item(Item.ItemType.GOLD_COINS, price));
+                    refreshSellableItems(player);
+                    if (selectedIndex >= sellableItems.size())
+                        selectedIndex = Math.max(0, sellableItems.size() - 1);
+                    statusMessage = "Sold for " + price + "g!";
+                    statusTimer = 2f;
+                }
             }
         }
 
         // Close
-        if (input.isKeyJustPressed(Input.Keys.ESCAPE) || input.isKeyJustPressed(Input.Keys.TAB)
-                || input.isKeyJustPressed(Input.Keys.F)) {
+        if (input.isKeyJustPressed(Input.Keys.ESCAPE) || input.isKeyJustPressed(Input.Keys.F)) {
             visible = false;
         }
 
@@ -192,6 +226,25 @@ public class ShopUI {
         }
     }
 
+    private void refreshSellableItems(Player player) {
+        sellableItems.clear();
+        for (Item item : player.getInventory().getItems()) {
+            if (sellPrice(item.getType()) > 0)
+                sellableItems.add(item);
+        }
+    }
+
+    private int sellPrice(Item.ItemType type) {
+        switch (type) {
+            case GOLD_NUGGET:   return 1;
+            case RUBY:          return 3;
+            case DIAMOND:       return 5;
+            case GEMSTONE:      return 2;
+            case ANCIENT_RELIC: return 6;
+            default:            return 0;
+        }
+    }
+
     public void render() {
         if (!visible)
             return;
@@ -229,22 +282,43 @@ public class ShopUI {
         game.shapeRenderer.rect(panelX, panelY, 2, panelH);
         game.shapeRenderer.rect(panelX + panelW - 2, panelY, 2, panelH);
 
+        // Active tab highlight
+        if (shopMode == ShopMode.BUY) {
+            game.shapeRenderer.setColor(0.5f, 0.4f, 0.15f, 0.5f * alpha);
+            game.shapeRenderer.rect(panelX + 8, panelY + panelH - 28, 55, 22);
+        } else {
+            game.shapeRenderer.setColor(0.15f, 0.4f, 0.1f, 0.5f * alpha);
+            game.shapeRenderer.rect(panelX + 73, panelY + panelH - 28, 62, 22);
+        }
+
         // Header separator
         game.shapeRenderer.setColor(0.4f, 0.3f, 0.15f, 0.5f * alpha);
         game.shapeRenderer.rect(panelX + 10, panelY + panelH - 35, panelW - 20, 1);
 
-        // Item slots
-        for (int i = 0; i < shopItems.length; i++) {
-            float slotY = panelY + panelH - 55 - i * 40;
-            if (i == selectedIndex) {
-                game.shapeRenderer.setColor(0.3f, 0.25f, 0.1f, 0.6f * alpha);
-                game.shapeRenderer.rect(panelX + 8, slotY, panelW - 16, 35);
+        // Slots
+        if (shopMode == ShopMode.BUY) {
+            for (int i = 0; i < shopItems.length; i++) {
+                float slotY = panelY + panelH - 55 - i * 40;
+                if (i == selectedIndex) {
+                    game.shapeRenderer.setColor(0.3f, 0.25f, 0.1f, 0.6f * alpha);
+                    game.shapeRenderer.rect(panelX + 8, slotY, panelW - 16, 35);
+                }
+                game.shapeRenderer.setColor(shopItems[i].type.color.r, shopItems[i].type.color.g,
+                        shopItems[i].type.color.b, alpha);
+                game.shapeRenderer.rect(panelX + 14, slotY + 12, 8, 12);
             }
-
-            // Item color dot
-            game.shapeRenderer.setColor(shopItems[i].type.color.r, shopItems[i].type.color.g,
-                    shopItems[i].type.color.b, alpha);
-            game.shapeRenderer.rect(panelX + 14, slotY + 12, 8, 12);
+        } else {
+            for (int i = 0; i < sellableItems.size(); i++) {
+                float slotY = panelY + panelH - 55 - i * 40;
+                if (i == selectedIndex) {
+                    game.shapeRenderer.setColor(0.1f, 0.3f, 0.1f, 0.6f * alpha);
+                    game.shapeRenderer.rect(panelX + 8, slotY, panelW - 16, 35);
+                }
+                game.shapeRenderer.setColor(sellableItems.get(i).getType().color.r,
+                        sellableItems.get(i).getType().color.g,
+                        sellableItems.get(i).getType().color.b, alpha);
+                game.shapeRenderer.rect(panelX + 14, slotY + 12, 8, 12);
+            }
         }
 
         game.shapeRenderer.end();
@@ -256,34 +330,74 @@ public class ShopUI {
         BitmapFont normalFont = game.font;
         BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
 
-        // Title
-        normalFont.setColor(0.9f, 0.75f, 0.3f, alpha);
-        normalFont.draw(game.batch, "SHOP", panelX + 14, panelY + panelH - 10);
+        // BUY tab label
+        if (shopMode == ShopMode.BUY)
+            normalFont.setColor(1f, 0.9f, 0.4f, alpha);
+        else
+            normalFont.setColor(0.55f, 0.5f, 0.35f, alpha);
+        normalFont.draw(game.batch, "BUY", panelX + 14, panelY + panelH - 10);
+
+        // SELL tab label
+        if (shopMode == ShopMode.SELL)
+            normalFont.setColor(0.4f, 1f, 0.3f, alpha);
+        else
+            normalFont.setColor(0.55f, 0.5f, 0.35f, alpha);
+        normalFont.draw(game.batch, "SELL", panelX + 79, panelY + panelH - 10);
 
         // Gold display
-        smallFont.setColor(0.7f, 0.6f, 0.3f, alpha);
-        // We can't easily access player here, so show price info only
+        if (currentPlayer != null) {
+            smallFont.setColor(0.9f, 0.85f, 0.2f, alpha);
+            smallFont.draw(game.batch, "Gold: " + countGold(currentPlayer) + "g",
+                    panelX + panelW - 80, panelY + panelH - 10);
+        }
 
-        // Items
-        for (int i = 0; i < shopItems.length; i++) {
-            ShopItem item = shopItems[i];
-            float slotY = panelY + panelH - 55 - i * 40;
+        if (shopMode == ShopMode.BUY) {
+            for (int i = 0; i < shopItems.length; i++) {
+                ShopItem item = shopItems[i];
+                float slotY = panelY + panelH - 55 - i * 40;
 
-            if (i == selectedIndex)
-                normalFont.setColor(1f, 0.9f, 0.4f, alpha);
-            else
-                normalFont.setColor(0.85f, 0.8f, 0.7f, alpha);
+                if (i == selectedIndex)
+                    normalFont.setColor(1f, 0.9f, 0.4f, alpha);
+                else
+                    normalFont.setColor(0.85f, 0.8f, 0.7f, alpha);
 
-            normalFont.draw(game.batch, item.type.displayName, panelX + 30, slotY + 30);
+                normalFont.draw(game.batch, item.type.displayName, panelX + 30, slotY + 30);
 
-            smallFont.setColor(0.6f, 0.55f, 0.4f, alpha);
-            smallFont.draw(game.batch, item.description, panelX + 30, slotY + 12);
+                smallFont.setColor(0.6f, 0.55f, 0.4f, alpha);
+                smallFont.draw(game.batch, item.description, panelX + 30, slotY + 12);
 
-            // Price
-            normalFont.setColor(0.9f, 0.8f, 0.2f, alpha);
-            String price = item.price + "g";
-            layout.setText(normalFont, price);
-            normalFont.draw(game.batch, price, panelX + panelW - 25 - layout.width, slotY + 25);
+                normalFont.setColor(0.9f, 0.8f, 0.2f, alpha);
+                String priceStr = item.price + "g";
+                layout.setText(normalFont, priceStr);
+                normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
+            }
+        } else {
+            if (sellableItems.isEmpty()) {
+                normalFont.setColor(0.6f, 0.55f, 0.45f, alpha);
+                normalFont.draw(game.batch, "No treasures to sell.", panelX + 30, panelY + panelH - 80);
+            } else {
+                for (int i = 0; i < sellableItems.size(); i++) {
+                    Item treasure = sellableItems.get(i);
+                    float slotY = panelY + panelH - 55 - i * 40;
+
+                    if (i == selectedIndex)
+                        normalFont.setColor(0.4f, 1f, 0.3f, alpha);
+                    else
+                        normalFont.setColor(0.85f, 0.8f, 0.7f, alpha);
+
+                    normalFont.draw(game.batch,
+                            treasure.getType().displayName + " x" + treasure.getQuantity(),
+                            panelX + 30, slotY + 30);
+
+                    smallFont.setColor(0.6f, 0.55f, 0.4f, alpha);
+                    smallFont.draw(game.batch, treasure.getType().description, panelX + 30, slotY + 12);
+
+                    normalFont.setColor(0.3f, 0.9f, 0.3f, alpha);
+                    String priceStr = sellPrice(treasure.getType()) + "g ea";
+                    layout.setText(normalFont, priceStr);
+                    normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
+                }
+            }
         }
 
         // Status message
@@ -295,7 +409,10 @@ public class ShopUI {
 
         // Controls hint
         smallFont.setColor(0.5f, 0.45f, 0.35f, alpha * 0.7f);
-        smallFont.draw(game.batch, "W/S:Browse  E:Buy  ESC:Close", panelX + 10, panelY + 12);
+        String hint = (shopMode == ShopMode.BUY)
+                ? "W/S:Browse  E:Buy  TAB:Sell  ESC:Close"
+                : "W/S:Browse  E:Sell  TAB:Buy  ESC:Close";
+        smallFont.draw(game.batch, hint, panelX + 10, panelY + 12);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);

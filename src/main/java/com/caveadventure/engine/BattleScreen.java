@@ -72,6 +72,7 @@ public class BattleScreen {
 
     // Loot
     private List<Item> lootDrops;
+    private int currentFloor;
 
     public BattleScreen(CaveAdventure game) {
         this.game = game;
@@ -79,9 +80,10 @@ public class BattleScreen {
         this.battleActive = false;
     }
 
-    public void startBattle(Player player, Enemy enemy) {
+    public void startBattle(Player player, Enemy enemy, int floor) {
         this.player = player;
         this.enemy = enemy;
+        this.currentFloor = floor;
         this.state = BattleState.INTRO;
         this.stateTimer = 0;
         this.battleActive = true;
@@ -100,6 +102,7 @@ public class BattleScreen {
         this.playerStatus = StatusEffect.NONE;
         this.playerStatusTimer = 0;
         this.currentMessage = "A wild " + enemy.getType().name + " appeared!";
+        enemy.scaleToPlayer(player.getLevel());
         updateSkills();
     }
 
@@ -192,7 +195,7 @@ public class BattleScreen {
                     if (!enemy.isAlive()) {
                         int xpReward = enemy.getType().xpReward;
                         player.addXP(xpReward);
-                        lootDrops = LootTable.getEnemyDrop(enemy.getType());
+                        lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor);
                         for (Item item : lootDrops)
                             player.getInventory().addItem(item);
                         if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM)
@@ -372,6 +375,12 @@ public class BattleScreen {
     }
 
     private void performSkill(String skill) {
+        int staminaCost = getSkillStaminaCost(skill);
+        if (!player.useStamina(staminaCost)) {
+            currentMessage = "Not enough stamina! (" + (int) player.getStamina() + "/" + staminaCost + ")";
+            return;
+        }
+
         int baseDmg = player.getTotalAttack();
         int dmg;
 
@@ -458,9 +467,34 @@ public class BattleScreen {
         stateTimer = 0;
     }
 
+    private int getSkillStaminaCost(String skill) {
+        switch (skill) {
+            case "Power Hit":
+                return 20;
+            case "Heavy Slash":
+                return 24;
+            case "Cleave":
+                return 22;
+            case "Pierce":
+                return 18;
+            case "Burn Strike":
+                return 26;
+            case "Stun Slash":
+                return 25;
+            case "Guard Break":
+                return 20;
+            case "Poison Jab":
+                return 18;
+            case "Focus":
+                return 12;
+            default:
+                return 15;
+        }
+    }
+
     private void performEnemyAttack() {
-        int minDmg = enemy.getType().minDamage;
-        int maxDmg = enemy.getType().maxDamage;
+        int minDmg = enemy.getScaledMinDamage();
+        int maxDmg = enemy.getScaledMaxDamage();
         int damage = minDmg + random.nextInt(maxDmg - minDmg + 1);
 
         // Enemy status ticks
@@ -684,7 +718,7 @@ public class BattleScreen {
         }
 
         // Player HP box
-        float phpX = sw * 0.05f, phpY = sh * 0.35f - 70, phpW = sw * 0.38f, phpH = 65;
+        float phpX = sw * 0.05f, phpY = sh * 0.35f - 80, phpW = sw * 0.38f, phpH = 80;
         game.shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 0.9f);
         game.shapeRenderer.rect(phpX, phpY, phpW, phpH);
         drawBorder(game.shapeRenderer, phpX, phpY, phpW, phpH);
@@ -693,9 +727,16 @@ public class BattleScreen {
         Color pC = pHp > 0.5f ? new Color(0.2f, 0.8f, 0.3f, 1f)
                 : pHp > 0.2f ? new Color(0.9f, 0.7f, 0.1f, 1f) : new Color(0.9f, 0.2f, 0.15f, 1f);
         game.shapeRenderer.setColor(0.15f, 0.1f, 0.1f, 1f);
-        game.shapeRenderer.rect(phpX + 10, phpY + 28, phpW - 20, 12);
+        game.shapeRenderer.rect(phpX + 10, phpY + 42, phpW - 20, 12);
         game.shapeRenderer.setColor(pC);
-        game.shapeRenderer.rect(phpX + 11, phpY + 29, (phpW - 22) * Math.max(0, pHp), 10);
+        game.shapeRenderer.rect(phpX + 11, phpY + 43, (phpW - 22) * Math.max(0, pHp), 10);
+
+        // Stamina bar
+        float stmPct = player.getStamina() / player.getMaxStamina();
+        game.shapeRenderer.setColor(0.08f, 0.1f, 0.2f, 1f);
+        game.shapeRenderer.rect(phpX + 10, phpY + 29, phpW - 20, 8);
+        game.shapeRenderer.setColor(0.2f, 0.5f, 0.95f, 1f);
+        game.shapeRenderer.rect(phpX + 11, phpY + 30, (phpW - 22) * Math.max(0, stmPct), 6);
 
         // Player status
         if (playerStatus == StatusEffect.POISON) {
@@ -783,7 +824,9 @@ public class BattleScreen {
         nf.setColor(1f, 1f, 1f, 1f);
         nf.draw(game.batch, "You  Lv." + player.getLevel(), phpX + 10, phpY + phpH - 8);
         sf.setColor(0.7f, 0.7f, 0.65f, 1f);
-        sf.draw(game.batch, "HP " + player.getHealth() + "/" + player.getMaxHealth(), phpX + 10, phpY + phpH - 28);
+        sf.draw(game.batch, "HP " + player.getHealth() + "/" + player.getMaxHealth(), phpX + 10, phpY + phpH - 26);
+        sf.draw(game.batch, "STM " + (int) player.getStamina() + "/" + (int) player.getMaxStamina(), phpX + 10,
+            phpY + phpH - 40);
 
         if (playerStatus == StatusEffect.POISON) {
             sf.setColor(0.3f, 1f, 0.3f, 1f);
@@ -819,8 +862,18 @@ public class BattleScreen {
             float subX = msgX + msgW * 0.55f;
             for (int i = 0; i < currentSkills.length; i++) {
                 float ty = msgY + msgH - 18 - i * 22;
-                nf.setColor(i == subSelection ? new Color(1f, 0.9f, 0.3f, 1f) : new Color(0.7f, 0.65f, 0.55f, 1f));
-                nf.draw(game.batch, (i == subSelection ? "> " : "  ") + currentSkills[i], subX + 10, ty);
+                int cost = getSkillStaminaCost(currentSkills[i]);
+                boolean affordable = player.getStamina() >= cost;
+                Color color;
+                if (!affordable)
+                    color = new Color(0.9f, 0.35f, 0.3f, 1f);
+                else if (i == subSelection)
+                    color = new Color(1f, 0.9f, 0.3f, 1f);
+                else
+                    color = new Color(0.7f, 0.65f, 0.55f, 1f);
+                nf.setColor(color);
+                nf.draw(game.batch, (i == subSelection ? "> " : "  ") + currentSkills[i] + " [" + cost + " STM]",
+                        subX + 10, ty);
             }
             sf.setColor(0.5f, 0.5f, 0.45f, 0.7f);
             sf.draw(game.batch, "ESC: Back", subX + 10, msgY + 15);

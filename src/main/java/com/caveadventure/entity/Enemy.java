@@ -12,15 +12,15 @@ import java.util.*;
 public class Enemy extends Entity {
 
     public enum EnemyType {
-        BAT("Bat", 25, 2.5f, 5, 8, new Color(0.5f, 0.2f, 0.6f, 1f), 15),
-        SLIME("Slime", 40, 1.0f, 8, 12, new Color(0.2f, 0.8f, 0.3f, 1f), 25),
-        SKELETON("Skeleton", 60, 1.5f, 12, 18, new Color(0.85f, 0.85f, 0.8f, 1f), 40),
-        GOBLIN("Goblin", 45, 1.8f, 10, 15, new Color(0.4f, 0.6f, 0.2f, 1f), 30),
-        CAVE_SPIDER("Spider", 30, 2.2f, 7, 10, new Color(0.3f, 0.15f, 0.1f, 1f), 20),
-        NECROMANCER("Necromancer", 55, 1.2f, 14, 20, new Color(0.4f, 0.1f, 0.5f, 1f), 55),
-        SHADOW("Shadow", 35, 3.0f, 10, 16, new Color(0.15f, 0.1f, 0.2f, 1f), 45),
-        ICE_DRAKE("Ice Drake", 90, 1.4f, 18, 28, new Color(0.5f, 0.7f, 0.9f, 1f), 70),
-        BOSS_GOLEM("Stone Golem", 200, 0.8f, 25, 35, new Color(0.5f, 0.45f, 0.4f, 1f), 150);
+        BAT("Bat", 25, 2.5f, 5, 8, new Color(0.5f, 0.2f, 0.6f, 1f), 30),
+        SLIME("Slime", 40, 1.0f, 8, 12, new Color(0.2f, 0.8f, 0.3f, 1f), 50),
+        SKELETON("Skeleton", 60, 1.5f, 12, 18, new Color(0.85f, 0.85f, 0.8f, 1f), 80),
+        GOBLIN("Goblin", 45, 1.8f, 10, 15, new Color(0.4f, 0.6f, 0.2f, 1f), 60),
+        CAVE_SPIDER("Spider", 30, 2.2f, 7, 10, new Color(0.3f, 0.15f, 0.1f, 1f), 40),
+        NECROMANCER("Necromancer", 55, 1.2f, 14, 20, new Color(0.4f, 0.1f, 0.5f, 1f), 110),
+        SHADOW("Shadow", 35, 3.0f, 10, 16, new Color(0.15f, 0.1f, 0.2f, 1f), 90),
+        ICE_DRAKE("Ice Drake", 90, 1.4f, 18, 28, new Color(0.5f, 0.7f, 0.9f, 1f), 140),
+        BOSS_GOLEM("Stone Golem", 200, 0.8f, 25, 35, new Color(0.5f, 0.45f, 0.4f, 1f), 300);
 
         public final String name;
         public final int maxHealth;
@@ -77,6 +77,10 @@ public class Enemy extends Entity {
     private int patrolOriginX, patrolOriginY;
     private static final int PATROL_RADIUS = 5;
 
+    // Scaled combat stats (set when battle begins)
+    private int scaledMinDamage;
+    private int scaledMaxDamage;
+
     public Enemy(int gridX, int gridY, EnemyType type) {
         super(gridX, gridY, type.maxHealth, type.speed);
         this.type = type;
@@ -89,7 +93,24 @@ public class Enemy extends Entity {
         this.moveDuration = 0.3f / type.speed;
         this.targetGridX = gridX;
         this.targetGridY = gridY;
+        this.scaledMinDamage = type.minDamage;
+        this.scaledMaxDamage = type.maxDamage;
     }
+
+    /**
+     * Scale this enemy's HP and damage to the player's current level.
+     * Call once at the start of each battle.
+     */
+    public void scaleToPlayer(int playerLevel) {
+        float factor = 1.0f + (playerLevel - 1) * 0.12f;
+        this.maxHealth = Math.round(type.maxHealth * factor);
+        this.health = this.maxHealth;
+        this.scaledMinDamage = Math.round(type.minDamage * factor);
+        this.scaledMaxDamage = Math.round(type.maxDamage * factor);
+    }
+
+    public int getScaledMinDamage() { return scaledMinDamage; }
+    public int getScaledMaxDamage() { return scaledMaxDamage; }
 
     /**
      * AI behavior tick. Called each frame with player position.

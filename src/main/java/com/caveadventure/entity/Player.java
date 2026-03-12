@@ -18,6 +18,8 @@ public class Player extends Entity {
     private int level;
     private int xp;
     private int xpToNextLevel;
+    private float stamina;
+    private float maxStamina;
 
     private final Inventory inventory;
 
@@ -44,6 +46,9 @@ public class Player extends Entity {
     private float torchDuration;
     private float baseLightRadius = 4.5f;
     private float torchLightBonus = 3.0f;
+    private static final float BASE_STAMINA = 100f;
+    private static final float STAMINA_PER_LEVEL = 10f;
+    private static final float STAMINA_REGEN_PER_SEC = 12f;
 
     // Visual
     private static final int SIZE = GameMap.TILE_SIZE;
@@ -60,6 +65,8 @@ public class Player extends Entity {
         this.level = 1;
         this.xp = 0;
         this.xpToNextLevel = 100;
+        this.maxStamina = BASE_STAMINA;
+        this.stamina = maxStamina;
         this.targetGridX = gridX;
         this.targetGridY = gridY;
         this.inventory = new Inventory();
@@ -193,6 +200,8 @@ public class Player extends Entity {
         if (torchDuration > 0)
             torchDuration -= delta;
 
+        stamina = Math.min(maxStamina, stamina + STAMINA_REGEN_PER_SEC * delta);
+
         inventory.updateMessageTimer(delta);
     }
 
@@ -313,10 +322,36 @@ public class Player extends Entity {
         while (xp >= xpToNextLevel) {
             xp -= xpToNextLevel;
             level++;
-            xpToNextLevel = (int) (xpToNextLevel * 1.5f);
+            xpToNextLevel = (int) (xpToNextLevel * 1.25f);
             maxHealth += 10;
             health = maxHealth;
+            maxStamina = BASE_STAMINA + (level - 1) * STAMINA_PER_LEVEL;
+            stamina = maxStamina;
         }
+    }
+
+    public boolean useStamina(float amount) {
+        if (stamina < amount)
+            return false;
+        stamina -= amount;
+        return true;
+    }
+
+    public void restoreProgressFromSave(int savedLevel, int savedXp, int savedXpToNext,
+            int savedMaxHealth, int savedHealth) {
+        this.level = Math.max(1, savedLevel);
+        this.xp = Math.max(0, savedXp);
+        this.xpToNextLevel = Math.max(1, savedXpToNext);
+        this.maxHealth = Math.max(1, savedMaxHealth);
+        this.health = Math.max(0, Math.min(this.maxHealth, savedHealth));
+        this.alive = this.health > 0;
+
+        this.maxStamina = BASE_STAMINA + (this.level - 1) * STAMINA_PER_LEVEL;
+        this.stamina = Math.min(this.stamina, this.maxStamina);
+    }
+
+    public void setStamina(float value) {
+        stamina = Math.max(0f, Math.min(maxStamina, value));
     }
 
     // --- Getters ---
@@ -338,6 +373,14 @@ public class Player extends Entity {
 
     public int getXPToNextLevel() {
         return xpToNextLevel;
+    }
+
+    public float getStamina() {
+        return stamina;
+    }
+
+    public float getMaxStamina() {
+        return maxStamina;
     }
 
     public boolean isMoving() {

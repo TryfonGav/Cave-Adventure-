@@ -120,4 +120,9 @@ public class Companion extends Entity {
         java.util.Random r = new java.util.Random();
         return petType.minDmg + r.nextInt(petType.maxDmg - petType.minDmg + 1);
     }
+
+    public void setCurrentHealth(int value) {
+        health = Math.max(0, Math.min(maxHealth, value));
+        alive = health > 0;
+    }
 }

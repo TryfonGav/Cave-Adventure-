@@ -27,6 +27,8 @@ public class HUD {
     private static final Color HEALTH_BG = new Color(0.3f, 0.05f, 0.05f, 0.8f);
     private static final Color HUNGER_COLOR = new Color(0.85f, 0.6f, 0.1f, 1f);
     private static final Color HUNGER_BG = new Color(0.3f, 0.2f, 0.05f, 0.8f);
+    private static final Color STAMINA_COLOR = new Color(0.2f, 0.55f, 0.95f, 1f);
+    private static final Color STAMINA_BG = new Color(0.08f, 0.12f, 0.25f, 0.8f);
     private static final Color XP_COLOR = new Color(0.2f, 0.7f, 0.3f, 1f);
     private static final Color XP_BG = new Color(0.05f, 0.25f, 0.1f, 0.8f);
     private static final Color PANEL_BG = new Color(0.05f, 0.05f, 0.1f, 0.7f);
@@ -57,7 +59,7 @@ public class HUD {
 
         // --- Stats panel (top-left) ---
         float panelWidth = BAR_WIDTH + PADDING * 3 + 50;
-        float panelHeight = (BAR_HEIGHT + BAR_GAP) * 3 + PADDING * 2 + 20;
+        float panelHeight = (BAR_HEIGHT + BAR_GAP) * 4 + PADDING * 2 + 20;
         float panelX = PADDING;
         float panelY = screenH - panelHeight - PADDING;
 
@@ -77,7 +79,11 @@ public class HUD {
         drawBar(game.shapeRenderer, barX, hungerY, BAR_WIDTH, BAR_HEIGHT,
                 (float) player.getHunger() / player.getMaxHunger(), HUNGER_COLOR, HUNGER_BG);
 
-        float xpY = hungerY - BAR_HEIGHT - BAR_GAP;
+        float staminaY = hungerY - BAR_HEIGHT - BAR_GAP;
+        drawBar(game.shapeRenderer, barX, staminaY, BAR_WIDTH, BAR_HEIGHT,
+            player.getStamina() / player.getMaxStamina(), STAMINA_COLOR, STAMINA_BG);
+
+        float xpY = staminaY - BAR_HEIGHT - BAR_GAP;
         drawBar(game.shapeRenderer, barX, xpY, BAR_WIDTH, BAR_HEIGHT * 0.7f,
                 (float) player.getXP() / player.getXPToNextLevel(), XP_COLOR, XP_BG);
 
@@ -130,6 +136,14 @@ public class HUD {
         String hng = player.getHunger() + "/" + player.getMaxHunger();
         layout.setText(game.font, hng);
         game.font.draw(game.batch, hng, barX + BAR_WIDTH / 2 - layout.width / 2, hungerY + BAR_HEIGHT - 3);
+
+        // Stamina
+        game.font.setColor(LABEL_COLOR);
+        game.font.draw(game.batch, "STM", barX + BAR_WIDTH + 6, staminaY + BAR_HEIGHT - 2);
+        game.font.setColor(TEXT_COLOR);
+        String stm = (int) player.getStamina() + "/" + (int) player.getMaxStamina();
+        layout.setText(game.font, stm);
+        game.font.draw(game.batch, stm, barX + BAR_WIDTH / 2 - layout.width / 2, staminaY + BAR_HEIGHT - 3);
 
         // XP
         game.font.setColor(LABEL_COLOR);

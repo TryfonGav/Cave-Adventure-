@@ -2,6 +2,7 @@ package com.caveadventure.engine;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
+import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.item.Item;
@@ -16,7 +17,7 @@ public class SaveManager {
     /**
      * Save current game state.
      */
-    public static void saveGame(Player player, int floor, int enemiesKilled) {
+    public static void saveGame(Player player, Companion companion, int floor, int enemiesKilled) {
         StringBuilder sb = new StringBuilder();
         sb.append("floor=").append(floor).append("\n");
         sb.append("health=").append(player.getHealth()).append("\n");
@@ -25,6 +26,7 @@ public class SaveManager {
         sb.append("level=").append(player.getLevel()).append("\n");
         sb.append("xp=").append(player.getXP()).append("\n");
         sb.append("xpNext=").append(player.getXPToNextLevel()).append("\n");
+        sb.append("stamina=").append(player.getStamina()).append("\n");
         sb.append("enemiesKilled=").append(enemiesKilled).append("\n");
         sb.append("poisoned=").append(player.isPoisoned()).append("\n");
         sb.append("torch=").append(player.getTorchDuration()).append("\n");
@@ -44,6 +46,11 @@ public class SaveManager {
         }
         if (inv.getEquippedArmor() != null) {
             sb.append("armor=").append(inv.getEquippedArmor().getType().name()).append("\n");
+        }
+
+        if (companion != null) {
+            sb.append("companionType=").append(companion.getPetType().name()).append("\n");
+            sb.append("companionHealth=").append(companion.getHealth()).append("\n");
         }
 
         try {
@@ -102,6 +109,9 @@ public class SaveManager {
                     case "xpNext":
                         data.xpNext = Integer.parseInt(value);
                         break;
+                    case "stamina":
+                        data.stamina = Float.parseFloat(value);
+                        break;
                     case "enemiesKilled":
                         data.enemiesKilled = Integer.parseInt(value);
                         break;
@@ -131,6 +141,15 @@ public class SaveManager {
                             data.equippedArmor = Item.ItemType.valueOf(value);
                         } catch (Exception ignored) {
                         }
+                        break;
+                    case "companionType":
+                        try {
+                            data.companionType = Companion.PetType.valueOf(value);
+                        } catch (Exception ignored) {
+                        }
+                        break;
+                    case "companionHealth":
+                        data.companionHealth = Integer.parseInt(value);
                         break;
                 }
             }
@@ -166,11 +185,14 @@ public class SaveManager {
         public int level = 1;
         public int xp = 0;
         public int xpNext = 100;
+        public float stamina = 100f;
         public int enemiesKilled = 0;
         public boolean poisoned = false;
         public float torchDuration = 30f;
         public java.util.List<Item> items = new java.util.ArrayList<>();
         public Item.ItemType equippedWeapon = null;
         public Item.ItemType equippedArmor = null;
+        public Companion.PetType companionType = null;
+        public int companionHealth = -1;
     }
 }

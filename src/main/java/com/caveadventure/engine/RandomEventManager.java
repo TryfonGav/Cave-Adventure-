@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
+import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Item;
 
@@ -33,7 +34,8 @@ public class RandomEventManager {
 
     public enum EventEffect {
         HEAL_30, HEAL_FULL, DAMAGE_20, GIVE_POTION, GIVE_KEY, GIVE_GOLD,
-        GIVE_WEAPON, BUFF_ATTACK, BUFF_DEFENSE, POISON, NOTHING, XP_BONUS
+        GIVE_WEAPON, BUFF_ATTACK, BUFF_DEFENSE, POISON, NOTHING, XP_BONUS,
+        SPAWN_COMPANION
     }
 
     public static class GameEvent {
@@ -97,6 +99,24 @@ public class RandomEventManager {
                     new Color(0.6f, 0.7f, 0.9f, 1f),
                     new EventChoice("Ask for blessing", "The spirit grants you defense!", EventEffect.BUFF_DEFENSE),
                     new EventChoice("Ask for knowledge", "Ancient knowledge flows in. +75 XP!", EventEffect.XP_BONUS)),
+
+            new GameEvent("Whimpering Wolf",
+                    "A wounded cave wolf pup lies curled near a rock, growling softly. It eyes you cautiously...",
+                    new Color(0.55f, 0.45f, 0.35f, 1f),
+                    new EventChoice("Tend its wounds", "The wolf pup nuzzles your hand. A companion joins you!", EventEffect.SPAWN_COMPANION),
+                    new EventChoice("Leave it alone", "You walk on. The wolf watches you go.", EventEffect.NOTHING)),
+
+            new GameEvent("Fire Sprite",
+                    "A tiny fire sprite flickers in a crevice, trapped behind a stone. It sparks at you desperately...",
+                    new Color(1f, 0.6f, 0.2f, 1f),
+                    new EventChoice("Free the sprite", "The sprite dances around you joyfully. A companion joins you!", EventEffect.SPAWN_COMPANION),
+                    new EventChoice("Ignore it", "The sprite dims sadly as you pass.", EventEffect.NOTHING)),
+
+            new GameEvent("Shadow Cat",
+                    "A shadow cat slinks from the darkness, its luminous eyes fixed on you. It seems lost...",
+                    new Color(0.3f, 0.25f, 0.35f, 1f),
+                    new EventChoice("Offer your hand", "The shadow cat accepts you. A companion joins you!", EventEffect.SPAWN_COMPANION),
+                    new EventChoice("Back away slowly", "The cat vanishes into the shadows.", EventEffect.NOTHING)),
     };
 
     private final CaveAdventure game;
@@ -111,6 +131,8 @@ public class RandomEventManager {
     private String resultText;
     private EventEffect pendingEffect;
     private float eventCooldown;
+    private EventEffect lastEffect;
+    private Companion.PetType lastCompanionType;
 
     public RandomEventManager(CaveAdventure game) {
         this.game = game;
@@ -150,6 +172,8 @@ public class RandomEventManager {
 
         if (showingResult) {
             if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
+                lastEffect = pendingEffect;
+                lastCompanionType = resolveCompanionType(currentEvent);
                 applyEffect(pendingEffect, player);
                 active = false;
                 eventCooldown = 30f; // 30s cooldown
@@ -204,10 +228,22 @@ public class RandomEventManager {
             case XP_BONUS:
                 player.addXP(75);
                 break;
+            case SPAWN_COMPANION:
+                break; // handled by GameScreen
             case NOTHING:
                 break;
         }
     }
+
+    private Companion.PetType resolveCompanionType(GameEvent event) {
+        if (event.title.contains("Wolf")) return Companion.PetType.CAVE_WOLF;
+        if (event.title.contains("Sprite")) return Companion.PetType.FIRE_SPRITE;
+        if (event.title.contains("Cat")) return Companion.PetType.SHADOW_CAT;
+        return Companion.PetType.values()[random.nextInt(Companion.PetType.values().length)];
+    }
+
+    public EventEffect getLastEffect() { return lastEffect; }
+    public Companion.PetType getLastCompanionType() { return lastCompanionType; }
 
     public void render() {
         if (!active)

@@ -48,7 +48,7 @@ public class LevelManager {
         // Setup combat
         this.combatManager = new CombatManager(currentMap);
         int enemyCount = BASE_ENEMIES + (floor - 1) * ENEMIES_PER_FLOOR;
-        combatManager.spawnEnemies(enemyCount);
+        combatManager.spawnEnemies(enemyCount, floor);
 
         // Spawn boss on every 3rd floor
         if (floor % 3 == 0) {

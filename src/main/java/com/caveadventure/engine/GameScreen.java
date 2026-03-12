@@ -129,9 +129,8 @@ public class GameScreen extends ScreenAdapter {
         }
 
         setupFloor(data.floor);
+        player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
         player.modifyHunger(data.hunger - player.getHunger());
-        while (player.getLevel() < data.level)
-            player.addXP(player.getXPToNextLevel());
         lastPlayerLevel = player.getLevel();
 
         for (com.caveadventure.item.Item item : data.items) {
@@ -156,6 +155,13 @@ public class GameScreen extends ScreenAdapter {
         if (data.poisoned)
             player.applyPoison(5f);
         player.addTorchDuration(data.torchDuration - player.getTorchDuration());
+        player.setStamina(data.stamina);
+        companion = null;
+        if (data.companionType != null) {
+            companion = new Companion(player.getGridX(), player.getGridY(), data.companionType);
+            if (data.companionHealth >= 0)
+                companion.setCurrentHealth(data.companionHealth);
+        }
         enemiesKilledTotal = data.enemiesKilled;
     }
 
@@ -180,7 +186,7 @@ public class GameScreen extends ScreenAdapter {
         state = GameState.PLAYING;
         battleEncounterCooldown = 1.0f;
         transition.fadeIn(0.8f);
-        SaveManager.saveGame(player, floor, enemiesKilledTotal);
+        SaveManager.saveGame(player, companion, floor, enemiesKilledTotal);
     }
 
     private void transitionToNextFloor() {
@@ -340,7 +346,7 @@ public class GameScreen extends ScreenAdapter {
                 inventoryUI.toggle();
                 return;
             }
-            SaveManager.saveGame(player, levelManager.getCurrentFloor(), enemiesKilledTotal);
+            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal);
             state = GameState.MENU;
             mainMenu.setHasSave(true);
             return;
@@ -391,7 +397,7 @@ public class GameScreen extends ScreenAdapter {
                     shopUI.open();
                     return;
                 }
-                if (combatManager.tryOpenChest(player)) {
+                if (combatManager.tryOpenChest(player, levelManager.getCurrentFloor())) {
                     statsScreen.chestsOpened++;
                 } else if (levelManager.tryUnlockDoor(player)) {
                     statsScreen.doorsUnlocked++;
@@ -469,7 +475,7 @@ public class GameScreen extends ScreenAdapter {
         } else {
             Enemy encountered = combatManager.checkBattleEncounter(player);
             if (encountered != null && !player.isMoving()) {
-                battleScreen.startBattle(player, encountered);
+                battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor());
                 bestiary.discover(encountered.getType());
                 state = GameState.BATTLE;
                 statsScreen.battlesFought++;
@@ -593,6 +599,11 @@ public class GameScreen extends ScreenAdapter {
         if (!eventManager.isActive()) {
             state = GameState.PLAYING;
             statsScreen.eventsCompleted++;
+            if (eventManager.getLastEffect() == RandomEventManager.EventEffect.SPAWN_COMPANION
+                    && companion == null) {
+                companion = new Companion(player.getGridX(), player.getGridY(),
+                        eventManager.getLastCompanionType());
+            }
         }
     }
 

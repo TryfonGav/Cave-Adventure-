@@ -14,7 +14,7 @@ public class LootTable {
     /**
      * Generate loot from killing an enemy.
      */
-    public static List<Item> getEnemyDrop(Enemy.EnemyType type) {
+    public static List<Item> getEnemyDrop(Enemy.EnemyType type, int floor) {
         List<Item> loot = new ArrayList<>();
 
         switch (type) {
@@ -23,6 +23,8 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.COOKED_MEAT));
                 if (chance(10))
                     loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.GOLD_COINS));
                 break;
 
             case SLIME:
@@ -92,7 +94,7 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION));
                 if (chance(20))
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 3));
-                if (chance(8))
+                if (chance(8) && floor > 5)
                     loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
                 if (chance(8))
                     loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
@@ -104,7 +106,7 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION, 2));
                 loot.add(new Item(Item.ItemType.GOLD_COINS, 5));
                 loot.add(new Item(Item.ItemType.ANCIENT_RELIC));
-                if (chance(50))
+                if (chance(50) && floor > 5)
                     loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
                 if (chance(50))
                     loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
@@ -118,7 +120,7 @@ public class LootTable {
     /**
      * Generate loot from opening a chest.
      */
-    public static List<Item> getChestLoot() {
+    public static List<Item> getChestLoot(int floor) {
         List<Item> loot = new ArrayList<>();
 
         // Always some gold
@@ -147,7 +149,7 @@ public class LootTable {
         } else if (roll < 0.92f) {
             loot.add(new Item(Item.ItemType.FIRE_AXE));
         } else if (roll < 0.96f) {
-            loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+            loot.add(new Item(floor > 5 ? Item.ItemType.CRYSTAL_BLADE : Item.ItemType.FIRE_AXE));
         } else {
             loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
         }

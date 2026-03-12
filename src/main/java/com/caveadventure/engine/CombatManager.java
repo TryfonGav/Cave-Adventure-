@@ -28,7 +28,7 @@ public class CombatManager {
         this.gameMap = gameMap;
     }
 
-    public void spawnEnemies(int count) {
+    public void spawnEnemies(int count, int floor) {
         Tile[][] tiles = gameMap.getTiles();
         List<int[]> floorTiles = new ArrayList<>();
 
@@ -44,7 +44,7 @@ public class CombatManager {
 
         for (int i = 0; i < Math.min(count, floorTiles.size()); i++) {
             int[] pos = floorTiles.get(i);
-            Enemy.EnemyType type = pickEnemyType();
+            Enemy.EnemyType type = pickEnemyType(floor);
             enemies.add(new Enemy(pos[0], pos[1], type));
         }
     }
@@ -53,18 +53,38 @@ public class CombatManager {
         enemies.add(new Enemy(x, y, Enemy.EnemyType.BOSS_GOLEM));
     }
 
-    private Enemy.EnemyType pickEnemyType() {
+    private Enemy.EnemyType pickEnemyType(int floor) {
         float roll = random.nextFloat();
-        if (roll < 0.25f)
-            return Enemy.EnemyType.BAT;
-        else if (roll < 0.45f)
-            return Enemy.EnemyType.SLIME;
-        else if (roll < 0.60f)
-            return Enemy.EnemyType.CAVE_SPIDER;
-        else if (roll < 0.80f)
-            return Enemy.EnemyType.GOBLIN;
-        else
-            return Enemy.EnemyType.SKELETON;
+        if (floor > 5) {
+            // After floor 5: rare early enemies, common late enemies
+            if (roll < 0.10f)
+                return Enemy.EnemyType.BAT;
+            else if (roll < 0.18f)
+                return Enemy.EnemyType.SLIME;
+            else if (roll < 0.26f)
+                return Enemy.EnemyType.CAVE_SPIDER;
+            else if (roll < 0.36f)
+                return Enemy.EnemyType.GOBLIN;
+            else if (roll < 0.48f)
+                return Enemy.EnemyType.SKELETON;
+            else if (roll < 0.66f)
+                return Enemy.EnemyType.NECROMANCER;
+            else if (roll < 0.83f)
+                return Enemy.EnemyType.SHADOW;
+            else
+                return Enemy.EnemyType.ICE_DRAKE;
+        } else {
+            if (roll < 0.25f)
+                return Enemy.EnemyType.BAT;
+            else if (roll < 0.45f)
+                return Enemy.EnemyType.SLIME;
+            else if (roll < 0.60f)
+                return Enemy.EnemyType.CAVE_SPIDER;
+            else if (roll < 0.80f)
+                return Enemy.EnemyType.GOBLIN;
+            else
+                return Enemy.EnemyType.SKELETON;
+        }
     }
 
     /**
@@ -116,13 +136,13 @@ public class CombatManager {
     /**
      * Handle opening chests.
      */
-    public boolean tryOpenChest(Player player) {
+    public boolean tryOpenChest(Player player, int floor) {
         int px = player.getGridX();
         int py = player.getGridY();
         Tile tile = gameMap.getTile(px, py);
 
         if (tile == Tile.CHEST) {
-            List<Item> loot = LootTable.getChestLoot();
+            List<Item> loot = LootTable.getChestLoot(floor);
             for (Item item : loot) {
                 player.getInventory().addItem(item);
             }
