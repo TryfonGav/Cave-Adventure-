@@ -20,6 +20,8 @@ public class LevelManager {
     private GameMap currentMap;
     private CombatManager combatManager;
     private Shopkeeper shopkeeper;
+    private int finalExitX = -1;
+    private int finalExitY = -1;
 
     private static final int BASE_ENEMIES = 12;
     private static final int ENEMIES_PER_FLOOR = 4;
@@ -36,6 +38,10 @@ public class LevelManager {
      */
     public int[] generateFloor(int floor) {
         this.currentFloor = floor;
+
+        if (floor == MAX_FLOORS) {
+            return generateFinalBossFloor();
+        }
 
         int width = 80 + (floor - 1) * 5;
         int height = 60 + (floor - 1) * 3;
@@ -72,6 +78,76 @@ public class LevelManager {
         }
 
         return findSpawnPoint(tiles, width, height);
+    }
+
+    private int[] generateFinalBossFloor() {
+        int width = 31;
+        int height = 41;
+        Tile[][] tiles = new Tile[width][height];
+
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                tiles[x][y] = Tile.WALL_DARK;
+            }
+        }
+
+        int centerX = width / 2;
+        int spawnY = 4;
+        int chestY = height / 2;
+        int bossY = height - 6;
+        int stairsY = height - 3;
+        finalExitX = centerX;
+        finalExitY = stairsY;
+
+        // Main vertical corridor.
+        for (int x = centerX - 2; x <= centerX + 2; x++) {
+            for (int y = 1; y < height - 1; y++) {
+                tiles[x][y] = Tile.FLOOR;
+            }
+        }
+
+        // Player spawn chamber.
+        for (int x = centerX - 4; x <= centerX + 4; x++) {
+            for (int y = 1; y <= 7; y++) {
+                tiles[x][y] = Tile.FLOOR;
+            }
+        }
+
+        // Mid-floor chest chamber.
+        for (int x = centerX - 6; x <= centerX + 6; x++) {
+            for (int y = chestY - 1; y <= chestY + 1; y++) {
+                tiles[x][y] = Tile.FLOOR;
+            }
+        }
+
+        // Boss dais near the top with room behind for exit stairs.
+        for (int x = centerX - 4; x <= centerX + 4; x++) {
+            for (int y = bossY - 1; y <= height - 2; y++) {
+                tiles[x][y] = Tile.FLOOR;
+            }
+        }
+
+        // Decorative side notches so the room feels intentional, not procedural.
+        tiles[centerX - 7][chestY] = Tile.FLOOR;
+        tiles[centerX + 7][chestY] = Tile.FLOOR;
+
+        // Sparse arena markers matching the requested layout.
+        tiles[centerX - 6][chestY] = Tile.CHEST;
+        tiles[centerX + 6][chestY] = Tile.CHEST;
+        tiles[centerX][stairsY] = Tile.FLOOR;
+
+        this.currentMap = new GameMap(tiles, width, height);
+        this.combatManager = new CombatManager(currentMap);
+        this.combatManager.spawnBoss(centerX, bossY);
+        this.shopkeeper = null;
+
+        return new int[] { centerX, spawnY };
+    }
+
+    public void unlockFinalBossExit() {
+        if (currentFloor == MAX_FLOORS && finalExitX >= 0 && finalExitY >= 0) {
+            currentMap.setTile(finalExitX, finalExitY, Tile.STAIRS_DOWN);
+        }
     }
 
     private void placeTraps(Tile[][] tiles, int width, int height, int floor) {

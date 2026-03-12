@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Player;
+import com.caveadventure.engine.SkillTree.Skill;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.item.Item;
 
@@ -17,7 +18,8 @@ public class SaveManager {
     /**
      * Save current game state.
      */
-    public static void saveGame(Player player, Companion companion, int floor, int enemiesKilled) {
+    public static void saveGame(Player player, Companion companion, int floor, int enemiesKilled,
+            boolean finalBossDefeated, java.util.Collection<Skill> unlockedSkills) {
         StringBuilder sb = new StringBuilder();
         sb.append("floor=").append(floor).append("\n");
         sb.append("health=").append(player.getHealth()).append("\n");
@@ -28,7 +30,8 @@ public class SaveManager {
         sb.append("xpNext=").append(player.getXPToNextLevel()).append("\n");
         sb.append("stamina=").append(player.getStamina()).append("\n");
         sb.append("enemiesKilled=").append(enemiesKilled).append("\n");
-        sb.append("poisoned=").append(player.isPoisoned()).append("\n");
+        sb.append("finalBossDefeated=").append(finalBossDefeated).append("\n");
+        sb.append("poisonRemaining=").append(player.getPoisonRemaining()).append("\n");
         sb.append("torch=").append(player.getTorchDuration()).append("\n");
 
         // Inventory
@@ -51,6 +54,12 @@ public class SaveManager {
         if (companion != null) {
             sb.append("companionType=").append(companion.getPetType().name()).append("\n");
             sb.append("companionHealth=").append(companion.getHealth()).append("\n");
+        }
+
+        if (unlockedSkills != null) {
+            for (Skill skill : unlockedSkills) {
+                sb.append("skillUnlocked=").append(skill.name()).append("\n");
+            }
         }
 
         try {
@@ -115,8 +124,11 @@ public class SaveManager {
                     case "enemiesKilled":
                         data.enemiesKilled = Integer.parseInt(value);
                         break;
-                    case "poisoned":
-                        data.poisoned = Boolean.parseBoolean(value);
+                    case "finalBossDefeated":
+                        data.finalBossDefeated = Boolean.parseBoolean(value);
+                        break;
+                    case "poisonRemaining":
+                        data.poisonRemaining = Float.parseFloat(value);
                         break;
                     case "torch":
                         data.torchDuration = Float.parseFloat(value);
@@ -150,6 +162,12 @@ public class SaveManager {
                         break;
                     case "companionHealth":
                         data.companionHealth = Integer.parseInt(value);
+                        break;
+                    case "skillUnlocked":
+                        try {
+                            data.unlockedSkills.add(Skill.valueOf(value));
+                        } catch (Exception ignored) {
+                        }
                         break;
                 }
             }
@@ -187,12 +205,14 @@ public class SaveManager {
         public int xpNext = 100;
         public float stamina = 100f;
         public int enemiesKilled = 0;
-        public boolean poisoned = false;
+        public boolean finalBossDefeated = false;
+        public float poisonRemaining = 0f;
         public float torchDuration = 30f;
         public java.util.List<Item> items = new java.util.ArrayList<>();
         public Item.ItemType equippedWeapon = null;
         public Item.ItemType equippedArmor = null;
         public Companion.PetType companionType = null;
         public int companionHealth = -1;
+        public java.util.List<Skill> unlockedSkills = new java.util.ArrayList<>();
     }
 }

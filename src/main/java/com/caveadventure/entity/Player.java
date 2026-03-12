@@ -395,6 +395,10 @@ public class Player extends Entity {
         return poisoned;
     }
 
+    public float getPoisonRemaining() {
+        return poisoned ? Math.max(0f, poisonTimer) : 0f;
+    }
+
     public float getTorchDuration() {
         return torchDuration;
     }

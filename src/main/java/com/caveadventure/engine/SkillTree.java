@@ -9,7 +9,6 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
-import com.caveadventure.entity.Player;
 
 import java.util.*;
 
@@ -62,8 +61,10 @@ public class SkillTree {
     private final Set<Skill> unlockedSkills;
 
     private boolean showingPicker;
+    private boolean showingViewer;
     private Skill[] choices;
     private int selection;
+    private int viewerSelection;
 
     public SkillTree(CaveAdventure game) {
         this.game = game;
@@ -71,6 +72,7 @@ public class SkillTree {
         this.layout = new GlyphLayout();
         this.unlockedSkills = new HashSet<>();
         this.showingPicker = false;
+        this.showingViewer = false;
     }
 
     public boolean hasSkill(Skill skill) {
@@ -79,6 +81,38 @@ public class SkillTree {
 
     public boolean isShowingPicker() {
         return showingPicker;
+    }
+
+    public boolean isViewingTree() {
+        return showingViewer;
+    }
+
+    public void toggleViewer() {
+        if (showingPicker)
+            return;
+        showingViewer = !showingViewer;
+        viewerSelection = Math.max(0, Math.min(viewerSelection, Skill.values().length - 1));
+    }
+
+    public void closeViewer() {
+        showingViewer = false;
+    }
+
+    public void clearUnlockedSkills() {
+        unlockedSkills.clear();
+        showingPicker = false;
+        showingViewer = false;
+        choices = null;
+    }
+
+    public Set<Skill> getUnlockedSkills() {
+        return new HashSet<>(unlockedSkills);
+    }
+
+    public void restoreUnlockedSkills(Collection<Skill> skills) {
+        unlockedSkills.clear();
+        if (skills != null)
+            unlockedSkills.addAll(skills);
     }
 
     /**
@@ -130,27 +164,87 @@ public class SkillTree {
         }
 
         showingPicker = true;
+        showingViewer = false;
         selection = 0;
     }
 
     public void update(InputHandler input) {
-        if (!showingPicker || choices == null)
+        if (showingPicker && choices != null) {
+            if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A))
+                selection = (selection - 1 + choices.length) % choices.length;
+            if (input.isKeyJustPressed(Input.Keys.RIGHT) || input.isKeyJustPressed(Input.Keys.D))
+                selection = (selection + 1) % choices.length;
+
+            if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
+                unlockedSkills.add(choices[selection]);
+                showingPicker = false;
+            }
+            return;
+        }
+
+        if (!showingViewer)
             return;
 
+        if (input.isKeyJustPressed(Input.Keys.UP) || input.isKeyJustPressed(Input.Keys.W))
+            viewerSelection = (viewerSelection - 1 + Skill.values().length) % Skill.values().length;
+        if (input.isKeyJustPressed(Input.Keys.DOWN) || input.isKeyJustPressed(Input.Keys.S))
+            viewerSelection = (viewerSelection + 1) % Skill.values().length;
         if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A))
-            selection = (selection - 1 + choices.length) % choices.length;
+            viewerSelection = moveViewerHorizontal(-1);
         if (input.isKeyJustPressed(Input.Keys.RIGHT) || input.isKeyJustPressed(Input.Keys.D))
-            selection = (selection + 1) % choices.length;
+            viewerSelection = moveViewerHorizontal(1);
 
-        if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
-            unlockedSkills.add(choices[selection]);
-            showingPicker = false;
+        if (input.isKeyJustPressed(Input.Keys.K) || input.isKeyJustPressed(Input.Keys.ESCAPE)
+                || input.isKeyJustPressed(Input.Keys.TAB)) {
+            showingViewer = false;
         }
     }
 
+    private int moveViewerHorizontal(int direction) {
+        Skill[] skills = Skill.values();
+        Skill current = skills[viewerSelection];
+        int row = getRowInPath(current);
+        SkillPath[] paths = SkillPath.values();
+        int nextPathIndex = (current.path.ordinal() + direction + paths.length) % paths.length;
+        SkillPath nextPath = paths[nextPathIndex];
+
+        Skill fallback = null;
+        for (Skill skill : skills) {
+            if (skill.path != nextPath)
+                continue;
+            if (fallback == null)
+                fallback = skill;
+            if (getRowInPath(skill) == row)
+                return skill.ordinal();
+        }
+        return fallback != null ? fallback.ordinal() : viewerSelection;
+    }
+
+    private int getRowInPath(Skill skill) {
+        int row = 0;
+        for (Skill candidate : Skill.values()) {
+            if (candidate.path == skill.path) {
+                if (candidate == skill)
+                    return row;
+                row++;
+            }
+        }
+        return 0;
+    }
+
     public void render() {
-        if (!showingPicker || choices == null)
+        if (showingPicker && choices != null) {
+            renderPicker();
             return;
+        }
+
+        if (!showingViewer)
+            return;
+
+        renderViewer();
+    }
+
+    private void renderPicker() {
 
         camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         camera.update();
@@ -241,6 +335,135 @@ public class SkillTree {
         sf.setColor(0.5f, 0.45f, 0.4f, 0.6f);
         layout.setText(sf, "A/D: Select   Enter: Confirm");
         sf.draw(game.batch, "A/D: Select   Enter: Confirm", sw / 2 - layout.width / 2, cardY - 15);
+
+        game.batch.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private void renderViewer() {
+        camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.update();
+
+        float sw = Gdx.graphics.getWidth();
+        float sh = Gdx.graphics.getHeight();
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        game.shapeRenderer.setProjectionMatrix(camera.combined);
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        game.shapeRenderer.setColor(0f, 0f, 0f, 0.72f);
+        game.shapeRenderer.rect(0, 0, sw, sh);
+
+        float panelX = 40;
+        float panelY = 40;
+        float panelW = sw - 80;
+        float panelH = sh - 80;
+        game.shapeRenderer.setColor(0.07f, 0.08f, 0.12f, 0.96f);
+        game.shapeRenderer.rect(panelX, panelY, panelW, panelH);
+
+        game.shapeRenderer.setColor(0.35f, 0.36f, 0.42f, 0.75f);
+        game.shapeRenderer.rect(panelX, panelY, panelW, 2);
+        game.shapeRenderer.rect(panelX, panelY + panelH - 2, panelW, 2);
+        game.shapeRenderer.rect(panelX, panelY, 2, panelH);
+        game.shapeRenderer.rect(panelX + panelW - 2, panelY, 2, panelH);
+
+        float gridTop = panelY + panelH - 90;
+        float cardW = 210;
+        float cardH = 72;
+        float colGap = 20;
+        float rowGap = 14;
+        float startX = panelX + 30;
+
+        for (SkillPath path : SkillPath.values()) {
+            for (Skill skill : Skill.values()) {
+                if (skill.path != path)
+                    continue;
+                int col = path.ordinal();
+                int row = getRowInPath(skill);
+                float cx = startX + col * (cardW + colGap);
+                float cy = gridTop - row * (cardH + rowGap) - cardH;
+                boolean selected = viewerSelection == skill.ordinal();
+                boolean unlocked = unlockedSkills.contains(skill);
+
+                Color bg = unlocked ? new Color(0.12f, 0.17f, 0.13f, 0.92f) : new Color(0.12f, 0.12f, 0.14f, 0.9f);
+                if (selected)
+                    bg = new Color(0.18f, 0.2f, 0.28f, 0.96f);
+                game.shapeRenderer.setColor(bg);
+                game.shapeRenderer.rect(cx, cy, cardW, cardH);
+
+                Color border = selected ? skill.color
+                        : unlocked ? new Color(skill.color.r, skill.color.g, skill.color.b, 0.6f)
+                                : new Color(0.28f, 0.28f, 0.32f, 0.55f);
+                game.shapeRenderer.setColor(border);
+                game.shapeRenderer.rect(cx, cy, cardW, 2);
+                game.shapeRenderer.rect(cx, cy + cardH - 2, cardW, 2);
+                game.shapeRenderer.rect(cx, cy, 2, cardH);
+                game.shapeRenderer.rect(cx + cardW - 2, cy, 2, cardH);
+
+                game.shapeRenderer.setColor(skill.color.r, skill.color.g, skill.color.b, unlocked ? 0.9f : 0.35f);
+                game.shapeRenderer.rect(cx + 8, cy + cardH - 12, cardW - 16, 4);
+            }
+        }
+
+        game.shapeRenderer.end();
+
+        game.batch.setProjectionMatrix(camera.combined);
+        game.batch.begin();
+
+        BitmapFont nf = game.font;
+        BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
+        BitmapFont lf = game.fontLarge != null ? game.fontLarge : game.font;
+
+        lf.setColor(0.9f, 0.85f, 0.35f, 1f);
+        lf.draw(game.batch, "SKILL TREE", panelX + 24, panelY + panelH - 18);
+        sf.setColor(0.58f, 0.6f, 0.66f, 0.95f);
+        sf.draw(game.batch, "Unlocked skills stay with your character. Browse with WASD. K / ESC closes.",
+                panelX + 26, panelY + panelH - 42);
+
+        for (SkillPath path : SkillPath.values()) {
+            float headerX = startX + path.ordinal() * (cardW + colGap);
+            nf.setColor(path == SkillPath.OFFENSIVE ? new Color(0.95f, 0.4f, 0.25f, 1f)
+                    : path == SkillPath.DEFENSIVE ? new Color(0.45f, 0.75f, 0.95f, 1f)
+                            : new Color(0.85f, 0.85f, 0.35f, 1f));
+            nf.draw(game.batch, path.name(), headerX, gridTop + 24);
+
+            for (Skill skill : Skill.values()) {
+                if (skill.path != path)
+                    continue;
+                int row = getRowInPath(skill);
+                float cx = headerX;
+                float cy = gridTop - row * (cardH + rowGap) - cardH;
+                boolean selected = viewerSelection == skill.ordinal();
+                boolean unlocked = unlockedSkills.contains(skill);
+
+                nf.setColor(selected ? skill.color : unlocked ? new Color(0.88f, 0.92f, 0.88f, 1f)
+                        : new Color(0.55f, 0.57f, 0.62f, 1f));
+                nf.draw(game.batch, skill.name, cx + 10, cy + cardH - 16);
+
+                sf.setColor(unlocked ? new Color(0.36f, 0.95f, 0.45f, 1f) : new Color(0.85f, 0.4f, 0.4f, 1f));
+                sf.draw(game.batch, unlocked ? "UNLOCKED" : "LOCKED", cx + 10, cy + 22);
+            }
+        }
+
+        Skill selectedSkill = Skill.values()[viewerSelection];
+        float detailX = panelX + panelW - 250;
+        float detailY = panelY + 40;
+        float detailW = 200;
+        nf.setColor(selectedSkill.color);
+        nf.draw(game.batch, selectedSkill.name, detailX, detailY + 180);
+        sf.setColor(0.75f, 0.78f, 0.84f, 1f);
+        sf.draw(game.batch, selectedSkill.path.name(), detailX, detailY + 156);
+        sf.setColor(0.9f, 0.9f, 0.92f, 1f);
+        sf.draw(game.batch, selectedSkill.description, detailX, detailY + 126, detailW, -1, true);
+        sf.setColor(unlockedSkills.contains(selectedSkill) ? new Color(0.36f, 0.95f, 0.45f, 1f)
+                : new Color(0.85f, 0.4f, 0.4f, 1f));
+        sf.draw(game.batch, unlockedSkills.contains(selectedSkill) ? "Owned" : "Not unlocked yet", detailX,
+                detailY + 88);
+        sf.setColor(0.6f, 0.62f, 0.68f, 1f);
+        sf.draw(game.batch, "Unlocked: " + unlockedSkills.size() + " / " + Skill.values().length, detailX,
+                detailY + 56);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);

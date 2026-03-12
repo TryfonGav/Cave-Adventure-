@@ -118,6 +118,7 @@ public class GameScreen extends ScreenAdapter {
         bossKilledThisFloor = false;
         lastPlayerLevel = 1;
         companion = null;
+        skillTree.clearUnlockedSkills();
         setupFloor(1);
     }
 
@@ -129,6 +130,7 @@ public class GameScreen extends ScreenAdapter {
         }
 
         setupFloor(data.floor);
+    skillTree.restoreUnlockedSkills(data.unlockedSkills);
         player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
         player.modifyHunger(data.hunger - player.getHunger());
         lastPlayerLevel = player.getLevel();
@@ -152,17 +154,24 @@ public class GameScreen extends ScreenAdapter {
                 }
             }
         }
-        if (data.poisoned)
-            player.applyPoison(5f);
+        if (data.poisonRemaining > 0f)
+            player.applyPoison(data.poisonRemaining);
         player.addTorchDuration(data.torchDuration - player.getTorchDuration());
         player.setStamina(data.stamina);
+        bossKilledThisFloor = data.finalBossDefeated;
         companion = null;
         if (data.companionType != null) {
             companion = new Companion(player.getGridX(), player.getGridY(), data.companionType);
             if (data.companionHealth >= 0)
                 companion.setCurrentHealth(data.companionHealth);
         }
+        if (levelManager.isFinalFloor() && data.finalBossDefeated) {
+            levelManager.unlockFinalBossExit();
+            combatManager.getEnemies().removeIf(enemy -> enemy.getType() == Enemy.EnemyType.BOSS_GOLEM);
+        }
         enemiesKilledTotal = data.enemiesKilled;
+        SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal, bossKilledThisFloor,
+            skillTree.getUnlockedSkills());
     }
 
     private void setupFloor(int floor) {
@@ -186,7 +195,8 @@ public class GameScreen extends ScreenAdapter {
         state = GameState.PLAYING;
         battleEncounterCooldown = 1.0f;
         transition.fadeIn(0.8f);
-        SaveManager.saveGame(player, companion, floor, enemiesKilledTotal);
+        SaveManager.saveGame(player, companion, floor, enemiesKilledTotal, bossKilledThisFloor,
+            skillTree.getUnlockedSkills());
     }
 
     private void transitionToNextFloor() {
@@ -332,6 +342,10 @@ public class GameScreen extends ScreenAdapter {
             statsScreen.toggle();
             return;
         }
+        if (inputHandler.isKeyJustPressed(Input.Keys.K) && !inventoryUI.isVisible()) {
+            skillTree.toggleViewer();
+            return;
+        }
 
         if (inputHandler.isKeyJustPressed(Input.Keys.ESCAPE)) {
             if (bestiary.isVisible()) {
@@ -346,7 +360,12 @@ public class GameScreen extends ScreenAdapter {
                 inventoryUI.toggle();
                 return;
             }
-            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal);
+            if (skillTree.isViewingTree()) {
+                skillTree.closeViewer();
+                return;
+            }
+            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal,
+                    bossKilledThisFloor, skillTree.getUnlockedSkills());
             state = GameState.MENU;
             mainMenu.setHasSave(true);
             return;
@@ -358,6 +377,10 @@ public class GameScreen extends ScreenAdapter {
             return;
         }
         if (statsScreen.isVisible()) {
+            return;
+        }
+        if (skillTree.isViewingTree()) {
+            skillTree.update(inputHandler);
             return;
         }
 
@@ -563,6 +586,7 @@ public class GameScreen extends ScreenAdapter {
         renderLootMessage();
         renderTrapMessage();
         renderBiomeLabel();
+        skillTree.render();
     }
 
     private void renderBiomeLabel() {
@@ -628,6 +652,9 @@ public class GameScreen extends ScreenAdapter {
                 bestiary.recordKill(battleScreen.getEnemy().getType());
                 if (battleScreen.wasBossKilled()) {
                     bossKilledThisFloor = true;
+                    if (levelManager.isFinalFloor()) {
+                        levelManager.unlockFinalBossExit();
+                    }
                     achievements.tryUnlock(AchievementManager.Achievement.BOSS_SLAYER);
                 }
             } else if (battleScreen.getEnemy().isAlive()) {

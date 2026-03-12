@@ -165,7 +165,7 @@ public class HUD {
 
         // Controls
         game.font.setColor(0.6f, 0.6f, 0.55f, 0.8f);
-        String controls = "WASD:Move  SPACE:Attack  TAB:Inventory  F:Interact  ESC:Menu";
+        String controls = "WASD:Move  SPACE:Attack  TAB:Inventory  K:Skills  F:Interact  ESC:Menu";
         layout.setText(game.font, controls);
         game.font.draw(game.batch, controls, hintX + hintW / 2 - layout.width / 2,
                 PADDING + hintH / 2 + layout.height / 2);
