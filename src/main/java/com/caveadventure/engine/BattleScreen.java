@@ -70,6 +70,10 @@ public class BattleScreen {
     // Skills (based on weapon type)
     private String[] currentSkills;
 
+    // Skill tree (unlockable passive skills)
+    private SkillTree skillTree;
+    private boolean lastStandAvailable;
+
     // Loot
     private List<Item> lootDrops;
     private int currentFloor;
@@ -81,9 +85,15 @@ public class BattleScreen {
     }
 
     public void startBattle(Player player, Enemy enemy, int floor) {
+        startBattle(player, enemy, floor, null);
+    }
+
+    public void startBattle(Player player, Enemy enemy, int floor, SkillTree skillTree) {
         this.player = player;
         this.enemy = enemy;
         this.currentFloor = floor;
+        this.skillTree = skillTree;
+        this.lastStandAvailable = skillTree != null && skillTree.hasSkill(SkillTree.Skill.LAST_STAND);
         this.state = BattleState.INTRO;
         this.stateTimer = 0;
         this.battleActive = true;
@@ -122,6 +132,34 @@ public class BattleScreen {
                 currentSkills = new String[] { "Power Hit", "Poison Jab", "Focus" };
             }
         }
+    }
+
+    /**
+     * Apply damage to the player, accounting for IRON_SKIN reduction and
+     * LAST_STAND survival.
+     */
+    private void applyDamageToPlayer(int damage) {
+        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.IRON_SKIN))
+            damage = Math.max(1, (int)(damage * 0.85f));
+        player.takeDamage(damage);
+        if (!player.isAlive() && lastStandAvailable) {
+            player.setHealth(1);
+            lastStandAvailable = false;
+            currentMessage += " [Last Stand activates!]";
+        }
+    }
+
+    /** Apply skill-tree offensive multipliers to a base damage value. */
+    private int applyOffensiveSkills(int baseDmg) {
+        if (skillTree == null) return baseDmg;
+        if (skillTree.hasSkill(SkillTree.Skill.POWER_SURGE))
+            baseDmg = (int)(baseDmg * 1.2f);
+        if (skillTree.hasSkill(SkillTree.Skill.FURY)
+                && player.getHealth() < player.getMaxHealth() * 0.3f)
+            baseDmg = (int)(baseDmg * 1.5f);
+        if (skillTree.hasSkill(SkillTree.Skill.BERSERKER) && player.getBerserkerKillCount() > 0)
+            baseDmg = (int)(baseDmg * (1f + player.getBerserkerKillCount() * 0.05f));
+        return baseDmg;
     }
 
     public boolean isActive() {
@@ -195,11 +233,14 @@ public class BattleScreen {
                     if (!enemy.isAlive()) {
                         int xpReward = enemy.getType().xpReward;
                         player.addXP(xpReward);
-                        lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor);
+                        boolean lucky = skillTree != null && skillTree.hasSkill(SkillTree.Skill.LUCKY);
+                        lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor, lucky);
                         for (Item item : lootDrops)
                             player.getInventory().addItem(item);
                         if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM)
                             bossKilled = true;
+                        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.BERSERKER))
+                            player.addBerserkerKill();
                         showMessage(enemy.getType().name + " defeated! +" + xpReward + " XP", BattleState.VICTORY);
                     } else {
                         state = BattleState.ENEMY_TURN;
@@ -228,12 +269,15 @@ public class BattleScreen {
                     } else {
                         // Poison/burn tick damage
                         if (playerStatus == StatusEffect.POISON) {
-                            player.takeDamage(3);
+                            applyDamageToPlayer(3);
                             currentMessage += " [Poison: -3 HP]";
                         } else if (playerStatus == StatusEffect.BURN) {
-                            player.takeDamage(5);
+                            applyDamageToPlayer(5);
                             currentMessage += " [Burn: -5 HP]";
                         }
+                        // REGEN: heal 2 HP per turn
+                        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.REGEN) && player.isAlive())
+                            player.heal(2);
                         state = BattleState.PLAYER_TURN;
                         stateTimer = 0;
                         currentMessage = "What will you do?";
@@ -361,8 +405,11 @@ public class BattleScreen {
     // --- Actions ---
 
     private void performBasicAttack() {
-        int baseDmg = player.getTotalAttack();
-        boolean crit = random.nextFloat() < 0.12f;
+        int baseDmg = applyOffensiveSkills(player.getTotalAttack());
+        float critChance = 0.12f;
+        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.CRITICAL_MASTER))
+            critChance += 0.15f;
+        boolean crit = random.nextFloat() < critChance;
         int dmg = baseDmg + random.nextInt(6);
         if (crit)
             dmg = (int) (dmg * 1.8f);
@@ -381,7 +428,7 @@ public class BattleScreen {
             return;
         }
 
-        int baseDmg = player.getTotalAttack();
+        int baseDmg = applyOffensiveSkills(player.getTotalAttack());
         int dmg;
 
         switch (skill) {
@@ -516,9 +563,14 @@ public class BattleScreen {
 
         // Spider poison
         if (enemy.getType() == Enemy.EnemyType.CAVE_SPIDER && random.nextFloat() < 0.25f) {
-            playerStatus = StatusEffect.POISON;
-            playerStatusTimer = 3f;
-            currentMessage += enemy.getType().name + " bites! " + damage + " dmg + POISON!";
+            if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.STATUS_RESIST)
+                    && random.nextFloat() < 0.5f) {
+                currentMessage += enemy.getType().name + " bites! " + damage + " dmg (Resisted poison!)";
+            } else {
+                playerStatus = StatusEffect.POISON;
+                playerStatusTimer = 3f;
+                currentMessage += enemy.getType().name + " bites! " + damage + " dmg + POISON!";
+            }
         } else {
             currentMessage += enemy.getType().name + " attacks for " + damage + " damage!";
         }
@@ -529,7 +581,7 @@ public class BattleScreen {
             currentMessage = "You focused! Reduced to " + damage + " damage!";
         }
 
-        player.takeDamage(damage);
+        applyDamageToPlayer(damage);
         triggerAttackAnim(false);
         state = BattleState.ENEMY_ATTACK;
         stateTimer = 0;
@@ -545,7 +597,7 @@ public class BattleScreen {
                 dmg /= 3;
                 playerDefending = false;
             }
-            player.takeDamage(dmg);
+            applyDamageToPlayer(dmg);
             currentMessage += "Stone Golem uses GROUND SLAM! " + dmg + " damage!";
         } else if (roll < 0.4f) {
             // Self heal
@@ -561,8 +613,8 @@ public class BattleScreen {
                 hit2 /= 3;
                 playerDefending = false;
             }
-            player.takeDamage(hit1);
-            player.takeDamage(hit2);
+            applyDamageToPlayer(hit1);
+            applyDamageToPlayer(hit2);
             currentMessage += "Stone Golem DOUBLE STRIKE! " + hit1 + "+" + hit2 + " damage!";
         } else if (roll < 0.75f) {
             // Stun attack
@@ -571,7 +623,7 @@ public class BattleScreen {
                 dmg /= 3;
                 playerDefending = false;
             }
-            player.takeDamage(dmg);
+            applyDamageToPlayer(dmg);
             playerStatus = StatusEffect.STUN;
             playerStatusTimer = 1f;
             currentMessage += "Stone Golem PETRIFY STRIKE! " + dmg + " dmg + STUNNED!";
@@ -582,7 +634,7 @@ public class BattleScreen {
                 dmg /= 3;
                 playerDefending = false;
             }
-            player.takeDamage(dmg);
+            applyDamageToPlayer(dmg);
             currentMessage += "Stone Golem attacks for " + dmg + " damage!";
         }
 

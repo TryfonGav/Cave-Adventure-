@@ -95,8 +95,10 @@ public class GameScreen extends ScreenAdapter {
         this.gameOverScreen = new GameOverScreen(game);
         this.battleScreen = new BattleScreen(game);
         this.minimap = new Minimap(game);
+        this.minimap.setSkillTree(skillTree);
         this.achievements = new AchievementManager(game);
         this.shopUI = new ShopUI(game);
+        this.shopUI.setSkillTree(skillTree);
         this.bestiary = new Bestiary(game);
         this.statsScreen = new StatsScreen(game);
         this.settingsMenu = new SettingsMenu(game);
@@ -130,7 +132,7 @@ public class GameScreen extends ScreenAdapter {
         }
 
         setupFloor(data.floor);
-    skillTree.restoreUnlockedSkills(data.unlockedSkills);
+        skillTree.restoreUnlockedSkills(data.unlockedSkills);
         player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
         player.modifyHunger(data.hunger - player.getHunger());
         lastPlayerLevel = player.getLevel();
@@ -211,7 +213,7 @@ public class GameScreen extends ScreenAdapter {
         transitionToFloor = nextFloor;
         floorTransitionTimer = 0;
         state = GameState.FLOOR_TRANSITION;
-        transition.fadeOut(0.5f);
+        transition.fadeOut(3.5f);
     }
 
     // --- Main Loop ---
@@ -420,7 +422,8 @@ public class GameScreen extends ScreenAdapter {
                     shopUI.open();
                     return;
                 }
-                if (combatManager.tryOpenChest(player, levelManager.getCurrentFloor())) {
+                boolean lucky = skillTree.hasSkill(SkillTree.Skill.LUCKY);
+                if (combatManager.tryOpenChest(player, levelManager.getCurrentFloor(), lucky)) {
                     statsScreen.chestsOpened++;
                 } else if (levelManager.tryUnlockDoor(player)) {
                     statsScreen.doorsUnlocked++;
@@ -498,7 +501,7 @@ public class GameScreen extends ScreenAdapter {
         } else {
             Enemy encountered = combatManager.checkBattleEncounter(player);
             if (encountered != null && !player.isMoving()) {
-                battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor());
+                battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor(), skillTree);
                 bestiary.discover(encountered.getType());
                 state = GameState.BATTLE;
                 statsScreen.battlesFought++;
@@ -545,7 +548,8 @@ public class GameScreen extends ScreenAdapter {
 
         // Map with biome colors
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        gameMap.render(game.shapeRenderer, camera);
+        boolean trapDetect = skillTree.hasSkill(SkillTree.Skill.TRAP_DETECT);
+        gameMap.render(game.shapeRenderer, camera, trapDetect);
         game.shapeRenderer.end();
 
         // Entities

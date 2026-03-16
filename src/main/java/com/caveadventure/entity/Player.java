@@ -50,6 +50,9 @@ public class Player extends Entity {
     private static final float STAMINA_PER_LEVEL = 10f;
     private static final float STAMINA_REGEN_PER_SEC = 12f;
 
+    // Skill: Berserker kill stacks (persist across battles within a floor)
+    private int berserkerKillCount = 0;
+
     // Visual
     private static final int SIZE = GameMap.TILE_SIZE;
     private static final Color BODY_COLOR = new Color(0.2f, 0.6f, 0.9f, 1f);
@@ -394,6 +397,10 @@ public class Player extends Entity {
     public boolean isPoisoned() {
         return poisoned;
     }
+
+    public int getBerserkerKillCount() { return berserkerKillCount; }
+    public void addBerserkerKill() { berserkerKillCount++; }
+    public void resetBerserkerKills() { berserkerKillCount = 0; }
 
     public float getPoisonRemaining() {
         return poisoned ? Math.max(0f, poisonTimer) : 0f;

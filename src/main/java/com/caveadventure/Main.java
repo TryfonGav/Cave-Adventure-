@@ -20,9 +20,9 @@ public class Main {
         
         boolean fullscreen = prefs.getBoolean("fullscreen", false);
         boolean vsync = prefs.getBoolean("vsync", true);
-        int resX = prefs.getInteger("resX", 960);
-        int resY = prefs.getInteger("resY", 640);
-        int fps = prefs.getInteger("fps", 60);
+        int resX = prefs.getInteger("resX", 1920);
+        int resY = prefs.getInteger("resY", 1080);
+        int fps = prefs.getInteger("fps", 144);
 
         if (fullscreen) {
             config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());

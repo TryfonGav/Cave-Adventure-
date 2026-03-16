@@ -137,12 +137,16 @@ public class CombatManager {
      * Handle opening chests.
      */
     public boolean tryOpenChest(Player player, int floor) {
+        return tryOpenChest(player, floor, false);
+    }
+
+    public boolean tryOpenChest(Player player, int floor, boolean lucky) {
         int px = player.getGridX();
         int py = player.getGridY();
         Tile tile = gameMap.getTile(px, py);
 
         if (tile == Tile.CHEST) {
-            List<Item> loot = LootTable.getChestLoot(floor);
+            List<Item> loot = LootTable.getChestLoot(floor, lucky);
             for (Item item : loot) {
                 player.getInventory().addItem(item);
             }

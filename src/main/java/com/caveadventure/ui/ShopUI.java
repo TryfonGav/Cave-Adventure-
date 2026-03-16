@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.engine.SkillTree;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Item;
 
@@ -33,6 +34,7 @@ public class ShopUI {
     private final CaveAdventure game;
     private final OrthographicCamera camera;
     private final GlyphLayout layout;
+    private SkillTree skillTree;
 
     private boolean visible;
     private int selectedIndex;
@@ -93,6 +95,10 @@ public class ShopUI {
         visible = false;
     }
 
+    public void setSkillTree(SkillTree skillTree) {
+        this.skillTree = skillTree;
+    }
+
     public boolean isVisible() {
         return visible;
     }
@@ -137,15 +143,16 @@ public class ShopUI {
         if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.E)) {
             if (shopMode == ShopMode.BUY) {
                 ShopItem item = shopItems[selectedIndex];
+                int effectivePrice = hagglerPrice(item.price);
                 int gold = countGold(player);
-                if (gold >= item.price) {
-                    removeGold(player, item.price);
+                if (gold >= effectivePrice) {
+                    removeGold(player, effectivePrice);
                     player.getInventory().addItem(new Item(item.type));
                     statusMessage = "Bought " + item.type.displayName + "!";
                     statusTimer = 2f;
                     purchased = true;
                 } else {
-                    statusMessage = "Not enough gold! (" + gold + "/" + item.price + ")";
+                    statusMessage = "Not enough gold! (" + gold + "/" + effectivePrice + ")";
                     statusTimer = 2f;
                 }
             } else {
@@ -232,6 +239,12 @@ public class ShopUI {
             if (sellPrice(item.getType()) > 0)
                 sellableItems.add(item);
         }
+    }
+
+    private int hagglerPrice(int basePrice) {
+        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.HAGGLER))
+            return Math.max(1, (int)(basePrice * 0.7f));
+        return basePrice;
     }
 
     private int sellPrice(Item.ItemType type) {
@@ -367,7 +380,13 @@ public class ShopUI {
                 smallFont.draw(game.batch, item.description, panelX + 30, slotY + 12);
 
                 normalFont.setColor(0.9f, 0.8f, 0.2f, alpha);
-                String priceStr = item.price + "g";
+                String priceStr;
+                if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.HAGGLER)) {
+                    priceStr = hagglerPrice(item.price) + "g [30% off]";
+                    normalFont.setColor(0.4f, 1f, 0.4f, alpha);
+                } else {
+                    priceStr = item.price + "g";
+                }
                 layout.setText(normalFont, priceStr);
                 normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
             }

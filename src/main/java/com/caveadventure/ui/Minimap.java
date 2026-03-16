@@ -10,6 +10,7 @@ import com.caveadventure.entity.Player;
 import com.caveadventure.world.GameMap;
 import com.caveadventure.world.Tile;
 
+import com.caveadventure.engine.SkillTree;
 import java.util.List;
 
 /**
@@ -22,6 +23,7 @@ public class Minimap {
     private final OrthographicCamera camera;
     private boolean[][] explored;
     private int mapWidth, mapHeight;
+    private SkillTree skillTree;
 
     private static final float MAP_SIZE = 160;
     private static final float MARGIN = 10;
@@ -30,6 +32,10 @@ public class Minimap {
     public Minimap(CaveAdventure game) {
         this.game = game;
         this.camera = new OrthographicCamera();
+    }
+
+    public void setSkillTree(SkillTree skillTree) {
+        this.skillTree = skillTree;
     }
 
     public void init(int width, int height) {
@@ -90,8 +96,17 @@ public class Minimap {
         Tile[][] tiles = gameMap.getTiles();
         for (int x = 0; x < mapWidth; x++) {
             for (int y = 0; y < mapHeight; y++) {
-                if (!explored[x][y])
+                if (!explored[x][y]) {
+                    // TREASURE_SENSE: always show chests even if unexplored
+                    if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.TREASURE_SENSE)
+                            && tiles[x][y] == Tile.CHEST) {
+                        float px2 = mapX + x * tileW;
+                        float py2 = mapY + y * tileH;
+                        game.shapeRenderer.setColor(0.8f, 0.6f, 0.1f, 0.7f);
+                        game.shapeRenderer.rect(px2, py2, Math.max(1, tileW), Math.max(1, tileH));
+                    }
                     continue;
+                }
 
                 float px = mapX + x * tileW;
                 float py = mapY + y * tileH;

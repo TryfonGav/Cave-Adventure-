@@ -100,6 +100,14 @@ public abstract class Entity {
     }
 
     /**
+     * Directly set health (used by Last Stand to revive from death).
+     */
+    public void setHealth(int h) {
+        this.health = Math.max(1, Math.min(maxHealth, h));
+        this.alive = true;
+    }
+
+    /**
      * Teleport entity to a new grid position.
      */
     public void setPosition(int gridX, int gridY) {

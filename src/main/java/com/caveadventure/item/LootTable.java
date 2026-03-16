@@ -157,6 +157,31 @@ public class LootTable {
         return loot;
     }
 
+    /**
+     * Generate enemy loot with LUCKY skill bonus (+25% probability on all drops).
+     */
+    public static List<Item> getEnemyDrop(Enemy.EnemyType type, int floor, boolean lucky) {
+        List<Item> loot = getEnemyDrop(type, floor);
+        if (lucky) {
+            if (chance(25)) loot.add(new Item(Item.ItemType.HEALTH_POTION));
+            if (chance(20)) loot.add(new Item(Item.ItemType.GOLD_COINS));
+            if (chance(10) && floor > 4) loot.add(new Item(Item.ItemType.ANTIDOTE));
+        }
+        return loot;
+    }
+
+    /**
+     * Generate chest loot with LUCKY skill bonus.
+     */
+    public static List<Item> getChestLoot(int floor, boolean lucky) {
+        List<Item> loot = getChestLoot(floor);
+        if (lucky) {
+            loot.add(new Item(Item.ItemType.GOLD_COINS));
+            if (chance(40)) loot.add(new Item(Item.ItemType.HEALTH_POTION));
+        }
+        return loot;
+    }
+
     private static boolean chance(int percent) {
         return random.nextInt(100) < percent;
     }

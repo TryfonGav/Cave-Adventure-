@@ -51,12 +51,20 @@ public class GameMap {
      * Render only the tiles visible to the camera.
      */
     public void render(ShapeRenderer renderer, Camera2D camera) {
+        render(renderer, camera, false);
+    }
+
+    public void render(ShapeRenderer renderer, Camera2D camera, boolean trapDetect) {
         int[] range = camera.getVisibleTileRange(TILE_SIZE, width, height);
         int minX = range[0], minY = range[1], maxX = range[2], maxY = range[3];
 
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 Tile tile = tiles[x][y];
+                // TRAP_DETECT: reveal hidden traps visually
+                if (trapDetect && tile == Tile.TRAP_HIDDEN) {
+                    tile = Tile.TRAP_SPIKES;
+                }
                 Color c = tile.getColor();
 
                 // Add slight variation to walls for a natural look

@@ -6,6 +6,7 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import com.caveadventure.engine.GameScreen;
 import com.caveadventure.entity.Companion;
 import com.caveadventure.item.Item;
+import com.caveadventure.item.Item.ItemType;
 
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -96,8 +97,8 @@ public class TestMain {
 
     private static final class TestConfig {
         private static final int floor = 10;
-        private static final int health = 180;
-        private static final int maxHealth = 180;
+        private static final int health = 1800;
+        private static final int maxHealth = 1800;
         private static final int hunger = 100;
         private static final int level = 10;
         private static final int xp = 0;
@@ -115,13 +116,9 @@ public class TestMain {
         private static final int companionHealth = 40;
 
         private static final ItemStack[] items = new ItemStack[] {
-                new ItemStack(Item.ItemType.CRYSTAL_BLADE, 1),
-                new ItemStack(Item.ItemType.CRYSTAL_ARMOR, 1),
-                new ItemStack(Item.ItemType.ELIXIR, 3),
-                new ItemStack(Item.ItemType.LARGE_HEALTH_POTION, 5),
-                new ItemStack(Item.ItemType.GOLD_COINS, 20),
-                new ItemStack(Item.ItemType.GOLD_NUGGET, 10),
-                new ItemStack(Item.ItemType.TORCH, 5)
+               new ItemStack(ItemType.FIRE_AXE,1),
+               new ItemStack(ItemType.CRYSTAL_ARMOR, 1),
+               new ItemStack(ItemType.HEALTH_POTION, 5),
         };
     }
 }
