@@ -54,6 +54,8 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.RUSTY_SWORD));
                 if (chance(5))
                     loot.add(new Item(Item.ItemType.LEATHER_ARMOR));
+                if (chance(10))
+                    loot.add(new Item(Item.ItemType.SMOKE_BOMB));
                 break;
 
             case SKELETON:
@@ -78,6 +80,10 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.ANCIENT_RELIC));
                 if (chance(10))
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 2));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.FIRE_RUNE));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.SHADOW_RUNE));
                 break;
 
             case SHADOW:
@@ -85,6 +91,8 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 2));
                 if (chance(15))
                     loot.add(new Item(Item.ItemType.GEMSTONE));
+                if (chance(8) && floor > 3 && floor <= 7)
+                    loot.add(new Item(Item.ItemType.GREEN_BLADE));
                 if (chance(10))
                     loot.add(new Item(Item.ItemType.DIAMOND));
                 break;
@@ -100,6 +108,10 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
                 if (chance(5))
                     loot.add(new Item(Item.ItemType.SILVER_KEY));
+                if (chance(20))
+                    loot.add(new Item(Item.ItemType.FROST_RUNE));
+                if (chance(15))
+                    loot.add(new Item(Item.ItemType.ICE_SHARD));
                 break;
 
             case BOSS_GOLEM:
@@ -111,6 +123,8 @@ public class LootTable {
                 if (chance(50))
                     loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
                 loot.add(new Item(Item.ItemType.GOLD_KEY));
+                loot.add(new Item(Item.ItemType.STAMINA_ELIXIR));
+                loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
                 break;
         }
 
@@ -128,28 +142,38 @@ public class LootTable {
 
         // Random additional items
         float roll = random.nextFloat();
-        if (roll < 0.25f) {
+        if (roll < 0.20f) {
             loot.add(new Item(Item.ItemType.HEALTH_POTION));
-        } else if (roll < 0.40f) {
+        } else if (roll < 0.35f) {
             loot.add(new Item(Item.ItemType.FOOD_RATION));
-        } else if (roll < 0.50f) {
+        } else if (roll < 0.45f) {
             loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION));
-        } else if (roll < 0.58f) {
+        } else if (roll < 0.52f) {
             loot.add(new Item(Item.ItemType.IRON_SWORD));
-        } else if (roll < 0.65f) {
+        } else if (roll < 0.58f) {
             loot.add(new Item(Item.ItemType.CHAIN_MAIL));
-        } else if (roll < 0.72f) {
+        } else if (roll < 0.65f) {
             loot.add(new Item(Item.ItemType.GEMSTONE));
-        } else if (roll < 0.78f) {
+        } else if (roll < 0.70f) {
             loot.add(new Item(Item.ItemType.BRONZE_KEY));
-        } else if (roll < 0.83f) {
+        } else if (roll < 0.75f) {
             loot.add(new Item(Item.ItemType.TORCH, 2));
-        } else if (roll < 0.88f) {
+        } else if (roll < 0.80f) {
             loot.add(new Item(Item.ItemType.ANTIDOTE));
-        } else if (roll < 0.92f) {
-            loot.add(new Item(Item.ItemType.FIRE_AXE));
-        } else if (roll < 0.96f) {
-            loot.add(new Item(floor > 5 ? Item.ItemType.CRYSTAL_BLADE : Item.ItemType.FIRE_AXE));
+        } else if (roll < 0.85f) {
+            loot.add(new Item(Item.ItemType.POISON_VIAL));
+        } else if (roll < 0.90f) {
+            loot.add(new Item(Item.ItemType.SMOKE_BOMB));
+        } else if (roll < 0.94f) {
+            if (floor <= 3) {
+                loot.add(new Item(Item.ItemType.FIRE_AXE));
+            } else if (floor <= 7) {
+                loot.add(new Item(Item.ItemType.GREEN_BLADE));
+            } else {
+                loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+            }
+        } else if (roll < 0.98f) {
+            loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
         } else {
             loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
         }

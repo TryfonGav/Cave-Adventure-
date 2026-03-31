@@ -25,7 +25,7 @@ public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
         MENU, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
-        EVENT, SKILL_PICK
+        EVENT, SKILL_PICK, NPC_DIALOGUE
     }
 
     private final CaveAdventure game;
@@ -39,6 +39,7 @@ public class GameScreen extends ScreenAdapter {
     private CombatManager combatManager;
     private LevelManager levelManager;
     private Companion companion;
+    private String npcDialogueMessage;
 
     // Systems
     private final ParticleSystem particles;
@@ -258,6 +259,10 @@ public class GameScreen extends ScreenAdapter {
                 drawPlaying();
                 skillTree.render();
                 break;
+            case NPC_DIALOGUE:
+                updateNpcDialogue(delta);
+                drawNpcDialogue();
+                break;
             case FLOOR_TRANSITION:
                 updateTransition(delta);
                 drawTransition();
@@ -418,8 +423,8 @@ public class GameScreen extends ScreenAdapter {
             // Interactions
             if (inputHandler.isKeyJustPressed(Input.Keys.F) || inputHandler.isKeyJustPressed(Input.Keys.ENTER)) {
                 if (levelManager.isNearShopkeeper(player)) {
-                    state = GameState.SHOP;
-                    shopUI.open();
+                    state = GameState.NPC_DIALOGUE;
+                    npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor());
                     return;
                 }
                 boolean lucky = skillTree.hasSkill(SkillTree.Skill.LUCKY);
@@ -435,6 +440,7 @@ public class GameScreen extends ScreenAdapter {
         }
 
         player.update(delta);
+        player.tickPassiveRegen(skillTree, delta); // REGEN skill: passive heal outside battle
         combatManager.update(player, delta);
 
         // Companion
@@ -501,7 +507,7 @@ public class GameScreen extends ScreenAdapter {
         } else {
             Enemy encountered = combatManager.checkBattleEncounter(player);
             if (encountered != null && !player.isMoving()) {
-                battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor(), skillTree);
+                battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor(), skillTree, companion);
                 bestiary.discover(encountered.getType());
                 state = GameState.BATTLE;
                 statsScreen.battlesFought++;
@@ -549,7 +555,7 @@ public class GameScreen extends ScreenAdapter {
         // Map with biome colors
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         boolean trapDetect = skillTree.hasSkill(SkillTree.Skill.TRAP_DETECT);
-        gameMap.render(game.shapeRenderer, camera, trapDetect);
+        gameMap.render(game.shapeRenderer, camera, trapDetect, currentBiome);
         game.shapeRenderer.end();
 
         // Entities
@@ -618,6 +624,48 @@ public class GameScreen extends ScreenAdapter {
         }
         if (!shopUI.isVisible())
             state = GameState.PLAYING;
+    }
+
+    // --- NPC Dialogue ---
+
+    private void updateNpcDialogue(float delta) {
+        if (inputHandler.isKeyJustPressed(Input.Keys.ENTER) || inputHandler.isKeyJustPressed(Input.Keys.SPACE) || inputHandler.isKeyJustPressed(Input.Keys.ESCAPE) || inputHandler.isKeyJustPressed(Input.Keys.F)) {
+            state = GameState.SHOP;
+            shopUI.open();
+        }
+    }
+
+    private void drawNpcDialogue() {
+        drawPlaying();
+        
+        OrthographicCamera uiCam = new OrthographicCamera();
+        uiCam.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        uiCam.update();
+
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        game.shapeRenderer.setProjectionMatrix(uiCam.combined);
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        float baseH = 100;
+        game.shapeRenderer.setColor(0.1f, 0.08f, 0.05f, 0.9f);
+        game.shapeRenderer.rect(50, 50, Gdx.graphics.getWidth() - 100, baseH);
+        game.shapeRenderer.setColor(0.5f, 0.4f, 0.2f, 1f);
+        game.shapeRenderer.rect(50, 50, Gdx.graphics.getWidth() - 100, 2);
+        game.shapeRenderer.rect(50, 50 + baseH - 2, Gdx.graphics.getWidth() - 100, 2);
+        game.shapeRenderer.rect(50, 50, 2, baseH);
+        game.shapeRenderer.rect(50 + Gdx.graphics.getWidth() - 102, 50, 2, baseH);
+        game.shapeRenderer.end();
+        
+        game.batch.setProjectionMatrix(uiCam.combined);
+        game.batch.begin();
+        com.badlogic.gdx.graphics.g2d.BitmapFont font = game.fontSmall != null ? game.fontSmall : game.font;
+        font.setColor(1f, 0.95f, 0.8f, 1f);
+        font.draw(game.batch, npcDialogueMessage, 70, 130, Gdx.graphics.getWidth() - 140, com.badlogic.gdx.utils.Align.left, true);
+        
+        font.setColor(0.5f, 0.5f, 0.5f, 1f);
+        font.draw(game.batch, "Tap to continue...", 70, 70);
+        game.batch.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
     }
 
     // --- Random Event ---

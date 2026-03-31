@@ -55,6 +55,10 @@ public class GameMap {
     }
 
     public void render(ShapeRenderer renderer, Camera2D camera, boolean trapDetect) {
+        render(renderer, camera, trapDetect, null);
+    }
+
+    public void render(ShapeRenderer renderer, Camera2D camera, boolean trapDetect, Biome biome) {
         int[] range = camera.getVisibleTileRange(TILE_SIZE, width, height);
         int minX = range[0], minY = range[1], maxX = range[2], maxY = range[3];
 
@@ -65,7 +69,7 @@ public class GameMap {
                 if (trapDetect && tile == Tile.TRAP_HIDDEN) {
                     tile = Tile.TRAP_SPIKES;
                 }
-                Color c = tile.getColor();
+                Color c = resolveTileColor(tile, biome);
 
                 // Add slight variation to walls for a natural look
                 if (tile == Tile.WALL || tile == Tile.WALL_DARK) {
@@ -103,6 +107,40 @@ public class GameMap {
                 }
             }
         }
+    }
+
+    private Color resolveTileColor(Tile tile, Biome biome) {
+        if (biome == null) {
+            return tile.getColor();
+        }
+
+        switch (tile) {
+            case FLOOR:
+            case TRAP_HIDDEN:
+                return biome.floorColor;
+            case WALL:
+            case WALL_DARK:
+                return biome.wallColor;
+            case SHOP_FLOOR:
+                return lerpColor(biome.floorColor, biome.accentColor, 0.18f);
+            case DOOR_LOCKED:
+            case DOOR_OPEN:
+                return lerpColor(biome.wallColor, biome.accentColor, 0.35f);
+            case CHEST:
+                return lerpColor(new Color(0.85f, 0.7f, 0.1f, 1f), biome.accentColor, 0.25f);
+            case STAIRS_DOWN:
+                return lerpColor(new Color(0.6f, 0.5f, 0.8f, 1f), biome.accentColor, 0.45f);
+            default:
+                return tile.getColor();
+        }
+    }
+
+    private Color lerpColor(Color a, Color b, float t) {
+        return new Color(
+                a.r + (b.r - a.r) * t,
+                a.g + (b.g - a.g) * t,
+                a.b + (b.b - a.b) * t,
+                1f);
     }
 
     public int getWidth() {

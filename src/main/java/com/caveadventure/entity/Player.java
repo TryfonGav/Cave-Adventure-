@@ -53,6 +53,17 @@ public class Player extends Entity {
     // Skill: Berserker kill stacks (persist across battles within a floor)
     private int berserkerKillCount = 0;
 
+    // Passive regen outside of battle (REGEN skill)
+    private float passiveRegenTimer = 0f;
+    private static final float PASSIVE_REGEN_INTERVAL = 4.0f;
+    private static final int   PASSIVE_REGEN_AMOUNT   = 1;
+
+    // Mana Crystal: reduce stamina costs until end of next battle
+    private boolean manaCrystalActive = false;
+
+    // Companion ability: used once per battle
+    private boolean companionAbilityUsed = false;
+
     // Visual
     private static final int SIZE = GameMap.TILE_SIZE;
     private static final Color BODY_COLOR = new Color(0.2f, 0.6f, 0.9f, 1f);
@@ -303,6 +314,22 @@ public class Player extends Entity {
         poisonTimer = 0;
     }
 
+    /**
+     * Call each frame during exploration (not during battle).
+     * Heals a small amount if the REGEN skill is active.
+     */
+    public void tickPassiveRegen(com.caveadventure.engine.SkillTree skillTree, float delta) {
+        if (skillTree == null || !skillTree.hasSkill(com.caveadventure.engine.SkillTree.Skill.REGEN))
+            return;
+        if (!isAlive() || health >= maxHealth)
+            return;
+        passiveRegenTimer += delta;
+        if (passiveRegenTimer >= PASSIVE_REGEN_INTERVAL) {
+            passiveRegenTimer = 0f;
+            heal(PASSIVE_REGEN_AMOUNT);
+        }
+    }
+
     public void addTorchDuration(float seconds) {
         torchDuration += seconds;
     }
@@ -413,4 +440,14 @@ public class Player extends Entity {
     public int getTotalAttack() {
         return 10 + inventory.getTotalAttackBonus();
     }
+
+    // --- Mana Crystal ---
+    public void activateManaCrystal()  { manaCrystalActive = true; }
+    public boolean isManaCrystalActive() { return manaCrystalActive; }
+    /** Call at end of battle to consume the effect. */
+    public void consumeManaCrystal()   { manaCrystalActive = false; }
+
+    // --- Companion Ability ---
+    public boolean isCompanionAbilityUsed()  { return companionAbilityUsed; }
+    public void setCompanionAbilityUsed(boolean v) { companionAbilityUsed = v; }
 }

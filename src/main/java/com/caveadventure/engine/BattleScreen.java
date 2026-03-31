@@ -78,6 +78,12 @@ public class BattleScreen {
     private List<Item> lootDrops;
     private int currentFloor;
 
+    // Companion
+    private com.caveadventure.entity.Companion companion;
+    // Rune turn counters
+    private int fireRuneTurns   = 0;
+    private int shadowRuneTurns = 0;
+
     public BattleScreen(CaveAdventure game) {
         this.game = game;
         this.camera = new OrthographicCamera();
@@ -85,14 +91,18 @@ public class BattleScreen {
     }
 
     public void startBattle(Player player, Enemy enemy, int floor) {
-        startBattle(player, enemy, floor, null);
+        startBattle(player, enemy, floor, null, null);
     }
 
-    public void startBattle(Player player, Enemy enemy, int floor, SkillTree skillTree) {
+    public void startBattle(Player player, Enemy enemy, int floor, SkillTree skillTree, com.caveadventure.entity.Companion companion) {
         this.player = player;
         this.enemy = enemy;
         this.currentFloor = floor;
         this.skillTree = skillTree;
+        this.companion = companion;
+        player.setCompanionAbilityUsed(false);
+        this.fireRuneTurns = 0;
+        this.shadowRuneTurns = 0;
         this.lastStandAvailable = skillTree != null && skillTree.hasSkill(SkillTree.Skill.LAST_STAND);
         this.state = BattleState.INTRO;
         this.stateTimer = 0;
@@ -112,7 +122,7 @@ public class BattleScreen {
         this.playerStatus = StatusEffect.NONE;
         this.playerStatusTimer = 0;
         this.currentMessage = "A wild " + enemy.getType().name + " appeared!";
-        enemy.scaleToPlayer(player.getLevel());
+        enemy.scaleToPlayer(player.getLevel(), floor);
         updateSkills();
     }
 
@@ -128,6 +138,8 @@ public class BattleScreen {
                 currentSkills = new String[] { "Pierce", "Stun Slash", "Focus" };
             } else if (wt == Item.ItemType.STEEL_SWORD) {
                 currentSkills = new String[] { "Heavy Slash", "Guard Break", "Focus" };
+            } else if (wt == Item.ItemType.GREEN_BLADE) {
+                currentSkills = new String[] { "Venom Slice", "Poison Jab", "Focus" };
             } else {
                 currentSkills = new String[] { "Power Hit", "Poison Jab", "Focus" };
             }
@@ -203,9 +215,16 @@ public class BattleScreen {
         switch (state) {
             case INTRO:
                 if (stateTimer > 1.5f) {
-                    state = BattleState.PLAYER_TURN;
-                    stateTimer = 0;
-                    currentMessage = "What will you do?";
+                    if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.CAVE_WOLF && !player.isCompanionAbilityUsed()) {
+                        int compDmg = companion.rollDamage();
+                        enemy.takeDamage(compDmg);
+                        player.setCompanionAbilityUsed(true);
+                        showMessage("Cave Wolf attacks for " + compDmg + " dmg!", BattleState.PLAYER_TURN);
+                    } else {
+                        state = BattleState.PLAYER_TURN;
+                        stateTimer = 0;
+                        currentMessage = "What will you do?";
+                    }
                 }
                 break;
 
@@ -275,9 +294,17 @@ public class BattleScreen {
                             applyDamageToPlayer(5);
                             currentMessage += " [Burn: -5 HP]";
                         }
-                        // REGEN: heal 2 HP per turn
                         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.REGEN) && player.isAlive())
-                            player.heal(2);
+                            player.heal(5); // Buffed: 5 HP per turn (was 2)
+                        
+                        if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.FIRE_SPRITE && turnCount % 3 == 0 && player.isAlive()) {
+                            player.heal(15);
+                            currentMessage += " [Sprite Heal: +15 HP]";
+                        }
+
+                        if (fireRuneTurns > 0) fireRuneTurns--;
+                        if (shadowRuneTurns > 0) shadowRuneTurns--;
+
                         state = BattleState.PLAYER_TURN;
                         stateTimer = 0;
                         currentMessage = "What will you do?";
@@ -299,6 +326,13 @@ public class BattleScreen {
 
             case VICTORY:
                 if (stateTimer > 1.5f || input.isKeyJustPressed(Input.Keys.ENTER)) {
+                    // Persistent poison: carry battle poison into exploration on Hard Mode
+                    if (Difficulty.getCurrent().poisonPersists && playerStatus == StatusEffect.POISON) {
+                        player.applyPoison(6f);
+                    }
+                    if (player.isManaCrystalActive()) {
+                        player.consumeManaCrystal();
+                    }
                     battleActive = false;
                     battleResult = true;
                 }
@@ -390,10 +424,51 @@ public class BattleScreen {
             Item item = usable.get(subSelection);
             int idx = player.getInventory().getItems().indexOf(item);
             if (idx >= 0) {
-                player.getInventory().useItem(idx, player);
-                currentMessage = "Used " + item.getType().displayName + "!";
-                state = BattleState.ENEMY_TURN;
-                stateTimer = 0;
+                if (item.getType() == Item.ItemType.SMOKE_BOMB) {
+                    player.getInventory().useKey(Item.ItemType.SMOKE_BOMB);
+                    currentMessage = "Used Smoke Bomb! Escaped successfully!";
+                    state = BattleState.RUN_AWAY;
+                    stateTimer = 0;
+                } else if (item.getType() == Item.ItemType.POISON_VIAL) {
+                    player.getInventory().useKey(Item.ItemType.POISON_VIAL);
+                    enemyStatus = StatusEffect.POISON;
+                    enemyStatusTimer = 4f;
+                    currentMessage = "Threw Poison Vial! Enemy poisoned!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                } else if (item.getType() == Item.ItemType.ICE_SHARD) {
+                    player.getInventory().useKey(Item.ItemType.ICE_SHARD);
+                    enemy.takeDamage(20);
+                    enemyStatus = StatusEffect.STUN;
+                    enemyStatusTimer = 1f;
+                    currentMessage = "Threw Ice Shard! 20 dmg + Stunned!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                } else if (item.getType() == Item.ItemType.FIRE_RUNE) {
+                    player.getInventory().useKey(Item.ItemType.FIRE_RUNE);
+                    fireRuneTurns = 3;
+                    currentMessage = "Used Fire Rune! Weapon inflamed for 3 turns!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                } else if (item.getType() == Item.ItemType.SHADOW_RUNE) {
+                    player.getInventory().useKey(Item.ItemType.SHADOW_RUNE);
+                    shadowRuneTurns = 3;
+                    currentMessage = "Used Shadow Rune! Critical chance up for 3 turns!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                } else if (item.getType() == Item.ItemType.FROST_RUNE) {
+                    player.getInventory().useKey(Item.ItemType.FROST_RUNE);
+                    enemyStatus = StatusEffect.STUN;
+                    enemyStatusTimer = 1f;
+                    currentMessage = "Used Frost Rune! Enemy slowed (stunned)!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                } else {
+                    player.getInventory().useItem(idx, player);
+                    currentMessage = "Used " + item.getType().displayName + "!";
+                    state = BattleState.ENEMY_TURN;
+                    stateTimer = 0;
+                }
             }
         }
         if (input.isKeyJustPressed(Input.Keys.ESCAPE)) {
@@ -406,7 +481,11 @@ public class BattleScreen {
 
     private void performBasicAttack() {
         int baseDmg = applyOffensiveSkills(player.getTotalAttack());
+        if (fireRuneTurns > 0) baseDmg += 10;
+        
         float critChance = 0.12f;
+        if (shadowRuneTurns > 0) critChance += 0.20f;
+        
         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.CRITICAL_MASTER))
             critChance += 0.15f;
         boolean crit = random.nextFloat() < critChance;
@@ -429,6 +508,7 @@ public class BattleScreen {
         }
 
         int baseDmg = applyOffensiveSkills(player.getTotalAttack());
+        if (fireRuneTurns > 0) baseDmg += 10;
         int dmg;
 
         switch (skill) {
@@ -451,6 +531,19 @@ public class BattleScreen {
                 enemy.takeDamage(dmg);
                 triggerAttackAnim(true);
                 currentMessage = "Cleave! " + dmg + " damage!";
+                break;
+
+            case "Venom Slice":
+                dmg = (int) (baseDmg * 1.2f) + random.nextInt(7);
+                enemy.takeDamage(dmg);
+                if (random.nextFloat() < 0.45f) {
+                    enemyStatus = StatusEffect.POISON;
+                    enemyStatusTimer = 4f;
+                    currentMessage = "Venom Slice! " + dmg + " dmg + POISONED!";
+                } else {
+                    currentMessage = "Venom Slice! " + dmg + " damage!";
+                }
+                triggerAttackAnim(true);
                 break;
 
             case "Pierce":
@@ -515,28 +608,36 @@ public class BattleScreen {
     }
 
     private int getSkillStaminaCost(String skill) {
+        int cost;
         switch (skill) {
             case "Power Hit":
-                return 20;
+                cost = 20; break;
             case "Heavy Slash":
-                return 24;
+                cost = 24; break;
             case "Cleave":
-                return 22;
+                cost = 22; break;
+            case "Venom Slice":
+                cost = 21; break;
             case "Pierce":
-                return 18;
+                cost = 18; break;
             case "Burn Strike":
-                return 26;
+                cost = 26; break;
             case "Stun Slash":
-                return 25;
+                cost = 25; break;
             case "Guard Break":
-                return 20;
+                cost = 20; break;
             case "Poison Jab":
-                return 18;
+                cost = 18; break;
             case "Focus":
-                return 12;
+                cost = 12; break;
             default:
-                return 15;
+                cost = 15; break;
         }
+        
+        if (player.isManaCrystalActive()) {
+            cost = (int) (cost * 0.7f);
+        }
+        return cost;
     }
 
     private void performEnemyAttack() {
@@ -570,6 +671,26 @@ public class BattleScreen {
                 playerStatus = StatusEffect.POISON;
                 playerStatusTimer = 3f;
                 currentMessage += enemy.getType().name + " bites! " + damage + " dmg + POISON!";
+            }
+        // Necromancer burn
+        } else if (enemy.getType() == Enemy.EnemyType.NECROMANCER && random.nextFloat() < 0.30f) {
+            if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.STATUS_RESIST)
+                    && random.nextFloat() < 0.5f) {
+                currentMessage += "Necromancer casts Curse! " + damage + " dmg (Resisted burn!)";
+            } else {
+                playerStatus = StatusEffect.BURN;
+                playerStatusTimer = 2f;
+                currentMessage += "Necromancer casts Curse Flame! " + damage + " dmg + BURN!";
+            }
+        // Ice Drake freeze
+        } else if (enemy.getType() == Enemy.EnemyType.ICE_DRAKE && random.nextFloat() < 0.35f) {
+            if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.STATUS_RESIST)
+                    && random.nextFloat() < 0.5f) {
+                currentMessage += "Ice Drake breathes frost! " + damage + " dmg (Resisted stun!)";
+            } else {
+                playerStatus = StatusEffect.STUN;
+                playerStatusTimer = 1f;
+                currentMessage += "Ice Drake uses Frost Breath! " + damage + " dmg + FROZEN (skip turn)!";
             }
         } else {
             currentMessage += enemy.getType().name + " attacks for " + damage + " damage!";
@@ -649,6 +770,10 @@ public class BattleScreen {
             return;
         }
         float runChance = 0.5f + (turnCount * 0.1f);
+        if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.SHADOW_CAT) {
+            runChance += 0.35f; // Shadow cat improves run chance
+        }
+        
         if (random.nextFloat() < runChance) {
             currentMessage = "Got away safely!";
             state = BattleState.RUN_AWAY;

@@ -15,6 +15,8 @@ public class Item {
                                 new Color(0.7f, 0.72f, 0.75f, 1f), 8, 0, 0),
                 STEEL_SWORD("Steel Sword", Category.WEAPON, "Forged steel, razor sharp",
                                 new Color(0.8f, 0.82f, 0.85f, 1f), 15, 0, 0),
+                GREEN_BLADE("Green Blade", Category.WEAPON, "Shiny Green Blade",
+                                new Color(0.0f, 1.00f, 0.0f, 1f), 18, 0, 0),
                 CRYSTAL_BLADE("Crystal Blade", Category.WEAPON, "Gleams with inner light",
                                 new Color(0.5f, 0.8f, 1f, 1f), 22, 0, 0),
                 FIRE_AXE("Fire Axe", Category.WEAPON, "Burns on contact",
@@ -70,7 +72,25 @@ public class Item {
                 GEMSTONE("Gemstone", Category.TREASURE, "A precious gem",
                                 new Color(0.3f, 0.9f, 0.6f, 1f), 0, 0, 0),
                 ANCIENT_RELIC("Ancient Relic", Category.TREASURE, "A mysterious artifact",
-                                new Color(0.7f, 0.4f, 1f, 1f), 0, 0, 0);
+                                new Color(0.7f, 0.4f, 1f, 1f), 0, 0, 0),
+
+                // Scrolls / Runes (single-use specials)
+                SMOKE_BOMB("Smoke Bomb", Category.SCROLL, "Guarantees escape from any battle",
+                                new Color(0.4f, 0.4f, 0.4f, 1f), 0, 0, 0),
+                STAMINA_ELIXIR("Stamina Elixir", Category.SCROLL, "Fully restores stamina",
+                                new Color(0.3f, 0.7f, 1f, 1f), 0, 0, 0),
+                POISON_VIAL("Poison Vial", Category.SCROLL, "Throw at enemy to poison them",
+                                new Color(0.2f, 0.85f, 0.3f, 1f), 0, 0, 0),
+                ICE_SHARD("Ice Shard", Category.SCROLL, "Deals 20 dmg + stuns enemy for 1 turn",
+                                new Color(0.5f, 0.8f, 1f, 1f), 0, 0, 20),
+                MANA_CRYSTAL("Mana Crystal", Category.SCROLL, "Reduce stamina costs by 30% this battle",
+                                new Color(0.6f, 0.3f, 1f, 1f), 0, 0, 0),
+                FIRE_RUNE("Fire Rune", Category.SCROLL, "Imbues your weapon with fire for 3 turns",
+                                new Color(1f, 0.45f, 0.1f, 1f), 10, 0, 0),
+                SHADOW_RUNE("Shadow Rune", Category.SCROLL, "+20% crit chance for 3 turns",
+                                new Color(0.3f, 0.15f, 0.4f, 1f), 0, 0, 0),
+                FROST_RUNE("Frost Rune", Category.SCROLL, "Slows enemy — skip their next turn",
+                                new Color(0.6f, 0.85f, 1f, 1f), 0, 0, 0);
 
                 public final String displayName;
                 public final Category category;
@@ -93,7 +113,7 @@ public class Item {
         }
 
         public enum Category {
-                WEAPON, ARMOR, CONSUMABLE, KEY, TREASURE
+                WEAPON, ARMOR, CONSUMABLE, KEY, TREASURE, SCROLL
         }
 
         private final ItemType type;
@@ -131,7 +151,8 @@ public class Item {
         public boolean isStackable() {
                 return type.category == Category.CONSUMABLE ||
                                 type.category == Category.KEY ||
-                                type.category == Category.TREASURE;
+                                type.category == Category.TREASURE ||
+                                type.category == Category.SCROLL;
         }
 
         public boolean isEquippable() {
@@ -139,6 +160,13 @@ public class Item {
         }
 
         public boolean isUsable() {
-                return type.category == Category.CONSUMABLE;
+                return type.category == Category.CONSUMABLE || type.category == Category.SCROLL;
+        }
+
+        /** Returns true if this scroll must be used inside a battle (can't be used in exploration). */
+        public boolean isBattleOnly() {
+                return type == ItemType.POISON_VIAL || type == ItemType.ICE_SHARD
+                        || type == ItemType.FIRE_RUNE || type == ItemType.SHADOW_RUNE
+                        || type == ItemType.FROST_RUNE || type == ItemType.SMOKE_BOMB;
         }
 }

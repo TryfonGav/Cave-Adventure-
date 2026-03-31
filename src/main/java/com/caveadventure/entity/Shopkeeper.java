@@ -86,4 +86,29 @@ public class Shopkeeper extends Entity {
     public boolean isActive() {
         return active;
     }
+
+    public String getGreeting(int currentFloor) {
+        String[] greetings = {
+            "Welcome, traveler! Need supplies?",
+            "Ah, a customer! Take a look.",
+            "Dangerous down here, better stock up.",
+            "Gold for goods, that's the rule.",
+            "I've got what you need to survive."
+        };
+        
+        String greeting = greetings[new java.util.Random().nextInt(greetings.length)];
+        String hint = "";
+        
+        if (currentFloor <= 3) {
+            hint = " Watch out for Goblin patrols early on.";
+        } else if (currentFloor <= 6) {
+            hint = " Spiders and Slimes are venomous. Bring antidotes!";
+        } else if (currentFloor <= 8) {
+            hint = " Magic enemies ahead! Try to stun or freeze them.";
+        } else {
+            hint = " The Golem at the bottom is almost invincible. Use everything you have.";
+        }
+        
+        return greeting + hint;
+    }
 }

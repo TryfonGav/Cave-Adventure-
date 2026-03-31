@@ -94,7 +94,19 @@ public class Inventory {
                 player.addTorchDuration(60f); // 60 seconds of extra light
                 setMessage("Torch lit! +60s light");
                 break;
+            case STAMINA_ELIXIR:
+                player.setStamina(player.getMaxStamina());
+                setMessage("Stamina fully restored!");
+                break;
+            case MANA_CRYSTAL:
+                player.activateManaCrystal();
+                setMessage("Mana Crystal! Stamina costs -30% this battle.");
+                break;
             default:
+                if (item.isBattleOnly()) {
+                    setMessage("Use " + type.displayName + " in battle!");
+                    return false; // don't consume
+                }
                 return false;
         }
 

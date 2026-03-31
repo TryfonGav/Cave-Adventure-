@@ -2,6 +2,7 @@ package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.engine.Difficulty;
 import com.caveadventure.world.GameMap;
 
 import java.util.*;
@@ -102,11 +103,23 @@ public class Enemy extends Entity {
      * Call once at the start of each battle.
      */
     public void scaleToPlayer(int playerLevel) {
-        float factor = 1.0f + (playerLevel - 1) * 0.12f;
-        this.maxHealth = Math.round(type.maxHealth * factor);
-        this.health = this.maxHealth;
-        this.scaledMinDamage = Math.round(type.minDamage * factor);
-        this.scaledMaxDamage = Math.round(type.maxDamage * factor);
+        scaleToPlayer(playerLevel, 1);
+    }
+
+    /**
+     * Scale this enemy's HP and damage to the player's current level AND
+     * the current floor (for difficulty floor-scaling).
+     */
+    public void scaleToPlayer(int playerLevel, int floor) {
+        Difficulty diff = Difficulty.getCurrent();
+        float levelFactor = 1.0f + (playerLevel - 1) * 0.12f;
+        float hpFactor    = levelFactor * diff.getEnemyHealthForFloor(floor);
+        float dmgFactor   = levelFactor * diff.getEnemyDamageForFloor(floor);
+
+        this.maxHealth        = Math.round(type.maxHealth * hpFactor);
+        this.health           = this.maxHealth;
+        this.scaledMinDamage  = Math.round(type.minDamage  * dmgFactor);
+        this.scaledMaxDamage  = Math.round(type.maxDamage  * dmgFactor);
     }
 
     public int getScaledMinDamage() { return scaledMinDamage; }
