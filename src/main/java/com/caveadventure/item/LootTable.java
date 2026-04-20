@@ -169,15 +169,15 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.FIRE_AXE));
             } else if (floor <= 7) {
                 loot.add(new Item(Item.ItemType.GREEN_BLADE));
-            } else {
+            } else if (floor <= 3){
                 loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+            } else if (floor <= 3){
+                loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
             }
         } else if (roll < 0.98f) {
             loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
-        } else {
-            loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
-        }
-
+        };
+        
         return loot;
     }
 

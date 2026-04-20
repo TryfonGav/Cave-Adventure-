@@ -194,7 +194,7 @@ public class CombatManager {
             for (int y = 3; y < gameMap.getHeight() - 3; y++) {
                 if (tiles[x][y] == com.caveadventure.world.Tile.FLOOR) {
                     int dist = Math.abs(x - player.getGridX()) + Math.abs(y - player.getGridY());
-                    if (dist > 20) { // Only pick tiles far from the player
+                    if (dist > 40) { // Only pick tiles far from the player
                         farTiles.add(new int[] { x, y });
                     }
                 }

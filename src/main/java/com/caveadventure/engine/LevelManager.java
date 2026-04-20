@@ -56,8 +56,8 @@ public class LevelManager {
         int enemyCount = BASE_ENEMIES + (floor - 1) * ENEMIES_PER_FLOOR;
         combatManager.spawnEnemies(enemyCount, floor);
 
-        // Spawn boss on every 3rd floor
-        if (floor % 3 == 0) {
+        // Spawn boss on every 5th floor
+        if (floor % 5 == 0) {
             int[] bossPos = findDistantFloorTile(tiles, width, height);
             if (bossPos != null) {
                 combatManager.spawnBoss(bossPos[0], bossPos[1]);
