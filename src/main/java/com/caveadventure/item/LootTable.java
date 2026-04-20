@@ -95,6 +95,8 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.GREEN_BLADE));
                 if (chance(10))
                     loot.add(new Item(Item.ItemType.DIAMOND));
+                if (chance(12))
+                    loot.add(new Item(Item.ItemType.SMOKE_BOMB));
                 break;
 
             case ICE_DRAKE:
@@ -169,13 +171,19 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.FIRE_AXE));
             } else if (floor <= 7) {
                 loot.add(new Item(Item.ItemType.GREEN_BLADE));
-            } else if (floor <= 3){
-                loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
-            } else if (floor <= 3){
-                loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
+            } else {
+                if (chance(50))
+                    loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
+                else
+                    loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
             }
         } else if (roll < 0.98f) {
             loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
+        } else {
+            if (chance(50))
+                loot.add(new Item(Item.ItemType.FIRE_RUNE));
+            else
+                loot.add(new Item(Item.ItemType.FROST_RUNE));
         };
         
         return loot;
