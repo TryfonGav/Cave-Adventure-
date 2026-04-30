@@ -289,37 +289,23 @@ public class ShopUI {
         game.shapeRenderer.setColor(0, 0, 0, 0.5f * alpha);
         game.shapeRenderer.rect(0, 0, screenW, screenH);
 
-        // Panel
-        game.shapeRenderer.setColor(0.08f, 0.07f, 0.05f, 0.95f * alpha);
-        game.shapeRenderer.rect(panelX, panelY, panelW, panelH);
-
-        // Border
-        game.shapeRenderer.setColor(0.5f, 0.4f, 0.2f, 0.7f * alpha);
-        game.shapeRenderer.rect(panelX, panelY, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY + panelH - 2, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY, 2, panelH);
-        game.shapeRenderer.rect(panelX + panelW - 2, panelY, 2, panelH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, panelX, panelY, panelW, panelH, alpha);
 
         // Active tab highlight
         if (shopMode == ShopMode.BUY) {
-            game.shapeRenderer.setColor(0.5f, 0.4f, 0.15f, 0.5f * alpha);
-            game.shapeRenderer.rect(panelX + 8, panelY + panelH - 28, 55, 22);
+            CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, panelY + panelH - 30, 55, 24, alpha);
         } else {
-            game.shapeRenderer.setColor(0.15f, 0.4f, 0.1f, 0.5f * alpha);
-            game.shapeRenderer.rect(panelX + 73, panelY + panelH - 28, 62, 22);
+            CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 73, panelY + panelH - 30, 62, 24, alpha);
         }
 
-        // Header separator
-        game.shapeRenderer.setColor(0.4f, 0.3f, 0.15f, 0.5f * alpha);
-        game.shapeRenderer.rect(panelX + 10, panelY + panelH - 35, panelW - 20, 1);
+        CaveUIStyle.drawCarvedSeparator(game.shapeRenderer, panelX + 10, panelY + panelH - 38, panelW - 20, alpha);
 
         // Slots
         if (shopMode == ShopMode.BUY) {
             for (int i = 0; i < shopItems.length; i++) {
                 float slotY = panelY + panelH - 55 - i * 40;
                 if (i == selectedIndex) {
-                    game.shapeRenderer.setColor(0.3f, 0.25f, 0.1f, 0.6f * alpha);
-                    game.shapeRenderer.rect(panelX + 8, slotY, panelW - 16, 35);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, 35, alpha);
                 }
                 game.shapeRenderer.setColor(shopItems[i].type.color.r, shopItems[i].type.color.g,
                         shopItems[i].type.color.b, alpha);
@@ -329,8 +315,7 @@ public class ShopUI {
             for (int i = 0; i < sellableItems.size(); i++) {
                 float slotY = panelY + panelH - 55 - i * 40;
                 if (i == selectedIndex) {
-                    game.shapeRenderer.setColor(0.1f, 0.3f, 0.1f, 0.6f * alpha);
-                    game.shapeRenderer.rect(panelX + 8, slotY, panelW - 16, 35);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, 35, alpha);
                 }
                 game.shapeRenderer.setColor(sellableItems.get(i).getType().color.r,
                         sellableItems.get(i).getType().color.g,
@@ -350,21 +335,21 @@ public class ShopUI {
 
         // BUY tab label
         if (shopMode == ShopMode.BUY)
-            normalFont.setColor(1f, 0.9f, 0.4f, alpha);
+            normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
         else
-            normalFont.setColor(0.55f, 0.5f, 0.35f, alpha);
+            normalFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
         normalFont.draw(game.batch, "BUY", panelX + 14, panelY + panelH - 10);
 
         // SELL tab label
         if (shopMode == ShopMode.SELL)
-            normalFont.setColor(0.4f, 1f, 0.3f, alpha);
+            normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
         else
-            normalFont.setColor(0.55f, 0.5f, 0.35f, alpha);
+            normalFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
         normalFont.draw(game.batch, "SELL", panelX + 79, panelY + panelH - 10);
 
         // Gold display
         if (currentPlayer != null) {
-            smallFont.setColor(0.9f, 0.85f, 0.2f, alpha);
+            smallFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
             smallFont.draw(game.batch, "Gold: " + countGold(currentPlayer) + "g",
                     panelX + panelW - 80, panelY + panelH - 10);
         }
@@ -375,20 +360,20 @@ public class ShopUI {
                 float slotY = panelY + panelH - 55 - i * 40;
 
                 if (i == selectedIndex)
-                    normalFont.setColor(1f, 0.9f, 0.4f, alpha);
+                    normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
                 else
-                    normalFont.setColor(0.85f, 0.8f, 0.7f, alpha);
+                    normalFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, alpha);
 
                 normalFont.draw(game.batch, item.type.displayName, panelX + 30, slotY + 30);
 
-                smallFont.setColor(0.6f, 0.55f, 0.4f, alpha);
+                smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
                 smallFont.draw(game.batch, item.description, panelX + 30, slotY + 12);
 
-                normalFont.setColor(0.9f, 0.8f, 0.2f, alpha);
+                normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
                 String priceStr;
                 if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.HAGGLER)) {
                     priceStr = hagglerPrice(item.price) + "g [30% off]";
-                    normalFont.setColor(0.4f, 1f, 0.4f, alpha);
+                    normalFont.setColor(CaveUIStyle.GOOD.r, CaveUIStyle.GOOD.g, CaveUIStyle.GOOD.b, alpha);
                 } else {
                     priceStr = item.price + "g";
                 }
@@ -397,7 +382,7 @@ public class ShopUI {
             }
         } else {
             if (sellableItems.isEmpty()) {
-                normalFont.setColor(0.6f, 0.55f, 0.45f, alpha);
+                normalFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
                 normalFont.draw(game.batch, "No treasures to sell.", panelX + 30, panelY + panelH - 80);
             } else {
                 for (int i = 0; i < sellableItems.size(); i++) {
@@ -405,18 +390,18 @@ public class ShopUI {
                     float slotY = panelY + panelH - 55 - i * 40;
 
                     if (i == selectedIndex)
-                        normalFont.setColor(0.4f, 1f, 0.3f, alpha);
+                        normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
                     else
-                        normalFont.setColor(0.85f, 0.8f, 0.7f, alpha);
+                        normalFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, alpha);
 
                     normalFont.draw(game.batch,
                             treasure.getType().displayName + " x" + treasure.getQuantity(),
                             panelX + 30, slotY + 30);
 
-                    smallFont.setColor(0.6f, 0.55f, 0.4f, alpha);
+                    smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
                     smallFont.draw(game.batch, treasure.getType().description, panelX + 30, slotY + 12);
 
-                    normalFont.setColor(0.3f, 0.9f, 0.3f, alpha);
+                    normalFont.setColor(CaveUIStyle.GOOD.r, CaveUIStyle.GOOD.g, CaveUIStyle.GOOD.b, alpha);
                     String priceStr = sellPrice(treasure.getType()) + "g ea";
                     layout.setText(normalFont, priceStr);
                     normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
@@ -426,13 +411,13 @@ public class ShopUI {
 
         // Status message
         if (statusMessage != null) {
-            normalFont.setColor(0.9f, 0.85f, 0.3f, Math.min(1, statusTimer));
+            normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, Math.min(1, statusTimer));
             layout.setText(normalFont, statusMessage);
             normalFont.draw(game.batch, statusMessage, panelX + panelW / 2 - layout.width / 2, panelY + 25);
         }
 
         // Controls hint
-        smallFont.setColor(0.5f, 0.45f, 0.35f, alpha * 0.7f);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha * 0.8f);
         String hint = (shopMode == ShopMode.BUY)
                 ? "W/S:Browse  E:Buy  TAB:Sell  ESC:Close"
                 : "W/S:Browse  E:Sell  TAB:Buy  ESC:Close";

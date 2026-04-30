@@ -81,6 +81,10 @@ public class Inventory {
                 player.heal(type.restoreAmount);
                 setMessage("Healed " + type.restoreAmount + " HP");
                 break;
+            case ELIXIR:
+                player.heal(player.getMaxHealth());
+                setMessage("Fully restored HP!");
+                break;
             case FOOD_RATION:
             case COOKED_MEAT:
                 player.modifyHunger(type.restoreAmount);

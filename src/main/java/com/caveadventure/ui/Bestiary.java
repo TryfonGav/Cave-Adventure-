@@ -102,19 +102,12 @@ public class Bestiary {
         game.shapeRenderer.setColor(0, 0, 0, 0.6f);
         game.shapeRenderer.rect(0, 0, sw, sh);
 
-        game.shapeRenderer.setColor(0.07f, 0.07f, 0.1f, 0.95f);
-        game.shapeRenderer.rect(px, py, panelW, panelH);
-
-        game.shapeRenderer.setColor(0.3f, 0.3f, 0.35f, 0.6f);
-        game.shapeRenderer.rect(px, py, panelW, 2);
-        game.shapeRenderer.rect(px, py + panelH - 2, panelW, 2);
-        game.shapeRenderer.rect(px, py, 2, panelH);
-        game.shapeRenderer.rect(px + panelW - 2, py, 2, panelH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, px, py, panelW, panelH, 0.96f);
+        CaveUIStyle.drawCarvedSeparator(game.shapeRenderer, px + 14, py + panelH - 36, panelW - 28, 1f);
 
         // List panel (left)
         float listW = 180;
-        game.shapeRenderer.setColor(0.06f, 0.06f, 0.09f, 0.9f);
-        game.shapeRenderer.rect(px + 5, py + 5, listW, panelH - 40);
+        CaveUIStyle.drawInsetPanel(game.shapeRenderer, px + 6, py + 8, listW, panelH - 48, 0.9f);
 
         for (int i = 0; i < orderedTypes.size(); i++) {
             EnemyEntry entry = entries.get(orderedTypes.get(i));
@@ -123,8 +116,7 @@ public class Bestiary {
                 break;
 
             if (i == selectedIndex) {
-                game.shapeRenderer.setColor(0.2f, 0.25f, 0.35f, 0.7f);
-                game.shapeRenderer.rect(px + 7, ey - 2, listW - 4, 26);
+                CaveUIStyle.drawSelection(game.shapeRenderer, px + 8, ey - 2, listW - 6, 26, 1f);
             }
 
             if (entry.discovered) {
@@ -155,7 +147,7 @@ public class Bestiary {
         BitmapFont nf = game.font;
         BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
 
-        nf.setColor(0.8f, 0.75f, 0.6f, 1f);
+        nf.setColor(CaveUIStyle.GOLD);
         nf.draw(game.batch, "BESTIARY", px + 15, py + panelH - 10);
 
         // Enemy list
@@ -166,10 +158,10 @@ public class Bestiary {
                 break;
 
             if (entry.discovered) {
-                sf.setColor(i == selectedIndex ? new Color(1f, 0.9f, 0.3f, 1f) : new Color(0.7f, 0.65f, 0.55f, 1f));
+                sf.setColor(i == selectedIndex ? CaveUIStyle.GOLD : CaveUIStyle.TEXT);
                 sf.draw(game.batch, entry.type.name, px + 22, ey + 16);
             } else {
-                sf.setColor(0.3f, 0.3f, 0.3f, 0.6f);
+                sf.setColor(CaveUIStyle.DISABLED_TEXT);
                 sf.draw(game.batch, "???", px + 22, ey + 16);
             }
         }
@@ -183,25 +175,25 @@ public class Bestiary {
                 nf.setColor(sel.type.color);
                 nf.draw(game.batch, sel.type.name, dx + 10, py + panelH - 50);
 
-                sf.setColor(0.7f, 0.65f, 0.55f, 1f);
+                sf.setColor(CaveUIStyle.TEXT);
                 sf.draw(game.batch, "HP: " + sel.type.maxHealth, dx + 10, py + panelH - 155);
                 sf.draw(game.batch, "DMG: " + sel.type.minDamage + "-" + sel.type.maxDamage, dx + 10,
                         py + panelH - 175);
                 sf.draw(game.batch, "Speed: " + sel.type.speed, dx + 10, py + panelH - 195);
                 sf.draw(game.batch, "XP Reward: " + sel.type.xpReward, dx + 10, py + panelH - 215);
 
-                nf.setColor(0.8f, 0.75f, 0.6f, 1f);
+                nf.setColor(CaveUIStyle.GOLD);
                 nf.draw(game.batch, "Kills: " + sel.killCount, dx + 10, py + panelH - 245);
             } else {
-                nf.setColor(0.4f, 0.4f, 0.4f, 1f);
+                nf.setColor(CaveUIStyle.DISABLED_TEXT);
                 nf.draw(game.batch, "Unknown Creature", dx + 10, py + panelH - 50);
-                sf.setColor(0.35f, 0.35f, 0.3f, 0.7f);
+                sf.setColor(CaveUIStyle.MUTED_TEXT);
                 sf.draw(game.batch, "Defeat this enemy to", dx + 10, py + panelH - 80);
                 sf.draw(game.batch, "reveal its stats.", dx + 10, py + panelH - 98);
             }
         }
 
-        sf.setColor(0.4f, 0.4f, 0.35f, 0.6f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "W/S:Navigate  B/ESC:Close", px + 15, py + 10);
 
         game.batch.end();

@@ -12,6 +12,7 @@ import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Item;
+import com.caveadventure.ui.CaveUIStyle;
 
 import java.util.*;
 
@@ -266,22 +267,15 @@ public class RandomEventManager {
         game.shapeRenderer.setColor(0, 0, 0, 0.6f);
         game.shapeRenderer.rect(0, 0, sw, sh);
 
-        game.shapeRenderer.setColor(0.08f, 0.07f, 0.1f, 0.95f);
-        game.shapeRenderer.rect(px, py, panelW, panelH);
-
-        // Accent
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, px, py, panelW, panelH, 0.96f);
         game.shapeRenderer.setColor(currentEvent.color);
-        game.shapeRenderer.rect(px, py + panelH - 3, panelW, 3);
-        game.shapeRenderer.rect(px, py, panelW, 3);
-        game.shapeRenderer.rect(px, py, 3, panelH);
-        game.shapeRenderer.rect(px + panelW - 3, py, 3, panelH);
+        game.shapeRenderer.rect(px + 12, py + panelH - 36, panelW - 24, 4);
 
         if (!showingResult) {
             for (int i = 0; i < currentEvent.choices.length; i++) {
                 float cy = py + panelH - 140 - i * 35;
                 if (i == choiceSelection) {
-                    game.shapeRenderer.setColor(0.2f, 0.25f, 0.35f, 0.7f);
-                    game.shapeRenderer.rect(px + 20, cy - 5, panelW - 40, 30);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, px + 20, cy - 5, panelW - 40, 30, 1f);
                 }
             }
         }
@@ -299,17 +293,17 @@ public class RandomEventManager {
         nf.draw(game.batch, currentEvent.title, px + 20, py + panelH - 15);
 
         if (showingResult) {
-            nf.setColor(0.9f, 0.85f, 0.7f, 1f);
+            nf.setColor(CaveUIStyle.TEXT);
             nf.draw(game.batch, resultText, px + 20, py + panelH - 60, panelW - 40, -1, true);
-            sf.setColor(0.5f, 0.5f, 0.45f, 0.7f);
+            sf.setColor(CaveUIStyle.MUTED_TEXT);
             sf.draw(game.batch, "Press ENTER to continue", px + 20, py + 20);
         } else {
-            sf.setColor(0.7f, 0.65f, 0.55f, 0.9f);
+            sf.setColor(CaveUIStyle.TEXT);
             sf.draw(game.batch, currentEvent.description, px + 20, py + panelH - 50, panelW - 40, -1, true);
 
             for (int i = 0; i < currentEvent.choices.length; i++) {
                 float cy = py + panelH - 130 - i * 35;
-                nf.setColor(i == choiceSelection ? new Color(1f, 0.9f, 0.3f, 1f) : new Color(0.7f, 0.65f, 0.55f, 1f));
+                nf.setColor(i == choiceSelection ? CaveUIStyle.GOLD : CaveUIStyle.TEXT);
                 nf.draw(game.batch, (i == choiceSelection ? "> " : "  ") + currentEvent.choices[i].text, px + 25,
                         cy + 15);
             }

@@ -145,20 +145,12 @@ public class AchievementManager {
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Background
-        game.shapeRenderer.setColor(0.08f, 0.08f, 0.12f, 0.9f * alpha);
-        game.shapeRenderer.rect(boxX, boxY, boxW, boxH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, boxX, boxY, boxW, boxH, alpha);
 
         // Accent bar (left side, achievement color)
         game.shapeRenderer.setColor(currentPopup.color.r, currentPopup.color.g,
                 currentPopup.color.b, alpha);
         game.shapeRenderer.rect(boxX, boxY, 4, boxH);
-
-        // Border
-        game.shapeRenderer.setColor(0.4f, 0.4f, 0.45f, 0.5f * alpha);
-        game.shapeRenderer.rect(boxX, boxY, boxW, 1);
-        game.shapeRenderer.rect(boxX, boxY + boxH - 1, boxW, 1);
-        game.shapeRenderer.rect(boxX + boxW - 1, boxY, 1, boxH);
 
         // Trophy icon (simple)
         game.shapeRenderer.setColor(currentPopup.color.r, currentPopup.color.g,
@@ -177,7 +169,7 @@ public class AchievementManager {
         BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
 
         // "Achievement Unlocked"
-        smallFont.setColor(0.6f, 0.6f, 0.55f, alpha);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
         smallFont.draw(game.batch, "Achievement Unlocked!", boxX + 45, boxY + boxH - 8);
 
         // Achievement title
@@ -186,7 +178,7 @@ public class AchievementManager {
         normalFont.draw(game.batch, currentPopup.title, boxX + 45, boxY + boxH - 26);
 
         // Description
-        smallFont.setColor(0.7f, 0.7f, 0.65f, alpha * 0.8f);
+        smallFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, alpha * 0.8f);
         smallFont.draw(game.batch, currentPopup.description, boxX + 45, boxY + 14);
 
         game.batch.end();

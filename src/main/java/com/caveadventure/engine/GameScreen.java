@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import com.caveadventure.CaveAdventure;
+import com.caveadventure.entity.CharacterAppearance;
 import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
@@ -24,7 +25,7 @@ import com.caveadventure.world.GameMap;
 public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
-        MENU, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
+        MENU, CHARACTER_SELECT, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
         EVENT, SKILL_PICK, NPC_DIALOGUE
     }
 
@@ -59,6 +60,7 @@ public class GameScreen extends ScreenAdapter {
     private final Bestiary bestiary;
     private final StatsScreen statsScreen;
     private final SettingsMenu settingsMenu;
+    private final CharacterSelectUI characterSelectUI;
 
     // State
     private GameState state;
@@ -72,6 +74,7 @@ public class GameScreen extends ScreenAdapter {
     private float particleTimer;
     private int lastPlayerLevel;
     private Biome currentBiome;
+    private CharacterAppearance selectedAppearance;
 
     public GameScreen(CaveAdventure game) {
         this.game = game;
@@ -103,7 +106,9 @@ public class GameScreen extends ScreenAdapter {
         this.bestiary = new Bestiary(game);
         this.statsScreen = new StatsScreen(game);
         this.settingsMenu = new SettingsMenu(game);
+        this.characterSelectUI = new CharacterSelectUI(game);
         this.levelManager = new LevelManager();
+        this.selectedAppearance = CharacterAppearance.defaultAppearance();
 
         this.state = GameState.MENU;
         this.mainMenu.setHasSave(SaveManager.hasSave());
@@ -116,7 +121,8 @@ public class GameScreen extends ScreenAdapter {
 
     // --- Game Setup ---
 
-    private void startNewGame() {
+    private void startNewGame(CharacterAppearance appearance) {
+        selectedAppearance = appearance == null ? CharacterAppearance.defaultAppearance() : appearance.copy();
         enemiesKilledTotal = 0;
         bossKilledThisFloor = false;
         lastPlayerLevel = 1;
@@ -128,10 +134,12 @@ public class GameScreen extends ScreenAdapter {
     private void loadSavedGame() {
         SaveManager.SaveData data = SaveManager.loadGame();
         if (data == null) {
-            startNewGame();
+            characterSelectUI.reset();
+            state = GameState.CHARACTER_SELECT;
             return;
         }
 
+        selectedAppearance = data.characterAppearance.copy();
         setupFloor(data.floor);
         skillTree.restoreUnlockedSkills(data.unlockedSkills);
         player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
@@ -182,6 +190,7 @@ public class GameScreen extends ScreenAdapter {
         this.gameMap = levelManager.getCurrentMap();
         this.combatManager = levelManager.getCombatManager();
         this.player = new Player(spawn[0], spawn[1]);
+        this.player.setAppearance(selectedAppearance);
         this.currentBiome = Biome.forFloor(floor);
 
         OrthographicCamera cam = new OrthographicCamera();
@@ -223,14 +232,20 @@ public class GameScreen extends ScreenAdapter {
     public void render(float delta) {
         delta = Math.min(delta, 1 / 30f);
 
+        boolean inventoryPaused = state == GameState.PLAYING && inventoryUI.isVisible();
         achievements.update(delta);
         transition.update(delta);
-        particles.update(delta);
+        if (!inventoryPaused)
+            particles.update(delta);
 
         switch (state) {
             case MENU:
                 updateMenu(delta);
                 drawMenu();
+                break;
+            case CHARACTER_SELECT:
+                updateCharacterSelect(delta);
+                drawCharacterSelect();
                 break;
             case SETTINGS:
                 updateSettings(delta);
@@ -293,14 +308,31 @@ public class GameScreen extends ScreenAdapter {
         }
 
         int result = mainMenu.update(inputHandler, delta);
-        if (result == 0)
-            startNewGame();
+        if (result == 0) {
+            characterSelectUI.reset();
+            state = GameState.CHARACTER_SELECT;
+        }
         else if (result == 1)
             loadSavedGame();
         else if (result == 2)
             state = GameState.SETTINGS;
         else if (result == 3)
             Gdx.app.exit();
+    }
+
+    private void updateCharacterSelect(float delta) {
+        int result = characterSelectUI.update(inputHandler, delta);
+        if (result == CharacterSelectUI.START) {
+            startNewGame(characterSelectUI.getSelectedAppearance());
+        } else if (result == CharacterSelectUI.BACK) {
+            state = GameState.MENU;
+        }
+    }
+
+    private void drawCharacterSelect() {
+        Gdx.gl.glClearColor(0.025f, 0.03f, 0.055f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        characterSelectUI.render();
     }
 
     private void drawMenu() {
@@ -315,7 +347,7 @@ public class GameScreen extends ScreenAdapter {
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
         com.badlogic.gdx.graphics.g2d.BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
-        sf.setColor(0.6f, 0.55f, 0.45f, 0.8f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Difficulty: " + Difficulty.getCurrent().name + "  [D to change]", 10, 25);
         game.batch.end();
     }
@@ -408,6 +440,7 @@ public class GameScreen extends ScreenAdapter {
                     player.getInventory().dropItem(idx);
                     break;
             }
+            return;
         } else {
             // Player movement
             int prevX = player.getGridX(), prevY = player.getGridY();
@@ -647,22 +680,16 @@ public class GameScreen extends ScreenAdapter {
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         float baseH = 100;
-        game.shapeRenderer.setColor(0.1f, 0.08f, 0.05f, 0.9f);
-        game.shapeRenderer.rect(50, 50, Gdx.graphics.getWidth() - 100, baseH);
-        game.shapeRenderer.setColor(0.5f, 0.4f, 0.2f, 1f);
-        game.shapeRenderer.rect(50, 50, Gdx.graphics.getWidth() - 100, 2);
-        game.shapeRenderer.rect(50, 50 + baseH - 2, Gdx.graphics.getWidth() - 100, 2);
-        game.shapeRenderer.rect(50, 50, 2, baseH);
-        game.shapeRenderer.rect(50 + Gdx.graphics.getWidth() - 102, 50, 2, baseH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, 50, 50, Gdx.graphics.getWidth() - 100, baseH, 0.94f);
         game.shapeRenderer.end();
         
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
         com.badlogic.gdx.graphics.g2d.BitmapFont font = game.fontSmall != null ? game.fontSmall : game.font;
-        font.setColor(1f, 0.95f, 0.8f, 1f);
+        font.setColor(CaveUIStyle.TEXT);
         font.draw(game.batch, npcDialogueMessage, 70, 130, Gdx.graphics.getWidth() - 140, com.badlogic.gdx.utils.Align.left, true);
         
-        font.setColor(0.5f, 0.5f, 0.5f, 1f);
+        font.setColor(CaveUIStyle.MUTED_TEXT);
         font.draw(game.batch, "Tap to continue...", 70, 70);
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -731,6 +758,7 @@ public class GameScreen extends ScreenAdapter {
         floorTransitionTimer += delta;
         if (floorTransitionTimer >= 2.0f) {
             com.caveadventure.item.Inventory oldInv = player.getInventory();
+            selectedAppearance = player.getAppearance().copy();
             int oldHunger = player.getHunger();
             int oldLevel = player.getLevel();
             boolean oldPoisoned = player.isPoisoned();
@@ -789,7 +817,7 @@ public class GameScreen extends ScreenAdapter {
         GlyphLayout layout = new GlyphLayout(titleFont, "Floor " + transitionToFloor);
         titleFont.draw(game.batch, "Floor " + transitionToFloor, sw / 2 - layout.width / 2, sh / 2 + 20);
 
-        game.font.setColor(0.5f, 0.45f, 0.35f, alpha * 0.7f);
+        game.font.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha * 0.8f);
         layout.setText(game.font, nextBiome.name);
         game.font.draw(game.batch, nextBiome.name, sw / 2 - layout.width / 2, sh / 2 - 25);
 
@@ -855,7 +883,7 @@ public class GameScreen extends ScreenAdapter {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
-        game.font.setColor(1f, 0.9f, 0.3f, alpha);
+        game.font.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
         GlyphLayout layout = new GlyphLayout(game.font, msg);
         game.font.draw(game.batch, msg, Gdx.graphics.getWidth() / 2f - layout.width / 2, 80);
         game.batch.end();
@@ -872,7 +900,7 @@ public class GameScreen extends ScreenAdapter {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
-        game.font.setColor(1f, 0.3f, 0.2f, alpha);
+        game.font.setColor(CaveUIStyle.DANGER.r, CaveUIStyle.DANGER.g, CaveUIStyle.DANGER.b, alpha);
         GlyphLayout layout = new GlyphLayout(game.font, trapMessage);
         game.font.draw(game.batch, trapMessage, Gdx.graphics.getWidth() / 2f - layout.width / 2, 110);
         game.batch.end();

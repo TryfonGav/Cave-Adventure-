@@ -63,11 +63,11 @@ public class Player extends Entity {
 
     // Companion ability: used once per battle
     private boolean companionAbilityUsed = false;
+    private CharacterAppearance appearance;
 
     // Visual
     private static final int SIZE = GameMap.TILE_SIZE;
-    private static final Color BODY_COLOR = new Color(0.2f, 0.6f, 0.9f, 1f);
-    private static final Color BODY_COLOR_2 = new Color(0.15f, 0.5f, 0.8f, 1f);
+    private static final Color OUTLINE_COLOR = new Color(0.05f, 0.06f, 0.09f, 1f);
     private static final Color EYE_COLOR = new Color(1f, 1f, 1f, 1f);
     private static final Color PUPIL_COLOR = new Color(0.1f, 0.1f, 0.15f, 1f);
     private static final Color POISON_TINT = new Color(0.3f, 0.8f, 0.2f, 1f);
@@ -85,6 +85,7 @@ public class Player extends Entity {
         this.targetGridY = gridY;
         this.inventory = new Inventory();
         this.torchDuration = 30f;
+        this.appearance = CharacterAppearance.defaultAppearance();
     }
 
     /**
@@ -227,13 +228,14 @@ public class Player extends Entity {
     public void render(ShapeRenderer renderer) {
         float px = pixelX;
         float py = pixelY;
-        float bobOffset = isMoving ? (float) Math.sin(moveProgress * Math.PI) * 2 : 0;
+        float bobOffset = isMoving ? (float) Math.sin(moveProgress * Math.PI) * 3f : 0;
+        float step = isMoving ? (float) Math.sin(moveProgress * Math.PI * 2f) * 1.5f : 0;
 
         boolean flashWhite = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;
 
         // Shadow
         renderer.setColor(0, 0, 0, 0.3f);
-        renderer.ellipse(px + 4, py - 2, SIZE - 8, 8);
+        renderer.ellipse(px + 5, py - 2, SIZE - 10, 8);
 
         Color bodyColor;
         if (flashWhite)
@@ -241,53 +243,109 @@ public class Player extends Entity {
         else if (poisoned)
             bodyColor = animFrame % 2 == 0 ? POISON_TINT : new Color(0.25f, 0.65f, 0.3f, 1f);
         else
-            bodyColor = animFrame % 2 == 0 ? BODY_COLOR : BODY_COLOR_2;
+            bodyColor = animFrame % 2 == 0 ? appearance.getTunicColor() : appearance.getTunicAltColor();
 
-        // Body
+        // Legs and boots
+        renderer.setColor(OUTLINE_COLOR);
+        renderer.rect(px + 8, py + 3 + bobOffset - step, 6, 10);
+        renderer.rect(px + 18, py + 3 + bobOffset + step, 6, 10);
+        renderer.setColor(appearance.getPantsColor());
+        renderer.rect(px + 9, py + 5 + bobOffset - step, 4, 8);
+        renderer.rect(px + 19, py + 5 + bobOffset + step, 4, 8);
+        renderer.setColor(appearance.getBootColor());
+        renderer.rect(px + 7, py + 2 + bobOffset - step, 8, 4);
+        renderer.rect(px + 17, py + 2 + bobOffset + step, 8, 4);
+
+        // Torso, shoulders, and arms
+        renderer.setColor(OUTLINE_COLOR);
+        renderer.rect(px + 7, py + 10 + bobOffset, 18, 15);
+        renderer.rect(px + 4, py + 11 + bobOffset, 5, 12);
+        renderer.rect(px + 23, py + 11 + bobOffset, 5, 12);
         renderer.setColor(bodyColor);
-        renderer.rect(px + 4, py + 4 + bobOffset, SIZE - 8, SIZE - 8);
-        renderer.rect(px + 2, py + 6 + bobOffset, SIZE - 4, SIZE - 12);
-
-        // Helmet
-        renderer.setColor(bodyColor.r * 0.8f, bodyColor.g * 0.8f, bodyColor.b * 0.8f, 1f);
-        renderer.rect(px + 6, py + SIZE - 8 + bobOffset, SIZE - 12, 6);
-
-        // Weapon indicator
-        if (inventory.getEquippedWeapon() != null) {
-            Color wc = inventory.getEquippedWeapon().getType().color;
-            renderer.setColor(wc);
-            // Show weapon on the correct side based on cardinal direction of facing
-            int fdx = facing.dx;
-            int fdy = facing.dy;
-            if (fdx > 0)
-                renderer.rect(px + SIZE - 2, py + 10 + bobOffset, 4, 12);
-            else if (fdx < 0)
-                renderer.rect(px - 2, py + 10 + bobOffset, 4, 12);
-            else if (fdy > 0)
-                renderer.rect(px + SIZE - 6, py + SIZE + bobOffset, 4, 8);
-            else
-                renderer.rect(px + 4, py - 4 + bobOffset, 4, 8);
-        }
+        renderer.rect(px + 8, py + 11 + bobOffset, 16, 13);
+        renderer.rect(px + 5, py + 12 + bobOffset, 4, 10);
+        renderer.rect(px + 23, py + 12 + bobOffset, 4, 10);
+        renderer.setColor(Math.min(1f, bodyColor.r * 1.18f), Math.min(1f, bodyColor.g * 1.18f),
+                Math.min(1f, bodyColor.b * 1.18f), 1f);
+        renderer.rect(px + 10, py + 20 + bobOffset, 12, 3);
+        renderer.setColor(bodyColor.r * 0.65f, bodyColor.g * 0.65f, bodyColor.b * 0.65f, 1f);
+        renderer.rect(px + 8, py + 11 + bobOffset, 16, 3);
 
         // Armor indicator
         if (inventory.getEquippedArmor() != null) {
             Color ac = inventory.getEquippedArmor().getType().color;
-            renderer.setColor(ac.r, ac.g, ac.b, 0.7f);
-            renderer.rect(px + 2, py + SIZE - 10 + bobOffset, 4, 6);
-            renderer.rect(px + SIZE - 6, py + SIZE - 10 + bobOffset, 4, 6);
+            renderer.setColor(ac.r * 0.65f, ac.g * 0.65f, ac.b * 0.65f, 0.9f);
+            renderer.rect(px + 9, py + 13 + bobOffset, 14, 8);
+            renderer.setColor(ac.r, ac.g, ac.b, 0.75f);
+            renderer.rect(px + 11, py + 18 + bobOffset, 10, 2);
+            renderer.rect(px + 11, py + 14 + bobOffset, 10, 2);
         }
 
-        // Eyes
+        // Head, hair, and face
+        renderer.setColor(OUTLINE_COLOR);
+        renderer.rect(px + 8, py + 21 + bobOffset, 16, 10);
+        renderer.rect(px + 10, py + 19 + bobOffset, 12, 3);
+        renderer.setColor(appearance.getSkinColor());
+        renderer.rect(px + 9, py + 21 + bobOffset, 14, 8);
+        renderer.rect(px + 11, py + 19 + bobOffset, 10, 3);
+        renderer.setColor(appearance.getHairColor());
+        renderer.rect(px + 8, py + 27 + bobOffset, 16, 4);
+        renderer.rect(px + 8, py + 24 + bobOffset, 3, 5);
+
+        // Belt
+        renderer.setColor(0.13f, 0.08f, 0.04f, 1f);
+        renderer.rect(px + 8, py + 13 + bobOffset, 16, 2);
+        renderer.setColor(0.86f, 0.66f, 0.24f, 1f);
+        renderer.rect(px + 15, py + 13 + bobOffset, 3, 2);
+
+        drawEquippedWeapon(renderer, px, py, bobOffset);
+
+        // Eyes and face direction
         float eyeOffsetX = facing.dx * 2;
         float eyeOffsetY = facing.dy * -2;
-        // Only skip eyes if facing directly away
         if (facing != Direction.NORTH) {
             renderer.setColor(EYE_COLOR);
-            renderer.rect(px + 8 + eyeOffsetX, py + 16 + bobOffset + eyeOffsetY, 5, 5);
-            renderer.rect(px + 19 + eyeOffsetX, py + 16 + bobOffset + eyeOffsetY, 5, 5);
+            renderer.rect(px + 11 + eyeOffsetX, py + 24 + bobOffset + eyeOffsetY, 4, 3);
+            renderer.rect(px + 18 + eyeOffsetX, py + 24 + bobOffset + eyeOffsetY, 4, 3);
             renderer.setColor(PUPIL_COLOR);
-            renderer.rect(px + 9 + eyeOffsetX, py + 17 + bobOffset + eyeOffsetY, 3, 3);
-            renderer.rect(px + 20 + eyeOffsetX, py + 17 + bobOffset + eyeOffsetY, 3, 3);
+            renderer.rect(px + 12 + eyeOffsetX, py + 24 + bobOffset + eyeOffsetY, 2, 2);
+            renderer.rect(px + 19 + eyeOffsetX, py + 24 + bobOffset + eyeOffsetY, 2, 2);
+            renderer.setColor(0.35f, 0.16f, 0.12f, 1f);
+            renderer.rect(px + 15 + eyeOffsetX, py + 22 + bobOffset + eyeOffsetY, 4, 1);
+        } else {
+            renderer.setColor(appearance.getHairColor());
+            renderer.rect(px + 10, py + 23 + bobOffset, 12, 4);
+        }
+    }
+
+    private void drawEquippedWeapon(ShapeRenderer renderer, float px, float py, float bobOffset) {
+        if (inventory.getEquippedWeapon() == null)
+            return;
+
+        Color weaponColor = inventory.getEquippedWeapon().getType().color;
+        renderer.setColor(0.10f, 0.07f, 0.04f, 1f);
+        int fdx = facing.dx;
+        int fdy = facing.dy;
+        if (fdx < 0) {
+            renderer.rect(px + 1, py + 11 + bobOffset, 4, 8);
+            renderer.setColor(weaponColor);
+            renderer.rect(px - 2, py + 17 + bobOffset, 4, 13);
+            renderer.rect(px - 4, py + 28 + bobOffset, 8, 3);
+        } else if (fdx > 0) {
+            renderer.rect(px + SIZE - 5, py + 11 + bobOffset, 4, 8);
+            renderer.setColor(weaponColor);
+            renderer.rect(px + SIZE - 2, py + 17 + bobOffset, 4, 13);
+            renderer.rect(px + SIZE - 4, py + 28 + bobOffset, 8, 3);
+        } else if (fdy > 0) {
+            renderer.rect(px + 23, py + 20 + bobOffset, 4, 8);
+            renderer.setColor(weaponColor);
+            renderer.rect(px + 25, py + 27 + bobOffset, 3, 10);
+            renderer.rect(px + 23, py + 35 + bobOffset, 7, 3);
+        } else {
+            renderer.rect(px + 24, py + 8 + bobOffset, 4, 8);
+            renderer.setColor(weaponColor);
+            renderer.rect(px + 26, py - 2 + bobOffset, 3, 12);
+            renderer.rect(px + 24, py - 4 + bobOffset, 7, 3);
         }
     }
 
@@ -419,6 +477,14 @@ public class Player extends Entity {
 
     public Inventory getInventory() {
         return inventory;
+    }
+
+    public CharacterAppearance getAppearance() {
+        return appearance;
+    }
+
+    public void setAppearance(CharacterAppearance appearance) {
+        this.appearance = appearance == null ? CharacterAppearance.defaultAppearance() : appearance.copy();
     }
 
     public boolean isPoisoned() {

@@ -119,6 +119,7 @@ public class TestMain {
                new ItemStack(ItemType.FIRE_AXE,1),
                new ItemStack(ItemType.CRYSTAL_ARMOR, 1),
                new ItemStack(ItemType.HEALTH_POTION, 5),
+                new ItemStack(ItemType.SHADOW_BLADE,1)
         };
     }
 }

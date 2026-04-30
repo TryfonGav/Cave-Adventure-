@@ -68,14 +68,8 @@ public class StatsScreen {
         game.shapeRenderer.setColor(0, 0, 0, 0.6f);
         game.shapeRenderer.rect(0, 0, sw, sh);
 
-        game.shapeRenderer.setColor(0.07f, 0.07f, 0.1f, 0.95f);
-        game.shapeRenderer.rect(px, py, panelW, panelH);
-
-        game.shapeRenderer.setColor(0.3f, 0.5f, 0.7f, 0.6f);
-        game.shapeRenderer.rect(px, py, panelW, 2);
-        game.shapeRenderer.rect(px, py + panelH - 2, panelW, 2);
-        game.shapeRenderer.rect(px, py, 2, panelH);
-        game.shapeRenderer.rect(px + panelW - 2, py, 2, panelH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, px, py, panelW, panelH, 0.96f);
+        CaveUIStyle.drawCarvedSeparator(game.shapeRenderer, px + 16, py + panelH - 38, panelW - 32, 1f);
 
         game.shapeRenderer.end();
 
@@ -85,34 +79,34 @@ public class StatsScreen {
         BitmapFont nf = game.font;
         BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
 
-        nf.setColor(0.4f, 0.7f, 0.9f, 1f);
+        nf.setColor(CaveUIStyle.GOLD);
         nf.draw(game.batch, "STATISTICS", px + 15, py + panelH - 10);
 
         float sx = px + 20;
         float sy = py + panelH - 45;
         float gap = 20;
 
-        sf.setColor(0.8f, 0.75f, 0.65f, 1f);
+        sf.setColor(CaveUIStyle.TEXT);
         drawStat(sf, sx, sy, "Level", "" + player.getLevel());
         drawStat(sf, sx, sy - gap, "Floor", "" + floor);
         drawStat(sf, sx, sy - gap * 2, "HP", player.getHealth() + "/" + player.getMaxHealth());
         drawStat(sf, sx, sy - gap * 3, "Total ATK", "" + player.getTotalAttack());
 
-        sf.setColor(0.9f, 0.4f, 0.3f, 1f);
+        sf.setColor(CaveUIStyle.DANGER);
         drawStat(sf, sx, sy - gap * 5, "Enemies Killed", "" + enemiesKilled);
         drawStat(sf, sx, sy - gap * 6, "Damage Dealt", "" + totalDamageDealt);
         drawStat(sf, sx, sy - gap * 7, "Damage Taken", "" + totalDamageTaken);
         drawStat(sf, sx, sy - gap * 8, "Battles Fought", "" + battlesFought);
         drawStat(sf, sx, sy - gap * 9, "Times Fled", "" + timesFled);
 
-        sf.setColor(0.8f, 0.7f, 0.3f, 1f);
+        sf.setColor(CaveUIStyle.GOLD);
         drawStat(sf, sx, sy - gap * 11, "Steps Taken", "" + stepsTaken);
         drawStat(sf, sx, sy - gap * 12, "Chests Opened", "" + chestsOpened);
         drawStat(sf, sx, sy - gap * 13, "Traps Triggered", "" + trapsTriggered);
         drawStat(sf, sx, sy - gap * 14, "Items Used", "" + itemsUsed);
         drawStat(sf, sx, sy - gap * 15, "Gold Spent", "" + goldSpent);
 
-        sf.setColor(0.4f, 0.4f, 0.35f, 0.6f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Press P or ESC to close", px + 15, py + 12);
 
         game.batch.end();

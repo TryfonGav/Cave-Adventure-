@@ -22,20 +22,18 @@ public class SettingsMenu {
 
     private int selectedOption;
     private float animTimer;
-    
     private final Preferences prefs;
 
-    // Display options
     private final int[] resolutionsX = { 960, 1280, 1920 };
     private final int[] resolutionsY = { 640, 720, 1080 };
     private int currentResolutionIndex = 0;
-    
-    private final int[] fpsCaps = { 30, 60, 120, 144, 0 }; // 0 means uncapped in libgdx (or we can use monitor refresh rate if we set it)
+
+    private final int[] fpsCaps = { 30, 60, 120, 144, 0 };
     private int currentFpsIndex = 1;
-    
+
     private boolean isFullscreen = false;
     private boolean isVsync = true;
-    
+
     private final String[] options = new String[5];
 
     private final float[] particleX = new float[30];
@@ -48,23 +46,19 @@ public class SettingsMenu {
         this.camera = new OrthographicCamera();
         this.layout = new GlyphLayout();
         this.selectedOption = 0;
-        
+
         this.prefs = Gdx.app.getPreferences("CaveAdventureSettings");
         loadSettings();
         updateOptionsText();
-        
+
         for (int i = 0; i < particleX.length; i++)
             resetParticle(i, true);
     }
-    
+
     private void loadSettings() {
-        // Fullscreen
         isFullscreen = prefs.getBoolean("fullscreen", false);
-        
-        // VSync
         isVsync = prefs.getBoolean("vsync", true);
-        
-        // Resolution
+
         int resX = prefs.getInteger("resX", 960);
         int resY = prefs.getInteger("resY", 640);
         currentResolutionIndex = 0;
@@ -74,8 +68,7 @@ public class SettingsMenu {
                 break;
             }
         }
-        
-        // FPS
+
         int fps = prefs.getInteger("fps", 60);
         currentFpsIndex = 1;
         for (int i = 0; i < fpsCaps.length; i++) {
@@ -85,7 +78,7 @@ public class SettingsMenu {
             }
         }
     }
-    
+
     private void updateOptionsText() {
         String fpsString = fpsCaps[currentFpsIndex] == 0 ? "Uncapped" : String.valueOf(fpsCaps[currentFpsIndex]);
         options[0] = "Resolution: < " + resolutionsX[currentResolutionIndex] + "x" + resolutionsY[currentResolutionIndex] + " >";
@@ -94,30 +87,25 @@ public class SettingsMenu {
         options[3] = "V-Sync: " + (isVsync ? "ON" : "OFF");
         options[4] = "Back";
     }
-    
+
     private void applySettings() {
-        // Warning: Changing window settings at runtime might not work predictably on all LWJGL3 setups
-        // Usually, setFullscreenMode / setWindowedMode handles it.
-        
         if (isFullscreen) {
-            // Find current display mode
             com.badlogic.gdx.Graphics.DisplayMode currentMode = Gdx.graphics.getDisplayMode();
             Gdx.graphics.setFullscreenMode(currentMode);
         } else {
             Gdx.graphics.setWindowedMode(resolutionsX[currentResolutionIndex], resolutionsY[currentResolutionIndex]);
         }
-        
+
         Gdx.graphics.setVSync(isVsync);
         Gdx.graphics.setForegroundFPS(fpsCaps[currentFpsIndex]);
-        
-        // Save to preferences
+
         prefs.putBoolean("fullscreen", isFullscreen);
         prefs.putBoolean("vsync", isVsync);
         prefs.putInteger("resX", resolutionsX[currentResolutionIndex]);
         prefs.putInteger("resY", resolutionsY[currentResolutionIndex]);
         prefs.putInteger("fps", fpsCaps[currentFpsIndex]);
         prefs.flush();
-        
+
         updateOptionsText();
     }
 
@@ -128,9 +116,6 @@ public class SettingsMenu {
         particleSize[i] = 1 + (float) (Math.random() * 3);
     }
 
-    /**
-     * @return true if "Back" is pressed, false otherwise.
-     */
     public boolean update(InputHandler input, float delta) {
         animTimer += delta;
 
@@ -140,15 +125,12 @@ public class SettingsMenu {
                 resetParticle(i, false);
         }
 
-        if (input.isKeyJustPressed(Input.Keys.UP) || input.isKeyJustPressed(Input.Keys.W)) {
+        if (input.isKeyJustPressed(Input.Keys.UP) || input.isKeyJustPressed(Input.Keys.W))
             selectedOption = (selectedOption - 1 + options.length) % options.length;
-        }
-        if (input.isKeyJustPressed(Input.Keys.DOWN) || input.isKeyJustPressed(Input.Keys.S)) {
+        if (input.isKeyJustPressed(Input.Keys.DOWN) || input.isKeyJustPressed(Input.Keys.S))
             selectedOption = (selectedOption + 1) % options.length;
-        }
-        
-        // Handle Left/Right for Resolution and FPS selections
-        if (selectedOption == 0) { // Resolution
+
+        if (selectedOption == 0) {
             if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A)) {
                 currentResolutionIndex = (currentResolutionIndex - 1 + resolutionsX.length) % resolutionsX.length;
                 applySettings();
@@ -156,7 +138,7 @@ public class SettingsMenu {
                 currentResolutionIndex = (currentResolutionIndex + 1) % resolutionsX.length;
                 applySettings();
             }
-        } else if (selectedOption == 1) { // FPS
+        } else if (selectedOption == 1) {
             if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A)) {
                 currentFpsIndex = (currentFpsIndex - 1 + fpsCaps.length) % fpsCaps.length;
                 applySettings();
@@ -174,15 +156,11 @@ public class SettingsMenu {
                 isVsync = !isVsync;
                 applySettings();
             } else if (selectedOption == 4) {
-                return true; // Go back
+                return true;
             }
         }
-        
-        if (input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            return true;
-        }
-        
-        return false;
+
+        return input.isKeyJustPressed(Input.Keys.ESCAPE);
     }
 
     public void render() {
@@ -198,40 +176,23 @@ public class SettingsMenu {
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Background
-        game.shapeRenderer.setColor(0.04f, 0.04f, 0.08f, 1f);
-        game.shapeRenderer.rect(0, 0, screenW, screenH / 2);
-        game.shapeRenderer.setColor(0.08f, 0.06f, 0.12f, 1f);
-        game.shapeRenderer.rect(0, screenH / 2, screenW, screenH / 2);
+        CaveUIStyle.drawCaveBackground(game.shapeRenderer, screenW, screenH, animTimer);
+        CaveUIStyle.drawDust(game.shapeRenderer, particleX, particleY, particleSize, animTimer);
 
-        // Particles
-        for (int i = 0; i < particleX.length; i++) {
-            float alpha = 0.3f + (float) Math.sin(animTimer + i) * 0.2f;
-            game.shapeRenderer.setColor(0.8f, 0.5f, 0.2f, alpha);
-            game.shapeRenderer.rect(particleX[i], particleY[i], particleSize[i], particleSize[i]);
-        }
+        float titleY = screenH * 0.80f;
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 240, titleY - 50, 480, 88, 0.94f);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 235, screenH * 0.22f, 470, screenH * 0.45f, 0.92f);
+        CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f - 292, screenH * 0.55f, 1.4f, 0.92f, animTimer);
+        CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f + 266, screenH * 0.55f, 1.4f, 0.92f, animTimer + 0.8f);
 
-        // Title glow
-        float titleY = screenH * 0.8f;
-        float glowPulse = (float) Math.sin(animTimer * 1.5) * 0.05f + 0.15f;
-        game.shapeRenderer.setColor(0.3f, 0.15f, 0.05f, glowPulse);
-        game.shapeRenderer.rect(screenW / 2 - 250, titleY - 30, 500, 70);
-
-        // Menu backgrounds
         float menuStartY = screenH * 0.55f;
         for (int i = 0; i < options.length; i++) {
             float optY = menuStartY - i * 55;
-            if (i == selectedOption) {
-                float pulse = (float) Math.sin(animTimer * 4) * 0.05f + 0.25f;
-                game.shapeRenderer.setColor(0.2f, 0.3f, 0.5f, pulse);
-                game.shapeRenderer.rect(screenW / 2 - 200, optY - 5, 400, 40);
-                game.shapeRenderer.setColor(0.9f, 0.7f, 0.2f, 0.9f);
-                game.shapeRenderer.rect(screenW / 2 - 205, optY, 4, 30);
-            }
+            if (i == selectedOption)
+                CaveUIStyle.drawSelection(game.shapeRenderer, screenW / 2f - 205, optY - 5, 410, 40, 1f);
         }
         game.shapeRenderer.end();
 
-        // --- Text ---
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
 
@@ -239,28 +200,21 @@ public class SettingsMenu {
         BitmapFont normalFont = game.font;
         BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
 
-        // Title
-        largeFont.setColor(0.9f, 0.7f, 0.3f, 1f);
+        largeFont.setColor(CaveUIStyle.GOLD);
         layout.setText(largeFont, "SETTINGS");
-        largeFont.draw(game.batch, "SETTINGS", screenW / 2 - layout.width / 2, titleY + 30);
+        largeFont.draw(game.batch, "SETTINGS", screenW / 2f - layout.width / 2f, titleY + 30);
 
-        // Menu options
         for (int i = 0; i < options.length; i++) {
             float optY = menuStartY - i * 55;
-            
-            if (i == selectedOption)
-                normalFont.setColor(1f, 0.85f, 0.3f, 1f);
-            else
-                normalFont.setColor(0.7f, 0.65f, 0.55f, 0.9f);
-
+            normalFont.setColor(i == selectedOption ? CaveUIStyle.GOLD : CaveUIStyle.TEXT);
             layout.setText(normalFont, options[i]);
-            normalFont.draw(game.batch, options[i], screenW / 2 - layout.width / 2, optY + 28);
+            normalFont.draw(game.batch, options[i], screenW / 2f - layout.width / 2f, optY + 28);
         }
 
-        // Footer
-        smallFont.setColor(0.35f, 0.35f, 0.3f, 0.6f);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT);
         layout.setText(smallFont, "Arrows: Navigate/Change   Enter: Select   Esc: Back");
-        smallFont.draw(game.batch, "Arrows: Navigate/Change   Enter: Select   Esc: Back", screenW / 2 - layout.width / 2, 40);
+        smallFont.draw(game.batch, "Arrows: Navigate/Change   Enter: Select   Esc: Back",
+                screenW / 2f - layout.width / 2f, 40);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);

@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
+import com.caveadventure.ui.CaveUIStyle;
 
 import java.util.*;
 
@@ -273,18 +274,9 @@ public class SkillTree {
             float cx = startX + i * (cardW + 20);
             boolean sel = (i == selection);
 
-            // Card bg
-            game.shapeRenderer
-                    .setColor(sel ? new Color(0.12f, 0.15f, 0.2f, 0.95f) : new Color(0.08f, 0.08f, 0.12f, 0.9f));
-            game.shapeRenderer.rect(cx, cardY, cardW, cardH);
-
-            // Border
-            Color bc = sel ? choices[i].color : new Color(0.3f, 0.3f, 0.35f, 0.6f);
-            game.shapeRenderer.setColor(bc);
-            game.shapeRenderer.rect(cx, cardY, cardW, 2);
-            game.shapeRenderer.rect(cx, cardY + cardH - 2, cardW, 2);
-            game.shapeRenderer.rect(cx, cardY, 2, cardH);
-            game.shapeRenderer.rect(cx + cardW - 2, cardY, 2, cardH);
+            CaveUIStyle.drawStonePanel(game.shapeRenderer, cx, cardY, cardW, cardH, sel ? 1f : 0.88f);
+            if (sel)
+                CaveUIStyle.drawSelection(game.shapeRenderer, cx + 6, cardY + 6, cardW - 12, cardH - 12, 1f);
 
             // Path color bar
             game.shapeRenderer.setColor(choices[i].color.r, choices[i].color.g, choices[i].color.b, 0.8f);
@@ -306,11 +298,11 @@ public class SkillTree {
         BitmapFont lf = game.fontLarge != null ? game.fontLarge : game.font;
 
         // Title
-        lf.setColor(0.9f, 0.8f, 0.3f, 1f);
+        lf.setColor(CaveUIStyle.GOLD);
         layout.setText(lf, "LEVEL UP!");
         lf.draw(game.batch, "LEVEL UP!", sw / 2 - layout.width / 2, cardY + cardH + 50);
 
-        nf.setColor(0.6f, 0.55f, 0.45f, 0.8f);
+        nf.setColor(CaveUIStyle.MUTED_TEXT);
         layout.setText(nf, "Choose a skill:");
         nf.draw(game.batch, "Choose a skill:", sw / 2 - layout.width / 2, cardY + cardH + 22);
 
@@ -323,16 +315,16 @@ public class SkillTree {
             sf.draw(game.batch, choices[i].path.name(), cx + 10, cardY + cardH - 10);
 
             // Skill name
-            nf.setColor(sel ? choices[i].color : new Color(0.8f, 0.75f, 0.65f, 1f));
+            nf.setColor(sel ? choices[i].color : CaveUIStyle.TEXT);
             nf.draw(game.batch, choices[i].name, cx + 10, cardY + 70);
 
             // Description
-            sf.setColor(0.6f, 0.55f, 0.5f, 0.9f);
+            sf.setColor(CaveUIStyle.MUTED_TEXT);
             sf.draw(game.batch, choices[i].description, cx + 10, cardY + 45, cardW - 20, -1, true);
         }
 
         // Hint
-        sf.setColor(0.5f, 0.45f, 0.4f, 0.6f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         layout.setText(sf, "A/D: Select   Enter: Confirm");
         sf.draw(game.batch, "A/D: Select   Enter: Confirm", sw / 2 - layout.width / 2, cardY - 15);
 
@@ -360,14 +352,8 @@ public class SkillTree {
         float panelY = 40;
         float panelW = sw - 80;
         float panelH = sh - 80;
-        game.shapeRenderer.setColor(0.07f, 0.08f, 0.12f, 0.96f);
-        game.shapeRenderer.rect(panelX, panelY, panelW, panelH);
-
-        game.shapeRenderer.setColor(0.35f, 0.36f, 0.42f, 0.75f);
-        game.shapeRenderer.rect(panelX, panelY, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY + panelH - 2, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY, 2, panelH);
-        game.shapeRenderer.rect(panelX + panelW - 2, panelY, 2, panelH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, panelX, panelY, panelW, panelH, 0.96f);
+        CaveUIStyle.drawCarvedSeparator(game.shapeRenderer, panelX + 24, panelY + panelH - 58, panelW - 48, 1f);
 
         float gridTop = panelY + panelH - 90;
         float cardW = 210;
@@ -387,20 +373,9 @@ public class SkillTree {
                 boolean selected = viewerSelection == skill.ordinal();
                 boolean unlocked = unlockedSkills.contains(skill);
 
-                Color bg = unlocked ? new Color(0.12f, 0.17f, 0.13f, 0.92f) : new Color(0.12f, 0.12f, 0.14f, 0.9f);
+                CaveUIStyle.drawInsetPanel(game.shapeRenderer, cx, cy, cardW, cardH, unlocked ? 0.92f : 0.74f);
                 if (selected)
-                    bg = new Color(0.18f, 0.2f, 0.28f, 0.96f);
-                game.shapeRenderer.setColor(bg);
-                game.shapeRenderer.rect(cx, cy, cardW, cardH);
-
-                Color border = selected ? skill.color
-                        : unlocked ? new Color(skill.color.r, skill.color.g, skill.color.b, 0.6f)
-                                : new Color(0.28f, 0.28f, 0.32f, 0.55f);
-                game.shapeRenderer.setColor(border);
-                game.shapeRenderer.rect(cx, cy, cardW, 2);
-                game.shapeRenderer.rect(cx, cy + cardH - 2, cardW, 2);
-                game.shapeRenderer.rect(cx, cy, 2, cardH);
-                game.shapeRenderer.rect(cx + cardW - 2, cy, 2, cardH);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, cx, cy, cardW, cardH, 1f);
 
                 game.shapeRenderer.setColor(skill.color.r, skill.color.g, skill.color.b, unlocked ? 0.9f : 0.35f);
                 game.shapeRenderer.rect(cx + 8, cy + cardH - 12, cardW - 16, 4);
@@ -416,9 +391,9 @@ public class SkillTree {
         BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
         BitmapFont lf = game.fontLarge != null ? game.fontLarge : game.font;
 
-        lf.setColor(0.9f, 0.85f, 0.35f, 1f);
+        lf.setColor(CaveUIStyle.GOLD);
         lf.draw(game.batch, "SKILL TREE", panelX + 24, panelY + panelH - 18);
-        sf.setColor(0.58f, 0.6f, 0.66f, 0.95f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Unlocked skills stay with your character. Browse with WASD. K / ESC closes.",
                 panelX + 26, panelY + panelH - 42);
 
@@ -438,8 +413,7 @@ public class SkillTree {
                 boolean selected = viewerSelection == skill.ordinal();
                 boolean unlocked = unlockedSkills.contains(skill);
 
-                nf.setColor(selected ? skill.color : unlocked ? new Color(0.88f, 0.92f, 0.88f, 1f)
-                        : new Color(0.55f, 0.57f, 0.62f, 1f));
+                nf.setColor(selected ? skill.color : unlocked ? CaveUIStyle.TEXT : CaveUIStyle.MUTED_TEXT);
                 nf.draw(game.batch, skill.name, cx + 10, cy + cardH - 16);
 
                 sf.setColor(unlocked ? new Color(0.36f, 0.95f, 0.45f, 1f) : new Color(0.85f, 0.4f, 0.4f, 1f));
@@ -453,15 +427,15 @@ public class SkillTree {
         float detailW = 200;
         nf.setColor(selectedSkill.color);
         nf.draw(game.batch, selectedSkill.name, detailX, detailY + 180);
-        sf.setColor(0.75f, 0.78f, 0.84f, 1f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, selectedSkill.path.name(), detailX, detailY + 156);
-        sf.setColor(0.9f, 0.9f, 0.92f, 1f);
+        sf.setColor(CaveUIStyle.TEXT);
         sf.draw(game.batch, selectedSkill.description, detailX, detailY + 126, detailW, -1, true);
         sf.setColor(unlockedSkills.contains(selectedSkill) ? new Color(0.36f, 0.95f, 0.45f, 1f)
                 : new Color(0.85f, 0.4f, 0.4f, 1f));
         sf.draw(game.batch, unlockedSkills.contains(selectedSkill) ? "Owned" : "Not unlocked yet", detailX,
                 detailY + 88);
-        sf.setColor(0.6f, 0.62f, 0.68f, 1f);
+        sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Unlocked: " + unlockedSkills.size() + " / " + Skill.values().length, detailX,
                 detailY + 56);
 

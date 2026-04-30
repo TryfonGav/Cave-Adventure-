@@ -27,13 +27,12 @@ public class HUD {
     private static final Color HEALTH_BG = new Color(0.3f, 0.05f, 0.05f, 0.8f);
     private static final Color HUNGER_COLOR = new Color(0.85f, 0.6f, 0.1f, 1f);
     private static final Color HUNGER_BG = new Color(0.3f, 0.2f, 0.05f, 0.8f);
-    private static final Color STAMINA_COLOR = new Color(0.2f, 0.55f, 0.95f, 1f);
-    private static final Color STAMINA_BG = new Color(0.08f, 0.12f, 0.25f, 0.8f);
-    private static final Color XP_COLOR = new Color(0.2f, 0.7f, 0.3f, 1f);
-    private static final Color XP_BG = new Color(0.05f, 0.25f, 0.1f, 0.8f);
-    private static final Color PANEL_BG = new Color(0.05f, 0.05f, 0.1f, 0.7f);
-    private static final Color TEXT_COLOR = new Color(0.95f, 0.95f, 0.9f, 1f);
-    private static final Color LABEL_COLOR = new Color(0.7f, 0.7f, 0.65f, 1f);
+    private static final Color STAMINA_COLOR = new Color(0.35f, 0.62f, 0.95f, 1f);
+    private static final Color STAMINA_BG = new Color(0.07f, 0.10f, 0.17f, 0.85f);
+    private static final Color XP_COLOR = new Color(0.25f, 0.68f, 0.30f, 1f);
+    private static final Color XP_BG = new Color(0.04f, 0.16f, 0.08f, 0.85f);
+    private static final Color TEXT_COLOR = CaveUIStyle.TEXT;
+    private static final Color LABEL_COLOR = CaveUIStyle.MUTED_TEXT;
 
     public HUD(CaveAdventure game) {
         this.game = game;
@@ -65,9 +64,7 @@ public class HUD {
 
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        game.shapeRenderer.setColor(PANEL_BG);
-        game.shapeRenderer.rect(panelX, panelY, panelWidth, panelHeight);
-        drawBorder(game.shapeRenderer, panelX, panelY, panelWidth, panelHeight);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, panelX, panelY, panelWidth, panelHeight, 0.82f);
 
         // Bars
         float barX = panelX + PADDING;
@@ -93,17 +90,14 @@ public class HUD {
         float infoX = screenW - infoW - PADDING;
         float infoY = screenH - infoH - PADDING;
 
-        game.shapeRenderer.setColor(PANEL_BG);
-        game.shapeRenderer.rect(infoX, infoY, infoW, infoH);
-        drawBorder(game.shapeRenderer, infoX, infoY, infoW, infoH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, infoX, infoY, infoW, infoH, 0.82f);
 
         // --- Controls hint ---
         float hintW = 380;
         float hintH = 25;
         float hintX = screenW / 2 - hintW / 2;
 
-        game.shapeRenderer.setColor(0.05f, 0.05f, 0.1f, 0.5f);
-        game.shapeRenderer.rect(hintX, PADDING, hintW, hintH);
+        CaveUIStyle.drawInsetPanel(game.shapeRenderer, hintX, PADDING, hintW, hintH, 0.65f);
 
         // Poison indicator
         if (player.isPoisoned()) {
@@ -151,10 +145,10 @@ public class HUD {
                 barX + 4, xpY + BAR_HEIGHT * 0.7f - 2);
 
         // Floor + Enemy count (right panel)
-        game.font.setColor(new Color(0.7f, 0.6f, 0.4f, 1f));
+        game.font.setColor(CaveUIStyle.GOLD);
         game.font.draw(game.batch, "Floor " + floor + "/" + maxFloors, infoX + 10, infoY + infoH - 12);
 
-        game.font.setColor(new Color(1f, 0.4f, 0.3f, 1f));
+        game.font.setColor(CaveUIStyle.DANGER);
         game.font.draw(game.batch, "Enemies: " + enemyCount, infoX + 10, infoY + infoH - 38);
 
         // Poison text
@@ -164,7 +158,7 @@ public class HUD {
         }
 
         // Controls
-        game.font.setColor(0.6f, 0.6f, 0.55f, 0.8f);
+        game.font.setColor(CaveUIStyle.MUTED_TEXT);
         String controls = "WASD:Move  SPACE:Attack  TAB:Inventory  K:Skills  F:Interact  ESC:Menu";
         layout.setText(game.font, controls);
         game.font.draw(game.batch, controls, hintX + hintW / 2 - layout.width / 2,
@@ -175,21 +169,13 @@ public class HUD {
     }
 
     private void drawBorder(ShapeRenderer r, float x, float y, float w, float h) {
-        r.setColor(0.3f, 0.3f, 0.35f, 0.5f);
-        r.rect(x, y, w, 2);
-        r.rect(x, y + h - 2, w, 2);
-        r.rect(x, y, 2, h);
-        r.rect(x + w - 2, y, 2, h);
+        r.setColor(CaveUIStyle.STONE_EDGE);
+        CaveUIStyle.drawFrame(r, x, y, w, h, 2);
     }
 
     private void drawBar(ShapeRenderer r, float x, float y, float w, float h,
             float pct, Color fill, Color bg) {
-        r.setColor(bg);
-        r.rect(x, y, w, h);
-        r.setColor(fill);
-        r.rect(x + 1, y + 1, (w - 2) * Math.max(0, pct), h - 2);
-        r.setColor(1, 1, 1, 0.1f);
-        r.rect(x + 1, y + h / 2, (w - 2) * Math.max(0, pct), h / 2 - 1);
+        CaveUIStyle.drawBar(r, x, y, w, h, pct, fill, bg);
     }
 
     public void dispose() {

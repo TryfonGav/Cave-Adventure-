@@ -72,16 +72,11 @@ public class GameOverScreen {
         float panelX = screenW / 2 - panelW / 2;
         float panelY = screenH / 2 - panelH / 2;
 
-        game.shapeRenderer.setColor(isVictory ? new Color(0.1f, 0.15f, 0.08f, 0.9f * fadeIn)
-                : new Color(0.15f, 0.05f, 0.05f, 0.9f * fadeIn));
-        game.shapeRenderer.rect(panelX, panelY, panelW, panelH);
-
-        Color borderColor = isVictory ? new Color(0.4f, 0.7f, 0.3f, fadeIn) : new Color(0.7f, 0.2f, 0.15f, fadeIn);
-        game.shapeRenderer.setColor(borderColor);
-        game.shapeRenderer.rect(panelX, panelY, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY + panelH - 2, panelW, 2);
-        game.shapeRenderer.rect(panelX, panelY, 2, panelH);
-        game.shapeRenderer.rect(panelX + panelW - 2, panelY, 2, panelH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, panelX, panelY, panelW, panelH, fadeIn);
+        game.shapeRenderer.setColor(isVictory ? CaveUIStyle.GOOD.r : CaveUIStyle.DANGER.r,
+                isVictory ? CaveUIStyle.GOOD.g : CaveUIStyle.DANGER.g,
+                isVictory ? CaveUIStyle.GOOD.b : CaveUIStyle.DANGER.b, fadeIn);
+        game.shapeRenderer.rect(panelX + 14, panelY + panelH - 42, panelW - 28, 4);
 
         game.shapeRenderer.end();
 
@@ -95,18 +90,19 @@ public class GameOverScreen {
 
         // Title
         String title = isVictory ? "VICTORY!" : "YOU DIED";
-        largeFont.setColor(isVictory ? new Color(0.4f, 0.9f, 0.3f, fadeIn) : new Color(0.9f, 0.2f, 0.15f, fadeIn));
+        largeFont.setColor(isVictory ? new Color(CaveUIStyle.GOOD.r, CaveUIStyle.GOOD.g, CaveUIStyle.GOOD.b, fadeIn)
+                : new Color(CaveUIStyle.DANGER.r, CaveUIStyle.DANGER.g, CaveUIStyle.DANGER.b, fadeIn));
         layout.setText(largeFont, title);
         largeFont.draw(game.batch, title, screenW / 2 - layout.width / 2, panelY + panelH - 25);
 
         // Subtitle
-        smallFont.setColor(0.6f, 0.55f, 0.45f, fadeIn);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, fadeIn);
         String subtitle = isVictory ? "The cave's darkness has been conquered!" : "The cave claims another soul...";
         layout.setText(smallFont, subtitle);
         smallFont.draw(game.batch, subtitle, screenW / 2 - layout.width / 2, panelY + panelH - 70);
 
         // Stats
-        normalFont.setColor(0.85f, 0.8f, 0.7f, fadeIn);
+        normalFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, fadeIn);
         float statsX = panelX + 50;
         float statsY = panelY + panelH - 115;
         normalFont.draw(game.batch, "Level Reached:    " + finalLevel, statsX, statsY);
@@ -116,7 +112,7 @@ public class GameOverScreen {
         // Restart hint
         if (animTimer > 1.0f) {
             float blink = (float) Math.sin(animTimer * 3) * 0.3f + 0.7f;
-            smallFont.setColor(0.7f, 0.65f, 0.5f, blink * fadeIn);
+            smallFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, blink * fadeIn);
             String hint = "Press ENTER to return to menu";
             layout.setText(smallFont, hint);
             smallFont.draw(game.batch, hint, screenW / 2 - layout.width / 2, panelY + 30);

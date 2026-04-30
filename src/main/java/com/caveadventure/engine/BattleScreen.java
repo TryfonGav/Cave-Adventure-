@@ -8,10 +8,12 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
+import com.caveadventure.entity.CharacterAppearance;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Item;
 import com.caveadventure.item.LootTable;
+import com.caveadventure.ui.CaveUIStyle;
 
 import java.util.*;
 
@@ -140,6 +142,8 @@ public class BattleScreen {
                 currentSkills = new String[] { "Heavy Slash", "Guard Break", "Focus" };
             } else if (wt == Item.ItemType.GREEN_BLADE) {
                 currentSkills = new String[] { "Venom Slice", "Poison Jab", "Focus" };
+            } else if (wt == Item.ItemType.SHADOW_BLADE) {
+                currentSkills = new String[] { "Umbral Cut", "Soul Rend", "Focus" };
             } else {
                 currentSkills = new String[] { "Power Hit", "Poison Jab", "Focus" };
             }
@@ -591,6 +595,28 @@ public class BattleScreen {
                 currentMessage = "Poison Jab! " + dmg + " dmg + POISONED!";
                 break;
 
+            case "Umbral Cut":
+                dmg = (int) (baseDmg * 1.15f) + random.nextInt(8);
+                enemy.takeDamage(dmg);
+                if (random.nextFloat() < 0.45f) {
+                    enemyStatus = StatusEffect.STUN;
+                    enemyStatusTimer = 1f;
+                    currentMessage = "Umbral Cut! " + dmg + " dmg + STUNNED!";
+                } else {
+                    currentMessage = "Umbral Cut! " + dmg + " damage!";
+                }
+                triggerAttackAnim(true);
+                break;
+
+            case "Soul Rend":
+                dmg = (int) (baseDmg * 1.3f) + random.nextInt(6);
+                enemy.takeDamage(dmg);
+                int drain = Math.max(1, dmg / 3);
+                player.heal(drain);
+                triggerAttackAnim(true);
+                currentMessage = "Soul Rend! " + dmg + " dmg and drained " + drain + " HP!";
+                break;
+
             case "Focus":
                 playerDefending = true;
                 currentMessage = "You focus your energy! Next attack +50% damage!";
@@ -628,6 +654,10 @@ public class BattleScreen {
                 cost = 20; break;
             case "Poison Jab":
                 cost = 18; break;
+            case "Umbral Cut":
+                cost = 20; break;
+            case "Soul Rend":
+                cost = 26; break;
             case "Focus":
                 cost = 12; break;
             default:
@@ -830,32 +860,20 @@ public class BattleScreen {
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Battle background
-        game.shapeRenderer.setColor(0.08f, 0.07f, 0.12f, 1f);
-        game.shapeRenderer.rect(0, sh * 0.35f, sw, sh * 0.65f);
-        game.shapeRenderer.setColor(0.12f, 0.10f, 0.08f, 1f);
-        game.shapeRenderer.rect(0, 0, sw, sh * 0.35f);
-        game.shapeRenderer.setColor(0.2f, 0.17f, 0.13f, 1f);
+        CaveUIStyle.drawCaveBackground(game.shapeRenderer, sw, sh, stateTimer);
+        game.shapeRenderer.setColor(0.16f, 0.12f, 0.08f, 1f);
         game.shapeRenderer.rect(0, sh * 0.35f - 2, sw, 4);
-
-        // Cave details
-        for (int i = 0; i < 15; i++) {
-            float sx = i * (sw / 15f);
-            float sH = 20 + (float) Math.sin(i * 2.1) * 30;
-            game.shapeRenderer.setColor(0.06f, 0.05f, 0.09f, 1f);
-            game.shapeRenderer.rect(sx, sh - sH, sw / 15f + 2, sH);
-        }
 
         // Enemy platform
         float enemyPlatX = sw * 0.6f;
         float enemyPlatY = sh * 0.45f;
-        game.shapeRenderer.setColor(0.15f, 0.12f, 0.1f, 1f);
+        game.shapeRenderer.setColor(0.12f, 0.09f, 0.065f, 1f);
         game.shapeRenderer.ellipse(enemyPlatX - 60, enemyPlatY - 15, 160, 30);
 
         // Player platform
         float playerPlatX = sw * 0.2f;
-        float playerPlatY = sh * 0.28f;
-        game.shapeRenderer.setColor(0.15f, 0.12f, 0.1f, 1f);
+        float playerPlatY = sh * 0.38f;
+        game.shapeRenderer.setColor(0.12f, 0.09f, 0.065f, 1f);
         game.shapeRenderer.ellipse(playerPlatX - 50, playerPlatY - 15, 140, 30);
 
         // Sprites
@@ -870,17 +888,13 @@ public class BattleScreen {
 
         // Enemy HP box
         float ehpX = sw * 0.55f, ehpY = sh * 0.78f, ehpW = sw * 0.38f, ehpH = 60;
-        game.shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 0.9f);
-        game.shapeRenderer.rect(ehpX, ehpY, ehpW, ehpH);
-        drawBorder(game.shapeRenderer, ehpX, ehpY, ehpW, ehpH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, ehpX, ehpY, ehpW, ehpH, 0.92f);
 
         float hpPct = (float) enemy.getHealth() / enemy.getMaxHealth();
         Color hpC = hpPct > 0.5f ? new Color(0.2f, 0.8f, 0.3f, 1f)
                 : hpPct > 0.2f ? new Color(0.9f, 0.7f, 0.1f, 1f) : new Color(0.9f, 0.2f, 0.15f, 1f);
-        game.shapeRenderer.setColor(0.15f, 0.1f, 0.1f, 1f);
-        game.shapeRenderer.rect(ehpX + 10, ehpY + 10, ehpW - 20, 12);
-        game.shapeRenderer.setColor(hpC);
-        game.shapeRenderer.rect(ehpX + 11, ehpY + 11, (ehpW - 22) * Math.max(0, hpPct), 10);
+        CaveUIStyle.drawBar(game.shapeRenderer, ehpX + 10, ehpY + 10, ehpW - 20, 12,
+                Math.max(0, hpPct), hpC, new Color(0.15f, 0.06f, 0.05f, 1f));
 
         // Status icons on enemy
         if (enemyStatus == StatusEffect.POISON) {
@@ -896,24 +910,19 @@ public class BattleScreen {
 
         // Player HP box
         float phpX = sw * 0.05f, phpY = sh * 0.35f - 80, phpW = sw * 0.38f, phpH = 80;
-        game.shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 0.9f);
-        game.shapeRenderer.rect(phpX, phpY, phpW, phpH);
-        drawBorder(game.shapeRenderer, phpX, phpY, phpW, phpH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, phpX, phpY, phpW, phpH, 0.92f);
 
         float pHp = (float) player.getHealth() / player.getMaxHealth();
         Color pC = pHp > 0.5f ? new Color(0.2f, 0.8f, 0.3f, 1f)
                 : pHp > 0.2f ? new Color(0.9f, 0.7f, 0.1f, 1f) : new Color(0.9f, 0.2f, 0.15f, 1f);
-        game.shapeRenderer.setColor(0.15f, 0.1f, 0.1f, 1f);
-        game.shapeRenderer.rect(phpX + 10, phpY + 42, phpW - 20, 12);
-        game.shapeRenderer.setColor(pC);
-        game.shapeRenderer.rect(phpX + 11, phpY + 43, (phpW - 22) * Math.max(0, pHp), 10);
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 42, phpW - 20, 12,
+                Math.max(0, pHp), pC, new Color(0.15f, 0.06f, 0.05f, 1f));
 
         // Stamina bar
         float stmPct = player.getStamina() / player.getMaxStamina();
-        game.shapeRenderer.setColor(0.08f, 0.1f, 0.2f, 1f);
-        game.shapeRenderer.rect(phpX + 10, phpY + 29, phpW - 20, 8);
-        game.shapeRenderer.setColor(0.2f, 0.5f, 0.95f, 1f);
-        game.shapeRenderer.rect(phpX + 11, phpY + 30, (phpW - 22) * Math.max(0, stmPct), 6);
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 29, phpW - 20, 8,
+                Math.max(0, stmPct), new Color(0.35f, 0.60f, 0.95f, 1f),
+                new Color(0.06f, 0.08f, 0.14f, 1f));
 
         // Player status
         if (playerStatus == StatusEffect.POISON) {
@@ -926,44 +935,38 @@ public class BattleScreen {
 
         // XP bar
         float xpPct = (float) player.getXP() / player.getXPToNextLevel();
-        game.shapeRenderer.setColor(0.1f, 0.15f, 0.1f, 1f);
-        game.shapeRenderer.rect(phpX + 10, phpY + 16, phpW - 20, 8);
-        game.shapeRenderer.setColor(0.2f, 0.6f, 0.3f, 1f);
-        game.shapeRenderer.rect(phpX + 11, phpY + 17, (phpW - 22) * xpPct, 6);
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 16, phpW - 20, 8,
+                xpPct, new Color(0.25f, 0.62f, 0.30f, 1f),
+                new Color(0.05f, 0.12f, 0.06f, 1f));
 
         // Message/Action box
         float msgX = sw * 0.03f, msgY = 10, msgW = sw * 0.94f, msgH = sh * 0.22f;
-        game.shapeRenderer.setColor(0.08f, 0.08f, 0.12f, 0.95f);
-        game.shapeRenderer.rect(msgX, msgY, msgW, msgH);
-        drawBorder(game.shapeRenderer, msgX, msgY, msgW, msgH);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, msgX, msgY, msgW, msgH, 0.96f);
 
         // Menu highlights
         if (state == BattleState.PLAYER_TURN) {
             float menuX = msgX + msgW * 0.55f;
             float menuW = msgW * 0.42f;
-            game.shapeRenderer.setColor(0.1f, 0.1f, 0.14f, 0.95f);
-            game.shapeRenderer.rect(menuX, msgY + 5, menuW, msgH - 10);
+            CaveUIStyle.drawInsetPanel(game.shapeRenderer, menuX, msgY + 5, menuW, msgH - 10, 0.92f);
 
             float optH = (msgH - 20) / 2f;
             int row = menuSelection / 2;
             int col = menuSelection % 2;
-            game.shapeRenderer.setColor(0.2f, 0.3f, 0.5f, 0.6f);
-            game.shapeRenderer.rect(menuX + 5 + col * (menuW / 2f), msgY + msgH - 15 - row * optH - optH,
-                    menuW / 2f - 10, optH - 4);
+            CaveUIStyle.drawSelection(game.shapeRenderer, menuX + 5 + col * (menuW / 2f),
+                    msgY + msgH - 15 - row * optH - optH, menuW / 2f - 10, optH - 4, 1f);
         }
 
         // Skill/Item sub-menu
         if (state == BattleState.PLAYER_SKILL || state == BattleState.PLAYER_ITEM) {
             float subX = msgX + msgW * 0.55f;
             float subW = msgW * 0.42f;
-            game.shapeRenderer.setColor(0.1f, 0.1f, 0.14f, 0.95f);
-            game.shapeRenderer.rect(subX, msgY + 5, subW, msgH - 10);
+            CaveUIStyle.drawInsetPanel(game.shapeRenderer, subX, msgY + 5, subW, msgH - 10, 0.92f);
 
             String[] items = state == BattleState.PLAYER_SKILL ? currentSkills : getUsableItemNames();
             for (int i = 0; i < Math.min(items.length, 5); i++) {
                 if (i == subSelection) {
-                    game.shapeRenderer.setColor(0.2f, 0.3f, 0.5f, 0.6f);
-                    game.shapeRenderer.rect(subX + 5, msgY + msgH - 25 - i * 22, subW - 10, 20);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, subX + 5, msgY + msgH - 25 - i * 22,
+                            subW - 10, 20, 1f);
                 }
             }
         }
@@ -1093,57 +1096,347 @@ public class BattleScreen {
     }
 
     private void drawBattleEnemy(ShapeRenderer r, float cx, float cy, boolean flash) {
-        float size = 80;
-        float px = cx - size / 2;
+        float size = enemy.getType() == Enemy.EnemyType.BOSS_GOLEM ? 116f
+                : enemy.getType() == Enemy.EnemyType.ICE_DRAKE ? 106f : 92f;
         Color base = flash ? Color.WHITE : enemy.getType().color;
-        Color dark = new Color(base.r * 0.7f, base.g * 0.7f, base.b * 0.7f, 1f);
+        Color dark = scaledColor(base, 0.55f, 1f);
+        Color light = scaledColor(base, 1.25f, 1f);
 
-        r.setColor(0, 0, 0, 0.3f);
-        r.ellipse(px + 10, cy - 8, size - 20, 16);
+        drawBattleStatusAura(r, cx, cy, size);
+        r.setColor(0f, 0f, 0f, 0.34f);
+        r.ellipse(cx - size * 0.45f, cy - 10, size * 0.90f, 22);
 
-        r.setColor(base);
-        r.rect(px + 10, cy + 5, size - 20, size - 15);
-        r.rect(px + 5, cy + 15, size - 10, size - 30);
-
-        r.setColor(dark);
-        r.rect(px + 15, cy + size - 20, size - 30, 8);
-
-        r.setColor(flash ? Color.YELLOW : new Color(1f, 0.2f, 0.1f, 1f));
-        r.rect(px + 20, cy + size / 2 + 5, 12, 12);
-        r.rect(px + size - 32, cy + size / 2 + 5, 12, 12);
-        r.setColor(0, 0, 0, 1f);
-        r.rect(px + 23, cy + size / 2 + 7, 6, 8);
-        r.rect(px + size - 29, cy + size / 2 + 7, 6, 8);
+        switch (enemy.getType()) {
+            case BAT:
+                drawBattleBat(r, cx, cy, size, base, dark, flash);
+                break;
+            case SLIME:
+                drawBattleSlime(r, cx, cy, size, base, dark, light);
+                break;
+            case SKELETON:
+                drawBattleSkeleton(r, cx, cy, size, base, dark);
+                break;
+            case GOBLIN:
+                drawBattleGoblin(r, cx, cy, size, base, dark);
+                break;
+            case CAVE_SPIDER:
+                drawBattleSpider(r, cx, cy, size, base, dark);
+                break;
+            case NECROMANCER:
+                drawBattleNecromancer(r, cx, cy, size, base, dark);
+                break;
+            case SHADOW:
+                drawBattleShadow(r, cx, cy, size, base);
+                break;
+            case ICE_DRAKE:
+                drawBattleIceDrake(r, cx, cy, size, base, dark, light);
+                break;
+            case BOSS_GOLEM:
+                drawBattleGolem(r, cx, cy, size, base, dark, light);
+                break;
+        }
     }
 
     private void drawBattlePlayer(ShapeRenderer r, float cx, float cy, boolean flash) {
-        float size = 70;
-        float px = cx - size / 2;
-        Color base = flash ? Color.WHITE : new Color(0.2f, 0.6f, 0.9f, 1f);
-        Color dark = new Color(base.r * 0.75f, base.g * 0.75f, base.b * 0.75f, 1f);
+        float size = 82f;
+        float px = cx - size * 0.44f;
+        float bob = (float) Math.sin(stateTimer * 3.2f) * 1.5f;
+        CharacterAppearance appearance = player.getAppearance();
+        Color tunic = flash ? Color.WHITE : appearance.getTunicColor();
+        Color darkTunic = flash ? scaledColor(tunic, 0.58f, 1f) : appearance.getTunicAltColor();
+        Color armor = player.getInventory().getEquippedArmor() != null
+                ? player.getInventory().getEquippedArmor().getType().color : null;
+        Color weapon = player.getInventory().getEquippedWeapon() != null
+                ? player.getInventory().getEquippedWeapon().getType().color : new Color(0.76f, 0.80f, 0.86f, 1f);
 
-        r.setColor(0, 0, 0, 0.3f);
-        r.ellipse(px + 8, cy - 6, size - 16, 14);
+        r.setColor(0f, 0f, 0f, 0.36f);
+        r.ellipse(cx - size * 0.35f, cy - 8, size * 0.72f, 18);
 
-        r.setColor(base);
-        r.rect(px + 10, cy + 5, size - 20, size - 10);
-        r.rect(px + 5, cy + 10, size - 10, size - 25);
+        // Boots and legs
+        r.setColor(0.05f, 0.05f, 0.07f, 1f);
+        r.rect(px + 18, cy + 2 + bob, 10, 22);
+        r.rect(px + 36, cy + 2 - bob, 10, 22);
+        r.setColor(appearance.getPantsColor());
+        r.rect(px + 20, cy + 6 + bob, 7, 18);
+        r.rect(px + 37, cy + 6 - bob, 7, 18);
+        r.setColor(appearance.getBootColor());
+        r.rect(px + 16, cy, 14, 6);
+        r.rect(px + 35, cy, 14, 6);
 
+        // Cape and torso
+        Color cape = appearance.getCapeColor();
+        r.setColor(cape.r, cape.g, cape.b, 0.92f);
+        r.triangle(px + 13, cy + 21, px + 22, cy + 65, px + 4, cy + 18);
+        r.setColor(0.04f, 0.05f, 0.08f, 1f);
+        r.rect(px + 15, cy + 21, 36, 32);
+        r.setColor(tunic);
+        r.rect(px + 18, cy + 24, 28, 26);
+        r.setColor(darkTunic);
+        r.rect(px + 18, cy + 24, 28, 7);
+        r.setColor(0.74f, 0.54f, 0.20f, 1f);
+        r.rect(px + 19, cy + 31, 26, 3);
+
+        if (armor != null) {
+            r.setColor(scaledColor(armor, 0.72f, 0.95f));
+            r.rect(px + 20, cy + 33, 24, 15);
+            r.setColor(scaledColor(armor, 1.22f, 0.75f));
+            r.rect(px + 23, cy + 43, 17, 3);
+        }
+
+        // Arms
+        r.setColor(tunic);
+        r.rect(px + 8, cy + 25, 11, 23);
+        r.rect(px + 45, cy + 27, 10, 21);
+        r.setColor(appearance.getSkinColor());
+        r.rect(px + 9, cy + 20, 9, 7);
+        r.rect(px + 49, cy + 22, 8, 7);
+
+        // Head and hair, angled toward enemy
+        r.setColor(0.05f, 0.05f, 0.07f, 1f);
+        r.rect(px + 21, cy + 50, 26, 25);
+        r.setColor(appearance.getSkinColor());
+        r.rect(px + 23, cy + 52, 22, 20);
+        r.setColor(appearance.getHairColor());
+        r.rect(px + 21, cy + 68, 26, 7);
+        r.rect(px + 21, cy + 59, 5, 10);
+        r.setColor(1f, 1f, 1f, 1f);
+        r.rect(px + 34, cy + 61, 5, 4);
+        r.setColor(0.06f, 0.08f, 0.12f, 1f);
+        r.rect(px + 36, cy + 61, 2, 3);
+
+        // Weapon held toward the enemy
+        r.setColor(0.12f, 0.08f, 0.04f, 1f);
+        r.rect(px + 55, cy + 26, 5, 18);
+        r.setColor(weapon);
+        r.rect(px + 60, cy + 38, 6, 36);
+        r.rect(px + 56, cy + 68, 14, 5);
+        r.setColor(scaledColor(weapon, 1.25f, 0.65f));
+        r.rect(px + 62, cy + 45, 2, 22);
+    }
+
+    private void drawBattleStatusAura(ShapeRenderer r, float cx, float cy, float size) {
+        if (enemyStatus == StatusEffect.NONE)
+            return;
+
+        if (enemyStatus == StatusEffect.POISON)
+            r.setColor(0.25f, 0.95f, 0.20f, 0.16f);
+        else if (enemyStatus == StatusEffect.BURN)
+            r.setColor(1f, 0.35f, 0.05f, 0.18f);
+        else
+            r.setColor(1f, 0.95f, 0.20f, 0.14f);
+        r.ellipse(cx - size * 0.50f, cy - 5, size, size * 0.70f);
+    }
+
+    private void drawBattleBat(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark, boolean flash) {
+        float flap = (float) Math.sin(stateTimer * 12f) * 8f;
+        float px = cx - size * 0.5f;
+        r.setColor(0.03f, 0.02f, 0.05f, 1f);
+        r.triangle(cx - 4, cy + 42, px - 30, cy + 76 + flap, px - 8, cy + 18 - flap);
+        r.triangle(cx + 4, cy + 42, px + size + 30, cy + 76 - flap, px + size + 8, cy + 18 + flap);
         r.setColor(dark);
-        r.rect(px + 12, cy + size - 12, size - 24, 10);
+        r.triangle(cx - 4, cy + 40, px - 18, cy + 67 + flap, px + 6, cy + 22 - flap);
+        r.triangle(cx + 4, cy + 40, px + size + 18, cy + 67 - flap, px + size - 6, cy + 22 + flap);
+        r.setColor(base);
+        r.rect(cx - 17, cy + 24, 34, 42);
+        r.rect(cx - 25, cy + 37, 50, 18);
+        r.setColor(dark);
+        r.triangle(cx - 15, cy + 64, cx - 8, cy + 82, cx - 2, cy + 64);
+        r.triangle(cx + 2, cy + 64, cx + 8, cy + 82, cx + 15, cy + 64);
+        r.setColor(flash ? Color.YELLOW : new Color(1f, 0.20f, 0.10f, 1f));
+        r.rect(cx - 11, cy + 45, 7, 7);
+        r.rect(cx + 5, cy + 45, 7, 7);
+        r.setColor(0.96f, 0.88f, 0.76f, 1f);
+        r.rect(cx - 5, cy + 31, 4, 8);
+        r.rect(cx + 2, cy + 31, 4, 8);
+    }
 
-        if (player.getInventory().getEquippedArmor() != null) {
-            Color ac = player.getInventory().getEquippedArmor().getType().color;
-            r.setColor(ac.r, ac.g, ac.b, 0.8f);
-            r.rect(px + 15, cy, size - 30, size - 10);
-        }
+    private void drawBattleSlime(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark, Color light) {
+        float squish = (float) Math.sin(stateTimer * 5f) * 4f;
+        r.setColor(0.02f, 0.06f, 0.03f, 0.9f);
+        r.rect(cx - 45, cy + 8 - squish, 90, 66 + squish);
+        r.setColor(base);
+        r.rect(cx - 40, cy + 12 - squish, 80, 58 + squish);
+        r.rect(cx - 28, cy + 65, 56, 14);
+        r.setColor(dark);
+        r.rect(cx - 35, cy + 12 - squish, 70, 12);
+        r.setColor(light.r, light.g, light.b, 0.34f);
+        r.rect(cx - 24, cy + 55, 20, 10);
+        r.rect(cx + 10, cy + 48, 12, 7);
+        r.setColor(0.02f, 0.03f, 0.02f, 1f);
+        r.rect(cx - 19, cy + 36, 10, 14);
+        r.rect(cx + 14, cy + 36, 10, 14);
+    }
 
-        if (player.getInventory().getEquippedWeapon() != null) {
-            Color wc = player.getInventory().getEquippedWeapon().getType().color;
-            r.setColor(wc);
-            r.rect(px + size - 5, cy + 15, 8, 35);
-            r.rect(px + size - 2, cy + 50, 14, 5);
+    private void drawBattleSkeleton(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark) {
+        r.setColor(0.08f, 0.07f, 0.06f, 1f);
+        r.rect(cx - 25, cy + 48, 50, 36);
+        r.rect(cx - 16, cy + 19, 32, 33);
+        r.setColor(base);
+        r.rect(cx - 22, cy + 51, 44, 30);
+        r.rect(cx - 15, cy + 45, 30, 8);
+        r.setColor(dark);
+        r.rect(cx - 14, cy + 62, 10, 10);
+        r.rect(cx + 5, cy + 62, 10, 10);
+        r.rect(cx - 9, cy + 49, 18, 4);
+        r.setColor(base);
+        r.rect(cx - 4, cy + 21, 8, 29);
+        r.rect(cx - 24, cy + 38, 48, 6);
+        r.rect(cx - 18, cy + 29, 36, 5);
+        r.rect(cx - 31, cy + 22, 8, 25);
+        r.rect(cx + 23, cy + 22, 8, 25);
+        r.rect(cx - 16, cy + 2, 10, 23);
+        r.rect(cx + 6, cy + 2, 10, 23);
+        r.setColor(0.72f, 0.72f, 0.68f, 1f);
+        r.rect(cx + 34, cy + 20, 5, 52);
+        r.rect(cx + 28, cy + 67, 18, 5);
+    }
+
+    private void drawBattleGoblin(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark) {
+        r.setColor(0.04f, 0.08f, 0.03f, 1f);
+        r.triangle(cx - 27, cy + 62, cx - 60, cy + 75, cx - 29, cy + 46);
+        r.triangle(cx + 27, cy + 62, cx + 60, cy + 75, cx + 29, cy + 46);
+        r.rect(cx - 35, cy + 18, 70, 52);
+        r.setColor(base);
+        r.triangle(cx - 27, cy + 61, cx - 52, cy + 71, cx - 29, cy + 50);
+        r.triangle(cx + 27, cy + 61, cx + 52, cy + 71, cx + 29, cy + 50);
+        r.rect(cx - 28, cy + 45, 56, 32);
+        r.setColor(0.34f, 0.19f, 0.10f, 1f);
+        r.rect(cx - 31, cy + 13, 62, 34);
+        r.setColor(dark);
+        r.rect(cx - 22, cy + 42, 44, 8);
+        r.setColor(1f, 0.88f, 0.08f, 1f);
+        r.rect(cx - 17, cy + 61, 10, 6);
+        r.rect(cx + 8, cy + 61, 10, 6);
+        r.setColor(0.08f, 0.04f, 0f, 1f);
+        r.rect(cx - 14, cy + 61, 4, 4);
+        r.rect(cx + 11, cy + 61, 4, 4);
+        r.setColor(0.52f, 0.52f, 0.50f, 1f);
+        r.rect(cx + 39, cy + 20, 8, 48);
+        r.rect(cx + 32, cy + 64, 23, 8);
+    }
+
+    private void drawBattleSpider(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark) {
+        float legMove = (float) Math.sin(stateTimer * 9f) * 5f;
+        r.setColor(0.04f, 0.02f, 0.01f, 1f);
+        for (int i = 0; i < 4; i++) {
+            float y = cy + 18 + i * 13f;
+            float offset = (i % 2 == 0) ? legMove : -legMove;
+            r.rect(cx - 66, y + offset, 38, 5);
+            r.rect(cx + 28, y - offset, 38, 5);
         }
+        r.setColor(dark);
+        r.rect(cx - 40, cy + 16, 80, 56);
+        r.setColor(base);
+        r.rect(cx - 33, cy + 22, 66, 46);
+        r.rect(cx - 22, cy + 10, 44, 28);
+        r.setColor(scaledColor(base, 1.2f, 1f));
+        r.rect(cx - 19, cy + 56, 38, 7);
+        r.setColor(1f, 0.04f, 0.02f, 1f);
+        r.rect(cx - 23, cy + 55, 6, 6);
+        r.rect(cx - 9, cy + 60, 6, 6);
+        r.rect(cx + 4, cy + 60, 6, 6);
+        r.rect(cx + 18, cy + 55, 6, 6);
+        r.rect(cx - 13, cy + 49, 6, 5);
+        r.rect(cx + 8, cy + 49, 6, 5);
+    }
+
+    private void drawBattleNecromancer(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark) {
+        float sway = (float) Math.sin(stateTimer * 3.5f) * 3f;
+        r.setColor(0.04f, 0.01f, 0.06f, 1f);
+        r.rect(cx - 30, cy + 5, 60, 78);
+        r.setColor(base);
+        r.rect(cx - 24, cy + 10, 48, 65);
+        r.triangle(cx - 24, cy + 10, cx, cy + 45, cx + 24, cy + 10);
+        r.setColor(dark);
+        r.rect(cx - 25, cy + 61, 50, 20);
+        r.triangle(cx - 25, cy + 61, cx, cy + 92, cx + 25, cy + 61);
+        r.setColor(0.09f, 0.02f, 0.12f, 1f);
+        r.rect(cx - 16, cy + 52, 32, 18);
+        r.setColor(0.82f, 0.24f, 1f, 1f);
+        r.rect(cx - 12, cy + 59, 8, 5);
+        r.rect(cx + 5, cy + 59, 8, 5);
+        r.setColor(0.55f, 0.33f, 0.16f, 1f);
+        r.rect(cx + 42 + sway, cy + 7, 6, 82);
+        r.setColor(0.75f, 0.18f, 1f, 0.9f);
+        r.rect(cx + 35 + sway, cy + 84, 20, 13);
+        r.setColor(0.95f, 0.60f, 1f, 0.35f);
+        r.ellipse(cx + 31 + sway, cy + 80, 28, 22);
+    }
+
+    private void drawBattleShadow(ShapeRenderer r, float cx, float cy, float size, Color base) {
+        float wave = (float) Math.sin(stateTimer * 6f) * 5f;
+        r.setColor(base.r, base.g, base.b, 0.25f);
+        r.ellipse(cx - 50, cy + 8 + wave, 100, 84);
+        r.setColor(base.r, base.g, base.b, 0.58f);
+        r.triangle(cx - 30, cy + 12 + wave, cx, cy + 90 + wave, cx + 30, cy + 12 + wave);
+        r.rect(cx - 25, cy + 30 + wave, 50, 44);
+        r.setColor(0.02f, 0.01f, 0.05f, 0.84f);
+        r.rect(cx - 15, cy + 37 + wave, 30, 30);
+        r.setColor(0.88f, 0.92f, 1f, 0.95f);
+        r.rect(cx - 17, cy + 58 + wave, 10, 6);
+        r.rect(cx + 8, cy + 58 + wave, 10, 6);
+        r.setColor(base.r, base.g, base.b, 0.36f);
+        r.rect(cx - 50, cy + 36 + wave * 1.4f, 13, 28);
+        r.rect(cx + 37, cy + 30 - wave, 13, 34);
+        r.rect(cx - 5, cy + 2 - wave, 10, 18);
+    }
+
+    private void drawBattleIceDrake(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark, Color light) {
+        r.setColor(0.04f, 0.08f, 0.12f, 1f);
+        r.triangle(cx - 58, cy + 34, cx - 96, cy + 48, cx - 57, cy + 60);
+        r.rect(cx - 48, cy + 16, 88, 52);
+        r.rect(cx + 30, cy + 45, 36, 26);
+        r.setColor(base);
+        r.triangle(cx - 55, cy + 35, cx - 88, cy + 49, cx - 55, cy + 58);
+        r.rect(cx - 43, cy + 20, 78, 45);
+        r.rect(cx + 28, cy + 48, 31, 20);
+        r.setColor(dark);
+        r.rect(cx - 38, cy + 18, 70, 10);
+        r.rect(cx + 43, cy + 38, 16, 14);
+        r.setColor(light);
+        r.triangle(cx + 31, cy + 67, cx + 38, cy + 91, cx + 45, cy + 67);
+        r.triangle(cx + 47, cy + 68, cx + 55, cy + 90, cx + 60, cy + 66);
+        r.triangle(cx - 17, cy + 64, cx - 8, cy + 84, cx, cy + 64);
+        r.rect(cx - 27, cy + 33, 54, 5);
+        r.setColor(0.22f, 0.45f, 1f, 1f);
+        r.rect(cx + 38, cy + 56, 8, 7);
+        r.rect(cx + 55, cy + 51, 6, 6);
+        r.setColor(0.85f, 0.98f, 1f, 0.35f);
+        r.rect(cx - 30, cy + 47, 46, 8);
+    }
+
+    private void drawBattleGolem(ShapeRenderer r, float cx, float cy, float size, Color base, Color dark, Color light) {
+        r.setColor(0.07f, 0.06f, 0.05f, 1f);
+        r.rect(cx - 46, cy + 8, 92, 85);
+        r.rect(cx - 63, cy + 26, 22, 47);
+        r.rect(cx + 41, cy + 26, 22, 47);
+        r.setColor(base);
+        r.rect(cx - 39, cy + 13, 78, 69);
+        r.rect(cx - 27, cy + 74, 54, 25);
+        r.rect(cx - 58, cy + 30, 17, 39);
+        r.rect(cx + 41, cy + 30, 17, 39);
+        r.setColor(dark);
+        r.rect(cx - 31, cy + 73, 5, 24);
+        r.rect(cx + 24, cy + 77, 5, 17);
+        r.rect(cx - 20, cy + 28, 41, 8);
+        r.rect(cx - 36, cy + 57, 14, 4);
+        r.rect(cx + 17, cy + 53, 19, 4);
+        r.setColor(light.r, light.g, light.b, 0.62f);
+        r.rect(cx - 30, cy + 82, 48, 5);
+        r.rect(cx - 32, cy + 50, 16, 4);
+        float glow = (float) Math.sin(stateTimer * 4f) * 0.2f + 0.8f;
+        r.setColor(glow, glow * 0.32f, 0.05f, 1f);
+        r.rect(cx - 21, cy + 65, 13, 10);
+        r.rect(cx + 9, cy + 65, 13, 10);
+        r.setColor(0.76f, 0.33f, 1f, 0.95f);
+        r.rect(cx - 12, cy + 39, 24, 20);
+        r.setColor(0.95f, 0.65f, 1f, 0.32f);
+        r.rect(cx - 7, cy + 44, 14, 10);
+    }
+
+    private Color scaledColor(Color color, float scale, float alpha) {
+        return new Color(Math.min(1f, color.r * scale), Math.min(1f, color.g * scale),
+                Math.min(1f, color.b * scale), alpha);
     }
 
     private void drawBorder(ShapeRenderer r, float x, float y, float w, float h) {

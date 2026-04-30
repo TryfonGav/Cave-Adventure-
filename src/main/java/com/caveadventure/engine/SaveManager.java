@@ -2,6 +2,8 @@ package com.caveadventure.engine;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.graphics.Color;
+import com.caveadventure.entity.CharacterAppearance;
 import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Player;
 import com.caveadventure.engine.SkillTree.Skill;
@@ -33,6 +35,7 @@ public class SaveManager {
         sb.append("finalBossDefeated=").append(finalBossDefeated).append("\n");
         sb.append("poisonRemaining=").append(player.getPoisonRemaining()).append("\n");
         sb.append("torch=").append(player.getTorchDuration()).append("\n");
+        appendAppearance(sb, player.getAppearance());
 
         // Inventory
         Inventory inv = player.getInventory();
@@ -133,6 +136,27 @@ public class SaveManager {
                     case "torch":
                         data.torchDuration = Float.parseFloat(value);
                         break;
+                    case "characterName":
+                        data.characterAppearance.setName(value);
+                        break;
+                    case "characterTunic":
+                        data.characterAppearance.setTunicColor(parseColor(value, data.characterAppearance.getTunicColor()));
+                        break;
+                    case "characterSkin":
+                        data.characterAppearance.setSkinColor(parseColor(value, data.characterAppearance.getSkinColor()));
+                        break;
+                    case "characterHair":
+                        data.characterAppearance.setHairColor(parseColor(value, data.characterAppearance.getHairColor()));
+                        break;
+                    case "characterPants":
+                        data.characterAppearance.setPantsColor(parseColor(value, data.characterAppearance.getPantsColor()));
+                        break;
+                    case "characterBoots":
+                        data.characterAppearance.setBootColor(parseColor(value, data.characterAppearance.getBootColor()));
+                        break;
+                    case "characterCape":
+                        data.characterAppearance.setCapeColor(parseColor(value, data.characterAppearance.getCapeColor()));
+                        break;
                     case "item":
                         String[] itemParts = value.split(",");
                         try {
@@ -192,6 +216,25 @@ public class SaveManager {
         }
     }
 
+    private static void appendAppearance(StringBuilder sb, CharacterAppearance appearance) {
+        CharacterAppearance safeAppearance = appearance == null ? CharacterAppearance.defaultAppearance() : appearance;
+        sb.append("characterName=").append(safeAppearance.getName()).append("\n");
+        appendColor(sb, "characterTunic", safeAppearance.getTunicColor());
+        appendColor(sb, "characterSkin", safeAppearance.getSkinColor());
+        appendColor(sb, "characterHair", safeAppearance.getHairColor());
+        appendColor(sb, "characterPants", safeAppearance.getPantsColor());
+        appendColor(sb, "characterBoots", safeAppearance.getBootColor());
+        appendColor(sb, "characterCape", safeAppearance.getCapeColor());
+    }
+
+    private static void appendColor(StringBuilder sb, String key, Color color) {
+        sb.append(key).append("=").append(CharacterAppearance.colorToString(color)).append("\n");
+    }
+
+    private static Color parseColor(String value, Color fallback) {
+        return CharacterAppearance.colorFromString(value, fallback);
+    }
+
     /**
      * Container for loaded save data.
      */
@@ -214,5 +257,6 @@ public class SaveManager {
         public Companion.PetType companionType = null;
         public int companionHealth = -1;
         public java.util.List<Skill> unlockedSkills = new java.util.ArrayList<>();
+        public CharacterAppearance characterAppearance = CharacterAppearance.defaultAppearance();
     }
 }

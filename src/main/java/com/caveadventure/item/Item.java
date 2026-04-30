@@ -21,6 +21,8 @@ public class Item {
                                 new Color(0.5f, 0.8f, 1f, 1f), 22, 0, 0),
                 FIRE_AXE("Fire Axe", Category.WEAPON, "Burns on contact",
                                 new Color(0.9f, 0.4f, 0.1f, 1f), 28, 0, 0),
+                SHADOW_BLADE("Shadow Blade", Category.WEAPON, "Saps enemy strength",
+                                new Color(0.2f, 0.2f, 0.25f, 1f), 20, 0, 0),
 
                 // Armor (DEF bonus)
                 LEATHER_ARMOR("Leather Armor", Category.ARMOR, "Basic protection",

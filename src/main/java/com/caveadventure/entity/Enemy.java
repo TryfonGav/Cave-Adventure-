@@ -387,117 +387,141 @@ public class Enemy extends Entity {
     }
 
     private void renderBat(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        float wingOffset = (float) Math.sin(animTimer * 15) * 4;
-        // Wings
+        float flap = (float) Math.sin(animTimer * 18f) * 4f;
+        r.setColor(0.04f, 0.03f, 0.06f, 1f);
+        r.triangle(px + 15, py + 16, px + 2, py + 25 + flap, px + 4, py + 9 - flap);
+        r.triangle(px + 17, py + 16, px + s - 2, py + 25 - flap, px + s - 4, py + 9 + flap);
         r.setColor(dark);
-        r.rect(px + 2, py + 12 + wingOffset, 10, 8);
-        r.rect(px + s - 12, py + 12 - wingOffset, 10, 8);
-        // Body
+        r.triangle(px + 15, py + 16, px + 5, py + 22 + flap, px + 7, py + 11 - flap);
+        r.triangle(px + 17, py + 16, px + s - 5, py + 22 - flap, px + s - 7, py + 11 + flap);
         r.setColor(body);
-        r.rect(px + 10, py + 8, s - 20, s - 12);
-        // Eyes (red)
-        r.setColor(1f, 0.2f, 0.1f, 1f);
-        r.rect(px + 11, py + 16, 3, 3);
-        r.rect(px + 18, py + 16, 3, 3);
+        r.rect(px + 11, py + 10, 10, 13);
+        r.rect(px + 9, py + 14, 14, 7);
+        r.setColor(dark);
+        r.triangle(px + 11, py + 22, px + 13, py + 27, px + 15, py + 22);
+        r.triangle(px + 17, py + 22, px + 19, py + 27, px + 21, py + 22);
+        r.setColor(1f, 0.22f, 0.12f, 1f);
+        r.rect(px + 12, py + 17, 3, 3);
+        r.rect(px + 18, py + 17, 3, 3);
+        r.setColor(0.95f, 0.88f, 0.75f, 1f);
+        r.rect(px + 14, py + 12, 2, 3);
+        r.rect(px + 17, py + 12, 2, 3);
     }
 
     private void renderSlime(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        float squish = (float) Math.sin(animTimer * 5) * 2;
-        // Body (blob shape)
+        float squish = (float) Math.sin(animTimer * 6f) * 2f;
+        r.setColor(0.03f, 0.08f, 0.04f, 0.85f);
+        r.rect(px + 3, py + 3 - squish, s - 6, s - 9 + squish);
         r.setColor(body);
-        r.rect(px + 4, py + 2 - squish, s - 8, s - 6 + squish);
-        r.rect(px + 6, py + s - 8, s - 12, 6);
-        // Shine
-        r.setColor(1f, 1f, 1f, 0.3f);
-        r.rect(px + 8, py + s - 10, 6, 4);
-        // Eyes
-        r.setColor(0, 0, 0, 0.9f);
+        r.rect(px + 5, py + 4 - squish, s - 10, s - 11 + squish);
+        r.rect(px + 8, py + s - 9, s - 16, 5);
+        r.setColor(body.r * 0.65f, body.g * 0.65f, body.b * 0.65f, 1f);
+        r.rect(px + 6, py + 4 - squish, s - 12, 5);
+        r.setColor(1f, 1f, 1f, 0.32f);
+        r.rect(px + 9, py + s - 12, 7, 4);
+        r.rect(px + 18, py + s - 16, 4, 3);
+        r.setColor(0.02f, 0.03f, 0.02f, 0.95f);
         r.rect(px + 10, py + 14, 4, 5);
-        r.rect(px + 18, py + 14, 4, 5);
+        r.rect(px + 19, py + 14, 4, 5);
+        r.setColor(0.75f, 1f, 0.65f, 0.8f);
+        r.rect(px + 11, py + 18, 2, 1);
+        r.rect(px + 20, py + 18, 2, 1);
     }
 
     private void renderSkeleton(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        // Skull
+        r.setColor(0.08f, 0.07f, 0.06f, 1f);
+        r.rect(px + 7, py + 15, 18, 14);
+        r.rect(px + 10, py + 5, 12, 12);
         r.setColor(body);
-        r.rect(px + 8, py + 14, s - 16, s - 16);
-        r.rect(px + 6, py + 18, s - 12, s - 22);
-        // Eye sockets
-        r.setColor(0.1f, 0.05f, 0.05f, 1f);
-        r.rect(px + 10, py + 20, 4, 4);
-        r.rect(px + 18, py + 20, 4, 4);
-        // Jaw
+        r.rect(px + 8, py + 16, 16, 12);
+        r.rect(px + 10, py + 14, 12, 3);
         r.setColor(dark);
-        r.rect(px + 10, py + 14, s - 20, 4);
-        // Ribs
+        r.rect(px + 11, py + 20, 4, 4);
+        r.rect(px + 18, py + 20, 4, 4);
+        r.rect(px + 13, py + 15, 6, 2);
         r.setColor(body);
-        r.rect(px + 10, py + 4, 3, 10);
-        r.rect(px + 15, py + 4, 3, 10);
-        r.rect(px + 20, py + 4, 3, 10);
+        r.rect(px + 15, py + 6, 3, 9);
+        r.rect(px + 9, py + 11, 14, 2);
+        r.rect(px + 9, py + 8, 14, 2);
+        r.rect(px + 7, py + 5, 3, 8);
+        r.rect(px + 22, py + 5, 3, 8);
+        r.rect(px + 11, py + 2, 4, 5);
+        r.rect(px + 18, py + 2, 4, 5);
+        r.setColor(0.7f, 0.68f, 0.58f, 1f);
+        r.rect(px + 25, py + 8, 2, 16);
     }
 
     private void renderGoblin(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        // Body
+        r.setColor(0.04f, 0.08f, 0.03f, 1f);
+        r.triangle(px + 9, py + 22, px + 1, py + 26, px + 9, py + 17);
+        r.triangle(px + 23, py + 22, px + s - 1, py + 26, px + 23, py + 17);
+        r.rect(px + 6, py + 6, 20, 18);
         r.setColor(body);
-        r.rect(px + 6, py + 4, s - 12, s - 8);
-        // Head
-        r.setColor(body);
-        r.rect(px + 8, py + s - 12, s - 16, 10);
-        // Ears (pointy)
+        r.triangle(px + 9, py + 22, px + 3, py + 24, px + 9, py + 18);
+        r.triangle(px + 23, py + 22, px + s - 3, py + 24, px + 23, py + 18);
+        r.rect(px + 8, py + 15, 16, 11);
+        r.setColor(0.35f, 0.20f, 0.12f, 1f);
+        r.rect(px + 8, py + 5, 16, 11);
         r.setColor(dark);
-        r.rect(px + 4, py + s - 8, 4, 6);
-        r.rect(px + s - 8, py + s - 8, 4, 6);
-        // Eyes (yellow, menacing)
-        r.setColor(1f, 0.9f, 0.1f, 1f);
+        r.rect(px + 10, py + 13, 12, 3);
+        r.setColor(1f, 0.88f, 0.12f, 1f);
         r.rect(px + 11, py + 20, 4, 3);
-        r.rect(px + 19, py + 20, 4, 3);
-        // Pupils
-        r.setColor(0.1f, 0.05f, 0f, 1f);
+        r.rect(px + 18, py + 20, 4, 3);
+        r.setColor(0.08f, 0.04f, 0f, 1f);
         r.rect(px + 12, py + 20, 2, 2);
-        r.rect(px + 20, py + 20, 2, 2);
+        r.rect(px + 19, py + 20, 2, 2);
+        r.setColor(0.55f, 0.55f, 0.52f, 1f);
+        r.rect(px + 24, py + 7, 3, 14);
+        r.rect(px + 23, py + 19, 6, 3);
     }
 
     private void renderSpider(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        float legMove = (float) Math.sin(animTimer * 10) * 2;
-        // Legs
-        r.setColor(dark);
+        float legMove = (float) Math.sin(animTimer * 12f) * 2f;
+        r.setColor(0.05f, 0.02f, 0.01f, 1f);
         for (int i = 0; i < 4; i++) {
+            float y = py + 7 + i * 4;
             float offset = (i % 2 == 0) ? legMove : -legMove;
-            r.rect(px + 2, py + 6 + i * 5 + offset, 6, 2);
-            r.rect(px + s - 8, py + 6 + i * 5 - offset, 6, 2);
+            r.rect(px + 1, y + offset, 9, 2);
+            r.rect(px + s - 10, y - offset, 9, 2);
         }
-        // Body
+        r.setColor(dark);
+        r.rect(px + 7, py + 7, 18, 16);
         r.setColor(body);
-        r.rect(px + 8, py + 4, s - 16, s - 8);
-        r.rect(px + 10, py + 2, s - 20, s - 4);
-        // Eyes (8 red dots)
-        r.setColor(1f, 0f, 0f, 1f);
-        r.rect(px + 10, py + 20, 2, 2);
-        r.rect(px + 14, py + 22, 2, 2);
-        r.rect(px + 18, py + 22, 2, 2);
-        r.rect(px + 22, py + 20, 2, 2);
-        r.rect(px + 11, py + 17, 2, 2);
-        r.rect(px + 15, py + 18, 2, 2);
-        r.rect(px + 19, py + 18, 2, 2);
-        r.rect(px + 21, py + 17, 2, 2);
+        r.rect(px + 9, py + 9, 14, 14);
+        r.rect(px + 11, py + 5, 10, 9);
+        r.setColor(Math.min(1f, body.r * 1.18f), Math.min(1f, body.g * 1.18f),
+                Math.min(1f, body.b * 1.18f), 1f);
+        r.rect(px + 12, py + 18, 8, 3);
+        r.setColor(1f, 0.05f, 0.02f, 1f);
+        r.rect(px + 10, py + 19, 2, 2);
+        r.rect(px + 14, py + 21, 2, 2);
+        r.rect(px + 18, py + 21, 2, 2);
+        r.rect(px + 22, py + 19, 2, 2);
+        r.rect(px + 12, py + 16, 2, 2);
+        r.rect(px + 18, py + 16, 2, 2);
     }
 
     private void renderGolem(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        // Large body
+        r.setColor(0.08f, 0.07f, 0.06f, 1f);
+        r.rect(px + 2, py + 3, s - 4, s - 6);
         r.setColor(body);
-        r.rect(px + 2, py + 2, s - 4, s - 4);
-        r.rect(px, py + 6, s, s - 12);
-        // Face cracks
+        r.rect(px + 5, py + 5, 22, 20);
+        r.rect(px + 8, py + 22, 16, 7);
+        r.rect(px + 1, py + 9, 7, 12);
+        r.rect(px + 24, py + 9, 7, 12);
         r.setColor(dark);
-        r.rect(px + 6, py + s - 12, 2, 8);
-        r.rect(px + s - 8, py + s - 10, 2, 6);
-        // Glowing eyes
-        float glow = (float) Math.sin(animTimer * 3) * 0.2f + 0.8f;
-        r.setColor(glow, glow * 0.3f, 0, 1f);
-        r.rect(px + 8, py + 20, 5, 5);
-        r.rect(px + 19, py + 20, 5, 5);
-        // Crystal core
-        r.setColor(0.8f, 0.4f, 1f, 0.8f);
-        r.rect(px + 12, py + 10, 8, 8);
+        r.rect(px + 6, py + 20, 2, 7);
+        r.rect(px + 21, py + 22, 2, 5);
+        r.rect(px + 10, py + 7, 12, 3);
+        r.setColor(Math.min(1f, body.r * 1.15f), Math.min(1f, body.g * 1.15f),
+                Math.min(1f, body.b * 1.15f), 1f);
+        r.rect(px + 6, py + 23, 15, 2);
+        float glow = (float) Math.sin(animTimer * 4f) * 0.2f + 0.8f;
+        r.setColor(glow, glow * 0.32f, 0.04f, 1f);
+        r.rect(px + 9, py + 18, 5, 4);
+        r.rect(px + 18, py + 18, 5, 4);
+        r.setColor(0.75f, 0.35f, 1f, 0.9f);
+        r.rect(px + 12, py + 11, 8, 7);
     }
 
     @Override
@@ -522,66 +546,66 @@ public class Enemy extends Entity {
     // --- New enemy renders ---
 
     private void renderNecromancer(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        // Robe
+        float sway = (float) Math.sin(animTimer * 4f);
+        r.setColor(0.05f, 0.02f, 0.07f, 1f);
+        r.rect(px + 5, py + 2, 20, 27);
         r.setColor(body);
-        r.rect(px + 6, py + 2, s - 12, s - 6);
-        r.rect(px + 8, py + s - 8, s - 16, 6);
-        // Hood
+        r.rect(px + 7, py + 4, 16, 22);
+        r.triangle(px + 7, py + 4, px + 16, py + 14, px + 23, py + 4);
         r.setColor(dark);
-        r.rect(px + 8, py + s - 10, s - 16, 8);
-        // Face (shadowed)
-        r.setColor(0.15f, 0.05f, 0.15f, 1f);
-        r.rect(px + 10, py + 14, s - 20, 8);
-        // Eyes (glowing purple)
-        r.setColor(0.8f, 0.3f, 1f, 1f);
-        r.rect(px + 12, py + 18, 3, 3);
-        r.rect(px + s - 15, py + 18, 3, 3);
-        // Staff
-        r.setColor(0.6f, 0.4f, 0.2f, 1f);
-        r.rect(px + s - 5, py + 2, 3, s - 2);
-        r.setColor(0.7f, 0.2f, 1f, 0.8f);
-        r.rect(px + s - 7, py + s - 4, 7, 5);
+        r.rect(px + 8, py + 21, 16, 7);
+        r.triangle(px + 8, py + 21, px + 16, py + 30, px + 24, py + 21);
+        r.setColor(0.10f, 0.03f, 0.12f, 1f);
+        r.rect(px + 11, py + 17, 10, 6);
+        r.setColor(0.85f, 0.30f, 1f, 1f);
+        r.rect(px + 12, py + 19, 3, 2);
+        r.rect(px + 18, py + 19, 3, 2);
+        r.setColor(0.58f, 0.34f, 0.18f, 1f);
+        r.rect(px + 26 + sway, py + 3, 3, 25);
+        r.setColor(0.75f, 0.20f, 1f, 0.9f);
+        r.rect(px + 24 + sway, py + 26, 7, 5);
+        r.setColor(0.95f, 0.65f, 1f, 0.45f);
+        r.rect(px + 25 + sway, py + 27, 5, 3);
     }
 
     private void renderShadow(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        float wave = (float) Math.sin(animTimer * 8) * 2;
-        // Translucent body
-        r.setColor(body.r, body.g, body.b, 0.5f);
-        r.rect(px + 6, py + 4 + wave, s - 12, s - 8);
-        r.rect(px + 8, py + 2 + wave, s - 16, s - 4);
-        // Dark core
-        r.setColor(0.05f, 0.02f, 0.08f, 0.7f);
-        r.rect(px + 10, py + 8 + wave, s - 20, s - 16);
-        // Eyes (eerie glow)
-        r.setColor(0.9f, 0.9f, 1f, 0.9f);
-        r.rect(px + 11, py + 16 + wave, 4, 4);
-        r.rect(px + s - 15, py + 16 + wave, 4, 4);
-        // Wisps
-        r.setColor(body.r, body.g, body.b, 0.3f);
-        r.rect(px + 4, py + 10 + wave * 2, 4, 8);
-        r.rect(px + s - 8, py + 14 - wave, 4, 6);
+        float wave = (float) Math.sin(animTimer * 8f) * 2f;
+        r.setColor(body.r, body.g, body.b, 0.28f);
+        r.rect(px + 4, py + 5 + wave, 24, 18);
+        r.rect(px + 8, py + 1 + wave, 16, 25);
+        r.setColor(body.r, body.g, body.b, 0.62f);
+        r.triangle(px + 8, py + 4 + wave, px + 16, py + 28 + wave, px + 24, py + 4 + wave);
+        r.rect(px + 9, py + 8 + wave, 14, 15);
+        r.setColor(0.03f, 0.01f, 0.06f, 0.86f);
+        r.rect(px + 11, py + 10 + wave, 10, 11);
+        r.setColor(0.88f, 0.92f, 1f, 0.95f);
+        r.rect(px + 11, py + 18 + wave, 4, 3);
+        r.rect(px + 18, py + 18 + wave, 4, 3);
+        r.setColor(body.r, body.g, body.b, 0.35f);
+        r.rect(px + 4, py + 10 + wave * 2f, 4, 8);
+        r.rect(px + s - 8, py + 14 - wave, 4, 7);
+        r.rect(px + 15, py + 1 - wave, 3, 7);
     }
 
     private void renderIceDrake(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {
-        // Body
+        r.setColor(0.04f, 0.09f, 0.12f, 1f);
+        r.rect(px + 3, py + 5, 23, 18);
+        r.triangle(px + 5, py + 12, px - 3, py + 16, px + 5, py + 18);
         r.setColor(body);
-        r.rect(px + 4, py + 4, s - 8, s - 10);
-        r.rect(px + 6, py + 2, s - 12, s - 4);
-        // Head
+        r.rect(px + 5, py + 6, 20, 16);
+        r.triangle(px + 5, py + 11, px - 4, py + 15, px + 5, py + 18);
         r.setColor(dark);
-        r.rect(px + 6, py + s - 10, s - 12, 8);
-        // Frost crown
-        r.setColor(0.7f, 0.9f, 1f, 0.9f);
-        r.rect(px + 8, py + s - 4, 3, 5);
-        r.rect(px + 14, py + s - 4, 3, 6);
-        r.rect(px + 20, py + s - 4, 3, 4);
-        // Eyes
-        r.setColor(0.3f, 0.5f, 1f, 1f);
-        r.rect(px + 10, py + 18, 4, 4);
-        r.rect(px + s - 14, py + 18, 4, 4);
-        // Tail
-        r.setColor(body.r * 0.8f, body.g * 0.8f, body.b * 0.9f, 1f);
-        r.rect(px - 4, py + 6, 8, 4);
-        r.rect(px - 6, py + 8, 4, 3);
+        r.rect(px + 8, py + 20, 15, 7);
+        r.rect(px + 20, py + 15, 7, 6);
+        r.setColor(0.72f, 0.92f, 1f, 0.95f);
+        r.triangle(px + 9, py + 26, px + 11, py + 32, px + 13, py + 26);
+        r.triangle(px + 15, py + 26, px + 17, py + 32, px + 19, py + 26);
+        r.triangle(px + 21, py + 24, px + 24, py + 30, px + 25, py + 23);
+        r.rect(px + 7, py + 9, 16, 2);
+        r.setColor(0.26f, 0.48f, 1f, 1f);
+        r.rect(px + 11, py + 22, 4, 3);
+        r.rect(px + 20, py + 20, 3, 3);
+        r.setColor(0.85f, 0.98f, 1f, 0.4f);
+        r.rect(px + 9, py + 15, 10, 3);
     }
 }

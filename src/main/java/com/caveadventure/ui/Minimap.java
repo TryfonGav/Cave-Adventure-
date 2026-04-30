@@ -81,16 +81,8 @@ public class Minimap {
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Background
-        game.shapeRenderer.setColor(0.02f, 0.02f, 0.05f, 0.75f);
-        game.shapeRenderer.rect(mapX - 2, mapY - 2, MAP_SIZE + 4, MAP_SIZE + 4);
-
-        // Border
-        game.shapeRenderer.setColor(0.3f, 0.3f, 0.35f, 0.6f);
-        game.shapeRenderer.rect(mapX - 2, mapY - 2, MAP_SIZE + 4, 2);
-        game.shapeRenderer.rect(mapX - 2, mapY + MAP_SIZE, MAP_SIZE + 4, 2);
-        game.shapeRenderer.rect(mapX - 2, mapY - 2, 2, MAP_SIZE + 4);
-        game.shapeRenderer.rect(mapX + MAP_SIZE, mapY - 2, 2, MAP_SIZE + 4);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, mapX - 6, mapY - 6, MAP_SIZE + 12, MAP_SIZE + 12, 0.78f);
+        CaveUIStyle.drawInsetPanel(game.shapeRenderer, mapX - 1, mapY - 1, MAP_SIZE + 2, MAP_SIZE + 2, 0.86f);
 
         // Draw explored tiles
         Tile[][] tiles = gameMap.getTiles();
@@ -164,7 +156,7 @@ public class Minimap {
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
         com.badlogic.gdx.graphics.g2d.BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
-        smallFont.setColor(0.5f, 0.5f, 0.45f, 0.7f);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT);
         smallFont.draw(game.batch, "MAP", mapX, mapY + MAP_SIZE + 16);
         game.batch.end();
 

@@ -97,6 +97,8 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.DIAMOND));
                 if (chance(12))
                     loot.add(new Item(Item.ItemType.SMOKE_BOMB));
+                if (chance(5))
+                    loot.add(new Item(Item.ItemType.SHADOW_BLADE));
                 break;
 
             case ICE_DRAKE:

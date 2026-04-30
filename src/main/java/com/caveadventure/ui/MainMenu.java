@@ -85,48 +85,24 @@ public class MainMenu {
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Background
-        game.shapeRenderer.setColor(0.04f, 0.04f, 0.08f, 1f);
-        game.shapeRenderer.rect(0, 0, screenW, screenH / 2);
-        game.shapeRenderer.setColor(0.08f, 0.06f, 0.12f, 1f);
-        game.shapeRenderer.rect(0, screenH / 2, screenW, screenH / 2);
+        CaveUIStyle.drawCaveBackground(game.shapeRenderer, screenW, screenH, animTimer);
+        CaveUIStyle.drawDust(game.shapeRenderer, particleX, particleY, particleSize, animTimer);
 
-        // Stalactites
-        for (int i = 0; i < 20; i++) {
-            float sx = i * (screenW / 20f);
-            float sHeight = 30 + (float) Math.sin(i * 1.7) * 40 + (float) Math.sin(i * 0.7) * 20;
-            game.shapeRenderer.setColor(0.06f, 0.05f, 0.09f, 1f);
-            game.shapeRenderer.rect(sx, screenH - sHeight, screenW / 20f + 2, sHeight);
-        }
-
-        // Particles
-        for (int i = 0; i < particleX.length; i++) {
-            float alpha = 0.3f + (float) Math.sin(animTimer + i) * 0.2f;
-            game.shapeRenderer.setColor(0.8f, 0.5f, 0.2f, alpha);
-            game.shapeRenderer.rect(particleX[i], particleY[i], particleSize[i], particleSize[i]);
-        }
-
-        // Title glow
         float titleY = screenH * 0.68f;
-        float glowPulse = (float) Math.sin(animTimer * 1.5) * 0.05f + 0.15f;
-        game.shapeRenderer.setColor(0.3f, 0.15f, 0.05f, glowPulse);
-        game.shapeRenderer.rect(screenW / 2 - 250, titleY - 30, 500, 70);
+        CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f - 315, titleY - 48, 1.6f, 0.95f, animTimer);
+        CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f + 292, titleY - 48, 1.6f, 0.95f, animTimer + 0.6f);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 285, titleY - 58, 570, 102, 0.94f);
 
-        // Menu backgrounds
         float menuStartY = screenH * 0.44f;
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 160, menuStartY - 168, 320, 215, 0.90f);
         for (int i = 0; i < options.length; i++) {
             float optY = menuStartY - i * 50;
-            if (i == selectedOption) {
-                float pulse = (float) Math.sin(animTimer * 4) * 0.05f + 0.25f;
-                game.shapeRenderer.setColor(0.2f, 0.3f, 0.5f, pulse);
-                game.shapeRenderer.rect(screenW / 2 - 130, optY - 5, 260, 40);
-                game.shapeRenderer.setColor(0.9f, 0.7f, 0.2f, 0.9f);
-                game.shapeRenderer.rect(screenW / 2 - 135, optY, 4, 30);
-            }
+            if (i == selectedOption)
+                CaveUIStyle.drawSelection(game.shapeRenderer, screenW / 2f - 130, optY - 6, 260, 38, 1f);
         }
+
         game.shapeRenderer.end();
 
-        // --- Text (using proper font sizes, NO setScale) ---
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
 
@@ -134,36 +110,31 @@ public class MainMenu {
         BitmapFont normalFont = game.font;
         BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
 
-        // Title — use large font
-        largeFont.setColor(0.9f, 0.7f, 0.3f, 1f);
+        largeFont.setColor(CaveUIStyle.GOLD);
         layout.setText(largeFont, "CAVE ADVENTURE");
-        largeFont.draw(game.batch, "CAVE ADVENTURE", screenW / 2 - layout.width / 2, titleY + 30);
+        largeFont.draw(game.batch, "CAVE ADVENTURE", screenW / 2f - layout.width / 2f, titleY + 30);
 
-        // Subtitle — use small font
-        smallFont.setColor(0.5f, 0.45f, 0.35f, 0.8f);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT);
         layout.setText(smallFont, "Descend into the depths...");
-        smallFont.draw(game.batch, "Descend into the depths...", screenW / 2 - layout.width / 2, titleY - 15);
+        smallFont.draw(game.batch, "Descend into the depths...", screenW / 2f - layout.width / 2f, titleY - 15);
 
-        // Menu options — use normal font
         for (int i = 0; i < options.length; i++) {
             float optY = menuStartY - i * 50;
-            boolean isDisabled = (i == 1 && !hasSave);
-
-            if (isDisabled)
-                normalFont.setColor(0.3f, 0.3f, 0.25f, 0.5f);
+            boolean disabled = i == 1 && !hasSave;
+            if (disabled)
+                normalFont.setColor(CaveUIStyle.DISABLED_TEXT);
             else if (i == selectedOption)
-                normalFont.setColor(1f, 0.85f, 0.3f, 1f);
+                normalFont.setColor(CaveUIStyle.GOLD);
             else
-                normalFont.setColor(0.7f, 0.65f, 0.55f, 0.9f);
+                normalFont.setColor(CaveUIStyle.TEXT);
 
             layout.setText(normalFont, options[i]);
-            normalFont.draw(game.batch, options[i], screenW / 2 - layout.width / 2, optY + 28);
+            normalFont.draw(game.batch, options[i], screenW / 2f - layout.width / 2f, optY + 28);
         }
 
-        // Footer — use small font
-        smallFont.setColor(0.35f, 0.35f, 0.3f, 0.6f);
+        smallFont.setColor(CaveUIStyle.MUTED_TEXT);
         layout.setText(smallFont, "Arrow Keys: Navigate   Enter: Select");
-        smallFont.draw(game.batch, "Arrow Keys: Navigate   Enter: Select", screenW / 2 - layout.width / 2, 40);
+        smallFont.draw(game.batch, "Arrow Keys: Navigate   Enter: Select", screenW / 2f - layout.width / 2f, 40);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
