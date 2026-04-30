@@ -112,7 +112,7 @@ public class TestMain {
         private static final Item.ItemType equippedWeapon = Item.ItemType.CRYSTAL_BLADE;
         private static final Item.ItemType equippedArmor = Item.ItemType.CRYSTAL_ARMOR;
 
-        private static final Companion.PetType companionType = Companion.PetType.CAVE_WOLF;
+        private static final Companion.PetType companionType = Companion.PetType.SHADOW_CAT;
         private static final int companionHealth = 40;
 
         private static final ItemStack[] items = new ItemStack[] {

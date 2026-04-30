@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.CharacterAppearance;
+import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
 import com.caveadventure.item.Item;
@@ -81,7 +82,7 @@ public class BattleScreen {
     private int currentFloor;
 
     // Companion
-    private com.caveadventure.entity.Companion companion;
+    private Companion companion;
     // Rune turn counters
     private int fireRuneTurns   = 0;
     private int shadowRuneTurns = 0;
@@ -96,7 +97,7 @@ public class BattleScreen {
         startBattle(player, enemy, floor, null, null);
     }
 
-    public void startBattle(Player player, Enemy enemy, int floor, SkillTree skillTree, com.caveadventure.entity.Companion companion) {
+    public void startBattle(Player player, Enemy enemy, int floor, SkillTree skillTree, Companion companion) {
         this.player = player;
         this.enemy = enemy;
         this.currentFloor = floor;
@@ -157,6 +158,8 @@ public class BattleScreen {
     private void applyDamageToPlayer(int damage) {
         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.IRON_SKIN))
             damage = Math.max(1, (int)(damage * 0.85f));
+        if (canCompanionAssist() && companion.hasLoveStatBonus())
+            damage = Math.max(1, Math.round(damage / companion.getBattleStatMultiplier()));
         player.takeDamage(damage);
         if (!player.isAlive() && lastStandAvailable) {
             player.setHealth(1);
@@ -219,11 +222,15 @@ public class BattleScreen {
         switch (state) {
             case INTRO:
                 if (stateTimer > 1.5f) {
-                    if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.CAVE_WOLF && !player.isCompanionAbilityUsed()) {
+                    if (canCompanionAssist() && companion.getPetType() == Companion.PetType.CAVE_WOLF && !player.isCompanionAbilityUsed()) {
                         int compDmg = companion.rollDamage();
                         enemy.takeDamage(compDmg);
                         player.setCompanionAbilityUsed(true);
                         showMessage("Cave Wolf attacks for " + compDmg + " dmg!", BattleState.PLAYER_TURN);
+                    } else if (companion != null && companion.getPetType() == Companion.PetType.CAVE_WOLF
+                            && !companion.canAssistInBattle()) {
+                        player.setCompanionAbilityUsed(true);
+                        showMessage("Cave Wolf refuses to fight.", BattleState.PLAYER_TURN);
                     } else {
                         state = BattleState.PLAYER_TURN;
                         stateTimer = 0;
@@ -301,9 +308,10 @@ public class BattleScreen {
                         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.REGEN) && player.isAlive())
                             player.heal(5); // Buffed: 5 HP per turn (was 2)
                         
-                        if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.FIRE_SPRITE && turnCount % 3 == 0 && player.isAlive()) {
-                            player.heal(15);
-                            currentMessage += " [Sprite Heal: +15 HP]";
+                        if (canCompanionAssist() && companion.getPetType() == Companion.PetType.FIRE_SPRITE && turnCount % 3 == 0 && player.isAlive()) {
+                            int heal = companion.scaleAssistValue(15);
+                            player.heal(heal);
+                            currentMessage += " [Sprite Heal: +" + heal + " HP]";
                         }
 
                         if (fireRuneTurns > 0) fireRuneTurns--;
@@ -800,8 +808,8 @@ public class BattleScreen {
             return;
         }
         float runChance = 0.5f + (turnCount * 0.1f);
-        if (companion != null && companion.getPetType() == com.caveadventure.entity.Companion.PetType.SHADOW_CAT) {
-            runChance += 0.35f; // Shadow cat improves run chance
+        if (canCompanionAssist() && companion.getPetType() == Companion.PetType.SHADOW_CAT) {
+            runChance += companion.getRunChanceBonus(0.35f);
         }
         
         if (random.nextFloat() < runChance) {
@@ -820,6 +828,10 @@ public class BattleScreen {
         attackFlashTarget = targetEnemy;
         shakeTimer = 0.3f;
         shakeTargetEnemy = targetEnemy ? 1 : -1;
+    }
+
+    private boolean canCompanionAssist() {
+        return companion != null && companion.canAssistInBattle();
     }
 
     private boolean hasUsableItems() {
@@ -874,7 +886,7 @@ public class BattleScreen {
         float playerPlatX = sw * 0.2f;
         float playerPlatY = sh * 0.38f;
         game.shapeRenderer.setColor(0.12f, 0.09f, 0.065f, 1f);
-        game.shapeRenderer.ellipse(playerPlatX - 50, playerPlatY - 15, 140, 30);
+        game.shapeRenderer.ellipse(playerPlatX - 55, playerPlatY - 15, companion != null ? 185 : 140, 30);
 
         // Sprites
         float eSh = shakeTargetEnemy > 0 && shakeTimer > 0 ? (float) Math.sin(shakeTimer * 40) * 5 : 0;
@@ -884,6 +896,8 @@ public class BattleScreen {
 
         float pSh = shakeTargetEnemy < 0 && shakeTimer > 0 ? (float) Math.sin(shakeTimer * 40) * 5 : 0;
         boolean pFlash = !attackFlashTarget && attackFlashTimer > 0 && ((int) (attackFlashTimer * 15)) % 2 == 0;
+        if (companion != null && companion.isAlive())
+            drawBattleCompanion(game.shapeRenderer, playerPlatX + pSh + 78, playerPlatY + 5);
         drawBattlePlayer(game.shapeRenderer, playerPlatX + pSh, playerPlatY + 5, pFlash);
 
         // Enemy HP box
@@ -1212,6 +1226,151 @@ public class BattleScreen {
         r.rect(px + 56, cy + 68, 14, 5);
         r.setColor(scaledColor(weapon, 1.25f, 0.65f));
         r.rect(px + 62, cy + 45, 2, 22);
+    }
+
+    private void drawBattleCompanion(ShapeRenderer r, float cx, float cy) {
+        float bob = (float) Math.sin(stateTimer * 4.4f) * 2f;
+        float twitch = (float) Math.sin(stateTimer * 8.0f) * 3f;
+        Color base = companion.getPetType().color;
+        Color dark = scaledColor(base, 0.55f, 1f);
+        Color light = scaledColor(base, 1.25f, 1f);
+
+        r.setColor(0f, 0f, 0f, 0.31f);
+        r.ellipse(cx - 30, cy - 7, 62, 15);
+
+        switch (companion.getPetType()) {
+            case CAVE_WOLF:
+                drawBattleCaveWolf(r, cx, cy + bob, base, dark, light, twitch);
+                break;
+            case FIRE_SPRITE:
+                drawBattleFireSprite(r, cx, cy + bob, base, dark, light, twitch);
+                break;
+            case SHADOW_CAT:
+                drawBattleShadowCat(r, cx, cy + bob, base, dark, light, twitch);
+                break;
+        }
+    }
+
+    private void drawBattleCaveWolf(ShapeRenderer r, float cx, float cy, Color base, Color dark, Color light,
+            float twitch) {
+        r.setColor(0.04f, 0.04f, 0.06f, 1f);
+        r.triangle(cx - 16, cy + 28, cx - 44, cy + 42 + twitch, cx - 18, cy + 17);
+        r.rect(cx - 27, cy + 13, 45, 26);
+        r.rect(cx + 7, cy + 28, 25, 24);
+        r.triangle(cx + 10, cy + 50, cx + 15, cy + 67, cx + 20, cy + 50);
+        r.triangle(cx + 24, cy + 50, cx + 30, cy + 65, cx + 34, cy + 50);
+        r.rect(cx - 22, cy, 11, 17);
+        r.rect(cx + 3, cy, 11, 17);
+
+        r.setColor(dark);
+        r.triangle(cx - 16, cy + 27, cx - 38, cy + 38 + twitch, cx - 17, cy + 19);
+        r.rect(cx - 24, cy + 16, 40, 21);
+        r.rect(cx + 10, cy + 31, 19, 18);
+        r.rect(cx - 19, cy + 3, 7, 15);
+        r.rect(cx + 5, cy + 3, 7, 15);
+
+        r.setColor(base);
+        r.rect(cx - 19, cy + 20, 34, 17);
+        r.rect(cx + 13, cy + 34, 16, 14);
+        r.triangle(cx + 12, cy + 50, cx + 15, cy + 62, cx + 18, cy + 50);
+        r.triangle(cx + 25, cy + 50, cx + 30, cy + 62, cx + 32, cy + 50);
+
+        r.setColor(light);
+        r.rect(cx - 13, cy + 34, 25, 5);
+        r.rect(cx + 17, cy + 41, 8, 4);
+        r.setColor(0.86f, 0.78f, 0.62f, 1f);
+        r.rect(cx + 20, cy + 31, 14, 8);
+        r.rect(cx - 8, cy + 18, 18, 5);
+
+        r.setColor(1f, 0.86f, 0.24f, 1f);
+        r.rect(cx + 21, cy + 41, 5, 5);
+        r.setColor(0.02f, 0.02f, 0.02f, 1f);
+        r.rect(cx + 32, cy + 34, 5, 4);
+        r.setColor(0.92f, 0.90f, 0.78f, 1f);
+        r.rect(cx + 27, cy + 29, 4, 7);
+    }
+
+    private void drawBattleFireSprite(ShapeRenderer r, float cx, float cy, Color base, Color dark, Color light,
+            float twitch) {
+        float flicker = (float) Math.sin(stateTimer * 10.5f) * 4f;
+
+        r.setColor(1f, 0.22f, 0.03f, 0.18f);
+        r.ellipse(cx - 34, cy + 4, 70, 62);
+        r.setColor(1f, 0.62f, 0.12f, 0.23f);
+        r.ellipse(cx - 24, cy + 10, 50, 50);
+
+        r.setColor(0.04f, 0.04f, 0.06f, 1f);
+        r.triangle(cx, cy + 72 + flicker, cx - 29, cy + 19, cx + 29, cy + 19);
+        r.rect(cx - 19, cy + 10, 38, 36);
+        r.triangle(cx - 18, cy + 33, cx - 36, cy + 55 + twitch, cx - 10, cy + 43);
+        r.triangle(cx + 18, cy + 33, cx + 39, cy + 53 - twitch, cx + 10, cy + 43);
+
+        r.setColor(dark);
+        r.triangle(cx, cy + 66 + flicker, cx - 24, cy + 22, cx + 24, cy + 22);
+        r.rect(cx - 16, cy + 13, 32, 31);
+        r.setColor(base);
+        r.triangle(cx, cy + 60 + flicker, cx - 18, cy + 23, cx + 18, cy + 23);
+        r.rect(cx - 12, cy + 17, 24, 25);
+        r.setColor(light);
+        r.triangle(cx, cy + 50 + flicker * 0.45f, cx - 10, cy + 22, cx + 10, cy + 22);
+        r.rect(cx - 8, cy + 18, 16, 17);
+
+        r.setColor(1f, 0.96f, 0.48f, 1f);
+        r.rect(cx - 10, cy + 34, 7, 7);
+        r.rect(cx + 4, cy + 34, 7, 7);
+        r.setColor(0.21f, 0.05f, 0.02f, 0.82f);
+        r.rect(cx - 7, cy + 33, 2, 5);
+        r.rect(cx + 7, cy + 33, 2, 5);
+        r.rect(cx - 5, cy + 26, 11, 3);
+
+        r.setColor(1f, 0.82f, 0.22f, 0.74f);
+        r.rect(cx - 35 + twitch, cy + 7, 6, 6);
+        r.rect(cx + 32 - twitch, cy + 18, 5, 5);
+        r.rect(cx + 22, cy + 60 - twitch, 4, 4);
+    }
+
+    private void drawBattleShadowCat(ShapeRenderer r, float cx, float cy, Color base, Color dark, Color light,
+            float twitch) {
+        r.setColor(base.r, base.g, base.b, 0.24f);
+        r.rect(cx - 26, cy + 16, 47, 18);
+        r.rect(cx + 9, cy + 30, 28, 21);
+
+        r.setColor(0.04f, 0.04f, 0.06f, 1f);
+        r.rect(cx - 27, cy + 14, 45, 24);
+        r.rect(cx + 8, cy + 30, 28, 25);
+        r.triangle(cx + 11, cy + 53, cx + 17, cy + 70, cx + 23, cy + 53);
+        r.triangle(cx + 26, cy + 53, cx + 33, cy + 68, cx + 37, cy + 53);
+        r.rect(cx - 38, cy + 28 + twitch, 16, 8);
+        r.rect(cx - 48, cy + 35 + twitch, 14, 9);
+        r.rect(cx - 22, cy, 9, 17);
+        r.rect(cx + 4, cy, 9, 17);
+
+        r.setColor(dark);
+        r.rect(cx - 23, cy + 18, 38, 17);
+        r.rect(cx + 12, cy + 34, 21, 18);
+        r.rect(cx - 36, cy + 30 + twitch, 13, 6);
+        r.rect(cx - 45, cy + 37 + twitch, 10, 6);
+        r.rect(cx - 19, cy + 3, 5, 15);
+        r.rect(cx + 6, cy + 3, 5, 15);
+
+        r.setColor(base);
+        r.rect(cx - 17, cy + 23, 30, 13);
+        r.rect(cx + 15, cy + 38, 17, 13);
+        r.triangle(cx + 14, cy + 53, cx + 17, cy + 65, cx + 21, cy + 53);
+        r.triangle(cx + 27, cy + 53, cx + 32, cy + 65, cx + 35, cy + 53);
+        r.setColor(light);
+        r.rect(cx - 12, cy + 35, 20, 4);
+        r.rect(cx + 18, cy + 48, 10, 3);
+
+        r.setColor(0.42f, 1f, 0.45f, 1f);
+        r.rect(cx + 18, cy + 43, 6, 7);
+        r.rect(cx + 29, cy + 43, 6, 7);
+        r.setColor(0.01f, 0.03f, 0.01f, 1f);
+        r.rect(cx + 20, cy + 45, 2, 5);
+        r.rect(cx + 31, cy + 45, 2, 5);
+        r.setColor(0.62f, 1f, 0.66f, 0.45f);
+        r.rect(cx + 13, cy + 45, 27, 2);
+        r.rect(cx + 15, cy + 39, 24, 2);
     }
 
     private void drawBattleStatusAura(ShapeRenderer r, float cx, float cy, float size) {

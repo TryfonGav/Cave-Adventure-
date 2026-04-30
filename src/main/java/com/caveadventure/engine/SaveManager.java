@@ -57,6 +57,11 @@ public class SaveManager {
         if (companion != null) {
             sb.append("companionType=").append(companion.getPetType().name()).append("\n");
             sb.append("companionHealth=").append(companion.getHealth()).append("\n");
+            sb.append("companionLove=").append(companion.getLove()).append("\n");
+            sb.append("companionHunger=").append(companion.getHunger()).append("\n");
+            sb.append("companionHappiness=").append(companion.getHappiness()).append("\n");
+            sb.append("companionFatigue=").append(companion.getFatigue()).append("\n");
+            sb.append("companionPetCooldown=").append(companion.getPetCooldownTimer()).append("\n");
         }
 
         if (unlockedSkills != null) {
@@ -187,6 +192,21 @@ public class SaveManager {
                     case "companionHealth":
                         data.companionHealth = Integer.parseInt(value);
                         break;
+                    case "companionLove":
+                        data.companionLove = Float.parseFloat(value);
+                        break;
+                    case "companionHunger":
+                        data.companionHunger = Float.parseFloat(value);
+                        break;
+                    case "companionHappiness":
+                        data.companionHappiness = Float.parseFloat(value);
+                        break;
+                    case "companionFatigue":
+                        data.companionFatigue = Float.parseFloat(value);
+                        break;
+                    case "companionPetCooldown":
+                        data.companionPetCooldown = Float.parseFloat(value);
+                        break;
                     case "skillUnlocked":
                         try {
                             data.unlockedSkills.add(Skill.valueOf(value));
@@ -256,6 +276,11 @@ public class SaveManager {
         public Item.ItemType equippedArmor = null;
         public Companion.PetType companionType = null;
         public int companionHealth = -1;
+        public float companionLove = 60f;
+        public float companionHunger = 35f;
+        public float companionHappiness = 55f;
+        public float companionFatigue = 0f;
+        public float companionPetCooldown = 0f;
         public java.util.List<Skill> unlockedSkills = new java.util.ArrayList<>();
         public CharacterAppearance characterAppearance = CharacterAppearance.defaultAppearance();
     }

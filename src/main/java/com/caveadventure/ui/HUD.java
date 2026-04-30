@@ -93,7 +93,7 @@ public class HUD {
         CaveUIStyle.drawStonePanel(game.shapeRenderer, infoX, infoY, infoW, infoH, 0.82f);
 
         // --- Controls hint ---
-        float hintW = 380;
+        float hintW = Math.min(screenW - PADDING * 2, 560);
         float hintH = 25;
         float hintX = screenW / 2 - hintW / 2;
 
@@ -159,7 +159,7 @@ public class HUD {
 
         // Controls
         game.font.setColor(CaveUIStyle.MUTED_TEXT);
-        String controls = "WASD:Move  SPACE:Attack  TAB:Inventory  K:Skills  F:Interact  ESC:Menu";
+        String controls = "WASD:Move  SPACE:Atk  TAB:Inv  C:Pet  K:Skills  F:Use  ESC:Menu";
         layout.setText(game.font, controls);
         game.font.draw(game.batch, controls, hintX + hintW / 2 - layout.width / 2,
                 PADDING + hintH / 2 + layout.height / 2);

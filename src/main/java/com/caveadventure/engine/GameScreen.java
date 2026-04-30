@@ -26,7 +26,7 @@ public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
         MENU, CHARACTER_SELECT, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
-        EVENT, SKILL_PICK, NPC_DIALOGUE
+        EVENT, SKILL_PICK, NPC_DIALOGUE, COMPANION_CARE
     }
 
     private final CaveAdventure game;
@@ -61,6 +61,7 @@ public class GameScreen extends ScreenAdapter {
     private final StatsScreen statsScreen;
     private final SettingsMenu settingsMenu;
     private final CharacterSelectUI characterSelectUI;
+    private final CompanionCareUI companionCareUI;
 
     // State
     private GameState state;
@@ -107,6 +108,7 @@ public class GameScreen extends ScreenAdapter {
         this.statsScreen = new StatsScreen(game);
         this.settingsMenu = new SettingsMenu(game);
         this.characterSelectUI = new CharacterSelectUI(game);
+        this.companionCareUI = new CompanionCareUI(game);
         this.levelManager = new LevelManager();
         this.selectedAppearance = CharacterAppearance.defaultAppearance();
 
@@ -175,6 +177,8 @@ public class GameScreen extends ScreenAdapter {
             companion = new Companion(player.getGridX(), player.getGridY(), data.companionType);
             if (data.companionHealth >= 0)
                 companion.setCurrentHealth(data.companionHealth);
+            companion.restoreCareState(data.companionLove, data.companionHunger, data.companionHappiness,
+                    data.companionFatigue, data.companionPetCooldown);
         }
         if (levelManager.isFinalFloor() && data.finalBossDefeated) {
             levelManager.unlockFinalBossExit();
@@ -233,9 +237,10 @@ public class GameScreen extends ScreenAdapter {
         delta = Math.min(delta, 1 / 30f);
 
         boolean inventoryPaused = state == GameState.PLAYING && inventoryUI.isVisible();
+        boolean carePaused = state == GameState.COMPANION_CARE;
         achievements.update(delta);
         transition.update(delta);
-        if (!inventoryPaused)
+        if (!inventoryPaused && !carePaused)
             particles.update(delta);
 
         switch (state) {
@@ -277,6 +282,10 @@ public class GameScreen extends ScreenAdapter {
             case NPC_DIALOGUE:
                 updateNpcDialogue(delta);
                 drawNpcDialogue();
+                break;
+            case COMPANION_CARE:
+                updateCompanionCare(delta);
+                drawCompanionCare();
                 break;
             case FLOOR_TRANSITION:
                 updateTransition(delta);
@@ -383,6 +392,15 @@ public class GameScreen extends ScreenAdapter {
         }
         if (inputHandler.isKeyJustPressed(Input.Keys.K) && !inventoryUI.isVisible()) {
             skillTree.toggleViewer();
+            return;
+        }
+        if (inputHandler.isKeyJustPressed(Input.Keys.C) && !inventoryUI.isVisible()) {
+            if (companion != null) {
+                state = GameState.COMPANION_CARE;
+            } else {
+                trapMessage = "No companion to care for yet.";
+                trapMessageTimer = 2.0f;
+            }
             return;
         }
 
@@ -708,6 +726,26 @@ public class GameScreen extends ScreenAdapter {
                         eventManager.getLastCompanionType());
             }
         }
+    }
+
+    private void updateCompanionCare(float delta) {
+        if (companion == null) {
+            state = GameState.PLAYING;
+            return;
+        }
+
+        companion.update(delta);
+        if (companionCareUI.update(inputHandler, companion, delta)) {
+            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal,
+                    bossKilledThisFloor, skillTree.getUnlockedSkills());
+            state = GameState.PLAYING;
+        }
+    }
+
+    private void drawCompanionCare() {
+        drawPlaying();
+        if (companion != null)
+            companionCareUI.render(companion);
     }
 
     // --- Skill Pick ---
