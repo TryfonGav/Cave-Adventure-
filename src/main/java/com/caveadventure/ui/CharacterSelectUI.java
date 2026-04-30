@@ -44,7 +44,8 @@ public class CharacterSelectUI {
             new Color(0.08f, 0.12f, 0.07f, 1f),
             new Color(0.80f, 0.82f, 0.78f, 1f),
             new Color(0.05f, 0.04f, 0.08f, 1f),
-            new Color(0.50f, 0.34f, 0.12f, 1f)
+            new Color(0.50f, 0.34f, 0.12f, 1f),
+            new Color(0.50f, 0.20f, 0.50f, 1f) // purple hair option, not used in presets
     };
     private static final Color[] PANTS_COLORS = {
             new Color(0.10f, 0.16f, 0.26f, 1f),
