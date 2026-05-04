@@ -25,7 +25,7 @@ public class TestMain {
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("CaveAdventure Sandbox");
-        config.setWindowedMode(1280, 720);
+        config.setFullscreenMode(Lwjgl3ApplicationConfiguration.getDisplayMode());
         config.useVsync(true);
         config.setForegroundFPS(60);
         config.setResizable(true);
@@ -96,7 +96,7 @@ public class TestMain {
     }
 
     private static final class TestConfig {
-        private static final int floor = 10;
+        private static final int floor = 2;
         private static final int health = 1800;
         private static final int maxHealth = 1800;
         private static final int hunger = 100;
@@ -119,7 +119,9 @@ public class TestMain {
                new ItemStack(ItemType.FIRE_AXE,1),
                new ItemStack(ItemType.CRYSTAL_ARMOR, 1),
                new ItemStack(ItemType.HEALTH_POTION, 5),
-                new ItemStack(ItemType.SHADOW_BLADE,1)
+                new ItemStack(ItemType.SHADOW_BLADE,1),
+                new ItemStack(ItemType.ANCIENT_RELIC, 1)
+
         };
     }
 }

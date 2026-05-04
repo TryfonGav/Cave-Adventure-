@@ -160,7 +160,7 @@ public class ShopUI {
                     statusMessage = "Not enough gold! (" + gold + "/" + effectivePrice + ")";
                     statusTimer = 2f;
                 }
-            } else {
+            } else { // SELL TREASURES SHOP FEATURE
                 if (!sellableItems.isEmpty()) {
                     Item treasure = sellableItems.get(selectedIndex);
                     int price = sellPrice(treasure.getType());
@@ -171,6 +171,7 @@ public class ShopUI {
                     refreshSellableItems(player);
                     if (selectedIndex >= sellableItems.size())
                         selectedIndex = Math.max(0, sellableItems.size() - 1);
+                    int gold = countGold(player) + price;
                     statusMessage = "Sold for " + price + "g!";
                     statusTimer = 2f;
                 }
