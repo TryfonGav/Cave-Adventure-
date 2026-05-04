@@ -35,7 +35,7 @@ The dungeon uses simple colors and shapes instead of detailed sprites. A few imp
 - Purple markers are stairs to the next floor.
 - Red markers are enemies.
 - Locked doors usually appear as red-brown blocks.
-- The shopkeeper appears as an orange NPC.
+- The shopkeeper appears as an orange NPC and as a green dot on the minimap.
 
 If something looks important, walk up to it and press F or Enter.
 
