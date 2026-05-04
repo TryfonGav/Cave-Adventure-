@@ -26,7 +26,7 @@ public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
         MENU, CHARACTER_SELECT, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
-        EVENT, SKILL_PICK, NPC_DIALOGUE, COMPANION_CARE
+        EVENT, SKILL_PICK, NPC_DIALOGUE, COMPANION_CARE, MINIMAP_VIEW
     }
 
     private final CaveAdventure game;
@@ -287,6 +287,10 @@ public class GameScreen extends ScreenAdapter {
                 updateCompanionCare(delta);
                 drawCompanionCare();
                 break;
+            case MINIMAP_VIEW:
+                updateMinimapView(delta);
+                drawMinimapView();
+                break;
             case FLOOR_TRANSITION:
                 updateTransition(delta);
                 drawTransition();
@@ -392,6 +396,10 @@ public class GameScreen extends ScreenAdapter {
         }
         if (inputHandler.isKeyJustPressed(Input.Keys.K) && !inventoryUI.isVisible()) {
             skillTree.toggleViewer();
+            return;
+        }
+        if (inputHandler.isKeyJustPressed(Input.Keys.M) && !inventoryUI.isVisible()) {
+            state = GameState.MINIMAP_VIEW;
             return;
         }
         if (inputHandler.isKeyJustPressed(Input.Keys.C) && !inventoryUI.isVisible()) {
@@ -861,6 +869,19 @@ public class GameScreen extends ScreenAdapter {
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    // --- Minimap View ---
+
+    private void updateMinimapView(float delta) {
+        if (inputHandler.isKeyJustPressed(Input.Keys.M) || inputHandler.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            state = GameState.PLAYING;
+        }
+    }
+
+    private void drawMinimapView() {
+        drawPlaying();
+        minimap.renderFullscreen(gameMap, player, combatManager.getEnemies());
     }
 
     // --- Game Over ---
