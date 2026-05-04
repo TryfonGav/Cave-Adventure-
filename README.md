@@ -1,46 +1,84 @@
-# CaveAdventure — Playtester Guide
+# CaveAdventure Player Guide
 
-Welcome to **CaveAdventure**! This guide contains everything you need to know to survive the dungeon. Descend into the depths, fight monsters, collect loot, and see how deep you can survive. Every playthrough is different!
+Welcome to CaveAdventure. Explore a shifting dungeon, survive traps and hunger, fight monsters, manage your gear, and push as deep as you can. The latest version adds more utility screens, companion care, and a fullscreen minimap so you can plan each run more clearly.
 
----
+## Controls
 
-## 🎮 How to Play
-
-### Controls
 | Key | Action |
-|-----|--------|
-| **W, A, S, D** | Move up, left, down, right (supports diagonal movement) |
-| **Arrow Keys**| Move up, left, down, right (supports diagonal movement) |
-| **F** or **Enter** | Interact (Open chests, unlock doors, use stairs, talk to Shopkeeper) |
-| **TAB** or **I** | Open/Close Inventory |
-| **B** | Open/Close Bestiary (View discovered enemies and kill stats) |
-| **P** | Open/Close Stats Screen (Track your progress and achievements) |
-| **ESC** | Close current menu, or Save & Quit to Main Menu |
+|---|---|
+| W, A, S, D | Move |
+| Arrow Keys | Move |
+| F or Enter | Interact with chests, doors, stairs, NPCs, and prompts |
+| Tab or I | Open or close Inventory |
+| M | Open or close the fullscreen Minimap and pause the game |
+| B | Open or close the Bestiary |
+| P | Open or close the Stats screen |
+| K | Open or close the Skill Tree viewer |
+| C | Open Companion Care when you have a companion |
+| Escape | Close the current overlay, or return to the main menu from gameplay |
 
-### Visual Guide (What am I looking at?)
-Since the dungeon is represented by simple colored shapes, here is a quick key:
-- 🟡 **Gold/Yellow Boxes**: Treasure Chests (stand next to them and press F)
-- 🟪 **Purple/Blue Squares**: Stairs down to the next floor (stand on them and press F)
-- 🟤 **Brown Bars**: Locked Doors (stand next to them and press F, requires a Key)
-- 🔴 **Red Squares**: Enemies in the world (walk into them to start combat)
-- 🟧 **Orange Hooded Square**: The Shopkeeper NPC (requires F to interact)
+## What The Game Is About
 
-### Exploring the Dungeon
-- **Biomes**: The cave changes appearance and danger level every few floors. You'll encounter the Crystal Caves, Mushroom Grotto, Lava Caverns, and the Shadow Abyss!
-- **Light Radius**: Your vision shrinks over time. Use **Torches** (found or bought) to expand your light radius and see further into the darkness.
-- **Traps**: Watch your step! Hidden spike traps and arrow traps litter the dungeon. High Utility skills can help you avoid them.
-- **Random Events**: Stopping or waiting may trigger random storyline events. Make choices carefully—they can reward you or curse you!
+Each run starts in the dungeon and unfolds floor by floor. You explore rooms, uncover the map as you move, fight enemies, open chests, unlock doors, and search for stairs to the next floor. The dungeon gets more dangerous as you descend, but you also gain skills, equipment, and resources that help you survive longer.
 
-### Combat & Progression
-- **Turn-Based Battles**: Walk into an enemy to start combat. You can Attack, Defend, use Items, or Flee.
-- **Status Effects**: Weapons and enemies can inflict Status Effects like Poison (damage over time), Burn, or Stun (lose a turn). 
-- **Leveling Up**: Defeating enemies grants XP. When you level up, you get to choose 1 of 3 random skills from the Skill Tree to permanently boost your stats (Offensive, Defensive, or Utility).
-- **Companions**: You may occasionally find a Companion pet (Wolf, Sprite, or Shadow Cat) that follows you and aids you in battles!
+## Core Screens
 
-### Survival & Economy
-- **Hunger**: Moving and fighting burns energy. Eat Bread or Meat (found in chests or shops) to restore hunger. If your hunger hits 0, you will slowly take starvation damage.
-- **Shopping**: Every 2nd floor, look for the Shopkeeper in a safe zone. Trade Gold Coins, Rubies, and Diamonds for essential supplies, weapons, and armor.
-- **Inventory/Equipment**: Press **TAB** to equip weapons/armor or use consumable items. Equipped items grant passive attack and defense bonuses.
+The main gameplay view is the normal exploration screen. Most menus are overlays, so the dungeon may still be visible behind them. Use Escape to back out of whatever screen you opened.
 
----
-*Good luck, adventurer! Try to reach Floor 10 and defeat the ultimate boss!*
+The fullscreen minimap is now bound to M. It pauses the action and shows the explored floor at a much larger size, including your position, enemies you have revealed, treasure, and stairs.
+
+## Reading The World
+
+The dungeon uses simple colors and shapes instead of detailed sprites. A few important ones:
+
+- Yellow tiles or boxes are chests.
+- Purple markers are stairs to the next floor.
+- Red markers are enemies.
+- Locked doors usually appear as red-brown blocks.
+- The shopkeeper appears as an orange NPC.
+
+If something looks important, walk up to it and press F or Enter.
+
+## Exploration And Survival
+
+Visibility matters. Your light radius is limited, so torches are valuable when you want to see farther into the dark. Hidden traps can damage you if you rush through the dungeon, and some skills help you detect or avoid them.
+
+Hunger also matters. Moving and fighting slowly drain your reserves. Keep food on hand so you do not get worn down by starvation over time.
+
+Random events can trigger while you are exploring. These are not always combat encounters; sometimes they are choices, rewards, or hazards. When the dungeon gets quiet, stay alert.
+
+## Combat And Progression
+
+Walking into an enemy starts a battle. Combat is turn-based, and the battle screen handles attacking, defending, using items, or fleeing.
+
+Defeating enemies gives XP. When you level up, you choose from a random set of skills in the Skill Tree. These upgrades permanently improve your character and can shape a run around offense, defense, or utility.
+
+Weapons and enemies can inflict status effects such as poison, burn, or stun. Good gear and the right skills make a big difference in longer runs.
+
+## Inventory, Gear, And Shops
+
+Open Inventory with Tab or I to manage items, equip weapons or armor, and use consumables. Your equipped gear applies passive bonuses, so upgrading equipment is one of the biggest ways to stay alive.
+
+The Shopkeeper appears on certain floors and offers a safer place to spend your currency. Save valuable resources for the items that help your current build most.
+
+## Companions
+
+You may meet a companion during a run. Companions can follow you and help in battle. If you have one, press C to open Companion Care and manage its needs. A healthy companion is more useful than one that has been ignored.
+
+## Tracking Progress
+
+Use the Bestiary to see the enemies you have discovered and your kill record. Use the Stats screen to track how far you have gone, what you have found, and how your run is developing. These screens are useful when you want to compare attempts or learn what you are still missing.
+
+## Practical Tips
+
+- Use the minimap early and often so you do not miss branches or objectives.
+- Do not spend all your food before the deeper floors.
+- Open chests whenever you can, but do not ignore traps while doing it.
+- If you find a good weapon or armor piece, equip it immediately.
+- Escape is your general exit key for overlays, but it also returns you to the main menu from the game.
+
+## Goal
+
+Your objective is to survive to the deepest floor and defeat the final boss. Every run is different, so learning the dungeon, managing resources, and using your tools well matters more than raw speed.
+
+Good luck, adventurer.
