@@ -139,11 +139,11 @@ public class Item {
         }
 
         public void setQuantity(int q) {
-                this.quantity = q;
+                this.quantity = Math.max(0, q);
         }
 
         public void addQuantity(int amount) {
-                this.quantity += amount;
+                this.quantity = Math.max(0, this.quantity + amount);
         }
 
         public void removeQuantity(int amount) {

@@ -4,10 +4,14 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.world.GameMap;
 
+import java.util.Random;
+
 /**
  * NPC shopkeeper entity. Stands in place and sells items when interacted with.
  */
 public class Shopkeeper extends Entity {
+
+    private static final Random RANDOM = new Random();
 
     private float animTimer;
     private int animFrame;
@@ -96,7 +100,7 @@ public class Shopkeeper extends Entity {
             "I've got what you need to survive."
         };
         
-        String greeting = greetings[new java.util.Random().nextInt(greetings.length)];
+        String greeting = greetings[RANDOM.nextInt(greetings.length)];
         String hint = "";
         
         if (currentFloor <= 3) {

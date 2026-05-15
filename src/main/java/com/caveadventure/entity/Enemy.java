@@ -49,6 +49,10 @@ public class Enemy extends Entity {
     private final EnemyType type;
     private AIState aiState;
     private final Random random = new Random();
+    private final Color tmpDarkColor = new Color();
+    private final List<Direction> shuffledPatrolDirections = new ArrayList<>(4);
+
+    private static final Direction[] CARDINAL_DIRECTIONS = Direction.cardinals();
 
     // Movement
     private boolean isMoving;
@@ -199,11 +203,11 @@ public class Enemy extends Entity {
     }
 
     private void tryMoveRandom(GameMap map) {
-        Direction[] dirs = Direction.cardinals();
-        List<Direction> shuffled = new ArrayList<>(Arrays.asList(dirs));
-        Collections.shuffle(shuffled, random);
+        shuffledPatrolDirections.clear();
+        Collections.addAll(shuffledPatrolDirections, CARDINAL_DIRECTIONS);
+        Collections.shuffle(shuffledPatrolDirections, random);
 
-        for (Direction dir : shuffled) {
+        for (Direction dir : shuffledPatrolDirections) {
             int nx = getGridX() + dir.dx;
             int ny = getGridY() + dir.dy;
             int distFromOrigin = Math.abs(nx - patrolOriginX) + Math.abs(ny - patrolOriginY);
@@ -335,7 +339,7 @@ public class Enemy extends Entity {
 
         boolean flash = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;
         Color bodyColor = flash ? Color.WHITE : type.color;
-        Color darkColor = new Color(bodyColor.r * 0.7f, bodyColor.g * 0.7f, bodyColor.b * 0.7f, 1f);
+        Color darkColor = CharacterAppearance.scaledColorInto(bodyColor, 0.7f, 1f, tmpDarkColor);
 
         // Shadow
         renderer.setColor(0, 0, 0, 0.25f);

@@ -22,55 +22,65 @@ public class CharacterSelectUI {
     public static final int BACK = 2;
 
     private static final String[] FIELDS = { "Tunic", "Skin", "Hair", "Pants", "Boots", "Cape" };
-    private static final Color[] TUNIC_COLORS = {
+        private static final Color PREVIEW_OUTLINE = new Color(0.04f, 0.05f, 0.07f, 1f);
+        private static final float TUNIC_DARK_SCALE = 0.78f;
+
+        private static final class Palette {
+        private static final Color[] TUNIC = {
             new Color(0.18f, 0.56f, 0.90f, 1f),
             new Color(0.76f, 0.24f, 0.12f, 1f),
             new Color(0.24f, 0.55f, 0.30f, 1f),
             new Color(0.43f, 0.72f, 0.92f, 1f),
             new Color(0.45f, 0.28f, 0.72f, 1f),
             new Color(0.82f, 0.62f, 0.20f, 1f)
-    };
-    private static final Color[] SKIN_COLORS = {
+        };
+
+        private static final Color[] SKIN = {
             new Color(0.86f, 0.66f, 0.48f, 1f),
             new Color(0.78f, 0.55f, 0.36f, 1f),
             new Color(0.63f, 0.45f, 0.30f, 1f),
             new Color(0.82f, 0.68f, 0.55f, 1f),
             new Color(0.70f, 0.48f, 0.36f, 1f),
             new Color(0.52f, 0.35f, 0.24f, 1f)
-    };
-    private static final Color[] HAIR_COLORS = {
+        };
+
+        private static final Color[] HAIR = {
             new Color(0.16f, 0.10f, 0.07f, 1f),
             new Color(0.28f, 0.13f, 0.05f, 1f),
             new Color(0.08f, 0.12f, 0.07f, 1f),
             new Color(0.80f, 0.82f, 0.78f, 1f),
             new Color(0.05f, 0.04f, 0.08f, 1f),
             new Color(0.50f, 0.34f, 0.12f, 1f),
-            new Color(0.50f, 0.20f, 0.50f, 1f) // purple hair option, not used in presets
-    };
-    private static final Color[] PANTS_COLORS = {
+            new Color(0.50f, 0.20f, 0.50f, 1f)
+        };
+
+        private static final Color[] PANTS = {
             new Color(0.10f, 0.16f, 0.26f, 1f),
             new Color(0.18f, 0.12f, 0.10f, 1f),
             new Color(0.14f, 0.22f, 0.16f, 1f),
             new Color(0.13f, 0.18f, 0.27f, 1f),
             new Color(0.12f, 0.10f, 0.18f, 1f),
             new Color(0.22f, 0.20f, 0.18f, 1f)
-    };
-    private static final Color[] BOOT_COLORS = {
+        };
+
+        private static final Color[] BOOTS = {
             new Color(0.08f, 0.06f, 0.05f, 1f),
             new Color(0.10f, 0.06f, 0.04f, 1f),
             new Color(0.07f, 0.07f, 0.05f, 1f),
             new Color(0.09f, 0.10f, 0.13f, 1f),
             new Color(0.05f, 0.04f, 0.06f, 1f),
             new Color(0.17f, 0.14f, 0.10f, 1f)
-    };
-    private static final Color[] CAPE_COLORS = {
+        };
+
+        private static final Color[] CAPE = {
             new Color(0.09f, 0.05f, 0.11f, 1f),
             new Color(0.34f, 0.08f, 0.04f, 1f),
             new Color(0.08f, 0.18f, 0.10f, 1f),
             new Color(0.12f, 0.22f, 0.34f, 1f),
             new Color(0.18f, 0.08f, 0.26f, 1f),
             new Color(0.28f, 0.22f, 0.12f, 1f)
-    };
+        };
+        }
 
     private final CaveAdventure game;
     private final OrthographicCamera camera;
@@ -87,6 +97,7 @@ public class CharacterSelectUI {
     private int capeIndex;
     private float animTimer;
     private CharacterAppearance customAppearance;
+    private final Color tmpTunicDark = new Color();
 
     public CharacterSelectUI(CaveAdventure game) {
         this.game = game;
@@ -177,34 +188,34 @@ public class CharacterSelectUI {
 
     private void seedCustomFromPreset(int presetIndex) {
         CharacterAppearance preset = CharacterAppearance.getPreset(presetIndex);
-        tunicIndex = findClosest(TUNIC_COLORS, preset.getTunicColor());
-        skinIndex = findClosest(SKIN_COLORS, preset.getSkinColor());
-        hairIndex = findClosest(HAIR_COLORS, preset.getHairColor());
-        pantsIndex = findClosest(PANTS_COLORS, preset.getPantsColor());
-        bootIndex = findClosest(BOOT_COLORS, preset.getBootColor());
-        capeIndex = findClosest(CAPE_COLORS, preset.getCapeColor());
+        tunicIndex = findClosest(Palette.TUNIC, preset.getTunicColor());
+        skinIndex = findClosest(Palette.SKIN, preset.getSkinColor());
+        hairIndex = findClosest(Palette.HAIR, preset.getHairColor());
+        pantsIndex = findClosest(Palette.PANTS, preset.getPantsColor());
+        bootIndex = findClosest(Palette.BOOTS, preset.getBootColor());
+        capeIndex = findClosest(Palette.CAPE, preset.getCapeColor());
         applyCustomColors();
     }
 
     private void changeCustomColor(int delta) {
         switch (selectedField) {
             case 0:
-                tunicIndex = wrap(tunicIndex + delta, TUNIC_COLORS.length);
+                tunicIndex = wrap(tunicIndex + delta, Palette.TUNIC.length);
                 break;
             case 1:
-                skinIndex = wrap(skinIndex + delta, SKIN_COLORS.length);
+                skinIndex = wrap(skinIndex + delta, Palette.SKIN.length);
                 break;
             case 2:
-                hairIndex = wrap(hairIndex + delta, HAIR_COLORS.length);
+                hairIndex = wrap(hairIndex + delta, Palette.HAIR.length);
                 break;
             case 3:
-                pantsIndex = wrap(pantsIndex + delta, PANTS_COLORS.length);
+                pantsIndex = wrap(pantsIndex + delta, Palette.PANTS.length);
                 break;
             case 4:
-                bootIndex = wrap(bootIndex + delta, BOOT_COLORS.length);
+                bootIndex = wrap(bootIndex + delta, Palette.BOOTS.length);
                 break;
             case 5:
-                capeIndex = wrap(capeIndex + delta, CAPE_COLORS.length);
+                capeIndex = wrap(capeIndex + delta, Palette.CAPE.length);
                 break;
             default:
                 break;
@@ -214,8 +225,8 @@ public class CharacterSelectUI {
 
     private void applyCustomColors() {
         customAppearance = new CharacterAppearance("Custom Delver",
-                TUNIC_COLORS[tunicIndex], SKIN_COLORS[skinIndex], HAIR_COLORS[hairIndex],
-                PANTS_COLORS[pantsIndex], BOOT_COLORS[bootIndex], CAPE_COLORS[capeIndex]);
+                Palette.TUNIC[tunicIndex], Palette.SKIN[skinIndex], Palette.HAIR[hairIndex],
+                Palette.PANTS[pantsIndex], Palette.BOOTS[bootIndex], Palette.CAPE[capeIndex]);
     }
 
     private int wrap(int value, int length) {
@@ -291,12 +302,12 @@ public class CharacterSelectUI {
 
         float rowY = panelY + panelH - 78;
         float rowGap = 31f;
-        drawSwatches(panelX + 104, rowY, TUNIC_COLORS, tunicIndex, selectedField == 0);
-        drawSwatches(panelX + 104, rowY - rowGap, SKIN_COLORS, skinIndex, selectedField == 1);
-        drawSwatches(panelX + 104, rowY - rowGap * 2, HAIR_COLORS, hairIndex, selectedField == 2);
-        drawSwatches(panelX + 104, rowY - rowGap * 3, PANTS_COLORS, pantsIndex, selectedField == 3);
-        drawSwatches(panelX + 104, rowY - rowGap * 4, BOOT_COLORS, bootIndex, selectedField == 4);
-        drawSwatches(panelX + 104, rowY - rowGap * 5, CAPE_COLORS, capeIndex, selectedField == 5);
+        drawSwatches(panelX + 104, rowY, Palette.TUNIC, tunicIndex, selectedField == 0);
+        drawSwatches(panelX + 104, rowY - rowGap, Palette.SKIN, skinIndex, selectedField == 1);
+        drawSwatches(panelX + 104, rowY - rowGap * 2, Palette.HAIR, hairIndex, selectedField == 2);
+        drawSwatches(panelX + 104, rowY - rowGap * 3, Palette.PANTS, pantsIndex, selectedField == 3);
+        drawSwatches(panelX + 104, rowY - rowGap * 4, Palette.BOOTS, bootIndex, selectedField == 4);
+        drawSwatches(panelX + 104, rowY - rowGap * 5, Palette.CAPE, capeIndex, selectedField == 5);
     }
 
     private void drawSwatches(float x, float y, Color[] colors, int selectedIndex, boolean activeRow) {
@@ -375,14 +386,13 @@ public class CharacterSelectUI {
     }
 
     private void drawCharacterPreview(ShapeRenderer r, float x, float y, float scale, CharacterAppearance a) {
-        Color outline = new Color(0.04f, 0.05f, 0.07f, 1f);
         Color tunic = a.getTunicColor();
-        Color tunicDark = a.getTunicAltColor();
+        Color tunicDark = CharacterAppearance.scaledColorInto(tunic, TUNIC_DARK_SCALE, tunic.a, tmpTunicDark);
 
         r.setColor(0f, 0f, 0f, 0.30f);
         r.ellipse(x + 5 * scale, y - 2 * scale, 24 * scale, 8 * scale);
 
-        r.setColor(outline);
+        r.setColor(PREVIEW_OUTLINE);
         r.rect(x + 8 * scale, y + 3 * scale, 6 * scale, 10 * scale);
         r.rect(x + 18 * scale, y + 3 * scale, 6 * scale, 10 * scale);
         r.setColor(a.getPantsColor());
@@ -396,7 +406,7 @@ public class CharacterSelectUI {
         r.triangle(x + 8 * scale, y + 12 * scale, x + 16 * scale, y + 27 * scale,
                 x + 5 * scale, y + 8 * scale);
 
-        r.setColor(outline);
+        r.setColor(PREVIEW_OUTLINE);
         r.rect(x + 7 * scale, y + 10 * scale, 18 * scale, 15 * scale);
         r.rect(x + 4 * scale, y + 11 * scale, 5 * scale, 12 * scale);
         r.rect(x + 23 * scale, y + 11 * scale, 5 * scale, 12 * scale);
@@ -409,7 +419,7 @@ public class CharacterSelectUI {
         r.setColor(0.72f, 0.52f, 0.20f, 1f);
         r.rect(x + 8 * scale, y + 13 * scale, 16 * scale, 2 * scale);
 
-        r.setColor(outline);
+        r.setColor(PREVIEW_OUTLINE);
         r.rect(x + 8 * scale, y + 21 * scale, 16 * scale, 10 * scale);
         r.rect(x + 10 * scale, y + 19 * scale, 12 * scale, 3 * scale);
         r.setColor(a.getSkinColor());

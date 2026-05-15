@@ -72,6 +72,8 @@ public class Player extends Entity {
     private static final Color PUPIL_COLOR = new Color(0.1f, 0.1f, 0.15f, 1f);
     private static final Color POISON_TINT = new Color(0.3f, 0.8f, 0.2f, 1f);
 
+    private final Color tmpBodyColor = new Color();
+
     public Player(int gridX, int gridY) {
         super(gridX, gridY, 100, 1.0f);
         this.hunger = 100;
@@ -241,9 +243,15 @@ public class Player extends Entity {
         if (flashWhite)
             bodyColor = Color.WHITE;
         else if (poisoned)
-            bodyColor = animFrame % 2 == 0 ? POISON_TINT : new Color(0.25f, 0.65f, 0.3f, 1f);
-        else
-            bodyColor = animFrame % 2 == 0 ? appearance.getTunicColor() : appearance.getTunicAltColor();
+            bodyColor = animFrame % 2 == 0
+                    ? POISON_TINT
+                    : CharacterAppearance.scaledColorInto(POISON_TINT, 0.8333333f, 1f, tmpBodyColor);
+        else {
+            Color tunicColor = appearance.getTunicColor();
+            bodyColor = animFrame % 2 == 0
+                    ? tunicColor
+                    : CharacterAppearance.scaledColorInto(tunicColor, 0.78f, tunicColor.a, tmpBodyColor);
+        }
 
         // Legs and boots
         renderer.setColor(OUTLINE_COLOR);

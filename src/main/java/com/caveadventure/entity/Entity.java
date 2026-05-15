@@ -1,6 +1,7 @@
 package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.world.GameMap;
 
 /**
  * Base class for all game entities (player, enemies, NPCs).
@@ -20,8 +21,8 @@ public abstract class Entity {
     public Entity(int gridX, int gridY, int maxHealth, float speed) {
         this.x = gridX;
         this.y = gridY;
-        this.pixelX = gridX * 32;
-        this.pixelY = gridY * 32;
+        this.pixelX = gridX * GameMap.TILE_SIZE;
+        this.pixelY = gridY * GameMap.TILE_SIZE;
         this.maxHealth = maxHealth;
         this.health = maxHealth;
         this.speed = speed;
@@ -113,7 +114,7 @@ public abstract class Entity {
     public void setPosition(int gridX, int gridY) {
         this.x = gridX;
         this.y = gridY;
-        this.pixelX = gridX * 32;
-        this.pixelY = gridY * 32;
+        this.pixelX = gridX * GameMap.TILE_SIZE;
+        this.pixelY = gridY * GameMap.TILE_SIZE;
     }
 }

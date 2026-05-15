@@ -148,6 +148,21 @@ public class CharacterAppearance {
                 Math.min(1f, color.b * scale), alpha);
     }
 
+    /**
+     * Non-allocating variant of scaledColor. Writes scaled components into the provided
+     * `out` Color and returns it. If `out` is null a new Color will be created (safe fallback).
+     */
+    public static Color scaledColorInto(Color color, float scale, float alpha, Color out) {
+        if (out == null) {
+            out = new Color();
+        }
+        out.r = Math.min(1f, color.r * scale);
+        out.g = Math.min(1f, color.g * scale);
+        out.b = Math.min(1f, color.b * scale);
+        out.a = alpha;
+        return out;
+    }
+
     public static String colorToString(Color color) {
         return String.format(Locale.US, "%.3f,%.3f,%.3f", color.r, color.g, color.b);
     }

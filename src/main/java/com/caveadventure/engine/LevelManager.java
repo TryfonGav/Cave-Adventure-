@@ -26,6 +26,12 @@ public class LevelManager {
     private static final int BASE_ENEMIES = 12;
     private static final int ENEMIES_PER_FLOOR = 4;
     private static final int MAX_FLOORS = 10;
+    // Trap damage tuning - base values and per-floor increments
+    private static final int BASE_TRAP_SPIKES = 8;
+    private static final int TRAP_SPIKES_PER_FLOOR = 3;
+    private static final int BASE_TRAP_ARROW = 5;
+    private static final int TRAP_ARROW_PER_FLOOR = 2;
+    private static final float TRAP_ARROW_POISON_CHANCE = 0.3f;
 
     private final Random random = new Random();
 
@@ -217,22 +223,33 @@ public class LevelManager {
         int px = player.getGridX();
         int py = player.getGridY();
         Tile tile = currentMap.getTile(px, py);
-
         if (tile == Tile.TRAP_SPIKES || tile == Tile.TRAP_HIDDEN) {
-            int dmg = 8 + currentFloor * 3;
+            int base = BASE_TRAP_SPIKES + currentFloor * TRAP_SPIKES_PER_FLOOR;
+            int dmg = scaleTrapDamage(base);
             player.takeDamage(dmg);
             currentMap.setTile(px, py, Tile.FLOOR); // Trap is used up
             return dmg;
         }
         if (tile == Tile.TRAP_ARROW) {
-            int dmg = 5 + currentFloor * 2;
+            int base = BASE_TRAP_ARROW + currentFloor * TRAP_ARROW_PER_FLOOR;
+            int dmg = scaleTrapDamage(base);
             player.takeDamage(dmg);
-            if (random.nextFloat() < 0.3f)
+            if (random.nextFloat() < TRAP_ARROW_POISON_CHANCE)
                 player.applyPoison(3f);
             currentMap.setTile(px, py, Tile.FLOOR);
             return dmg;
         }
         return 0;
+    }
+
+    /**
+     * Scales a trap's base damage by the current difficulty's trapDamageMultiplier.
+     * Ensures damage is at least 1 after scaling.
+     */
+    private int scaleTrapDamage(int baseDamage) {
+        float mult = Difficulty.getCurrent().trapDamageMultiplier;
+        int scaled = Math.max(1, Math.round(baseDamage * mult));
+        return scaled;
     }
 
     /**

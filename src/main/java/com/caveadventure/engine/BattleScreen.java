@@ -39,6 +39,35 @@ public class BattleScreen {
     private final OrthographicCamera camera;
     private final Random random = new Random();
 
+    // Cached list of usable items to avoid allocations each frame
+    private final List<Item> cachedUsables = new ArrayList<>();
+    private boolean usablesDirty = true;
+
+    // Reusable Color instances to avoid transient allocations in render()
+    private final Color BAR_HP_GREEN = new Color(0.2f, 0.8f, 0.3f, 1f);
+    private final Color BAR_HP_YELLOW = new Color(0.9f, 0.7f, 0.1f, 1f);
+    private final Color BAR_HP_RED = new Color(0.9f, 0.2f, 0.15f, 1f);
+    private final Color BAR_BG = new Color(0.15f, 0.06f, 0.05f, 1f);
+    private final Color STAMINA_FG = new Color(0.35f, 0.60f, 0.95f, 1f);
+    private final Color STAMINA_BG = new Color(0.06f, 0.08f, 0.14f, 1f);
+    private final Color XP_FG = new Color(0.25f, 0.62f, 0.30f, 1f);
+    private final Color XP_BG = new Color(0.05f, 0.12f, 0.06f, 1f);
+    private final Color MENU_SELECTED = new Color(1f, 0.9f, 0.3f, 1f);
+    private final Color MENU_DEFAULT = new Color(0.75f, 0.7f, 0.6f, 1f);
+    private final Color SKILL_UNAFFORDABLE = new Color(0.9f, 0.35f, 0.3f, 1f);
+    private final Color SKILL_SELECTED = new Color(1f, 0.9f, 0.3f, 1f);
+    private final Color SKILL_DEFAULT = new Color(0.7f, 0.65f, 0.55f, 1f);
+    private final Color ITEM_SELECTED = new Color(1f, 0.9f, 0.3f, 1f);
+    private final Color ITEM_DEFAULT = new Color(0.7f, 0.65f, 0.55f, 1f);
+    private final Color LOOT_TITLE = new Color(0.9f, 0.8f, 0.3f, 1f);
+    private final Color LOOT_TEXT = new Color(0.8f, 0.75f, 0.6f, 1f);
+    private final Color DEFAULT_WEAPON_COLOR = new Color(0.76f, 0.80f, 0.86f, 1f);
+    private final Color ATTACK_FLASH_COLOR = new Color(1f, 0.20f, 0.10f, 1f);
+
+    // A small pool of temporary Color objects used for scaled variants
+    private final Color tmpColor1 = new Color();
+    private final Color tmpColor2 = new Color();
+
     private Player player;
     private Enemy enemy;
     private BattleState state;
@@ -127,6 +156,7 @@ public class BattleScreen {
         this.currentMessage = "A wild " + enemy.getType().name + " appeared!";
         enemy.scaleToPlayer(player.getLevel(), floor);
         updateSkills();
+        this.usablesDirty = true;
     }
 
     private void updateSkills() {
@@ -267,6 +297,7 @@ public class BattleScreen {
                         lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor, lucky);
                         for (Item item : lootDrops)
                             player.getInventory().addItem(item);
+                        this.usablesDirty = true;
                         if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM)
                             bossKilled = true;
                         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.BERSERKER))
@@ -436,13 +467,15 @@ public class BattleScreen {
             Item item = usable.get(subSelection);
             int idx = player.getInventory().getItems().indexOf(item);
             if (idx >= 0) {
-                if (item.getType() == Item.ItemType.SMOKE_BOMB) {
+                    if (item.getType() == Item.ItemType.SMOKE_BOMB) {
                     player.getInventory().useKey(Item.ItemType.SMOKE_BOMB);
+                    usablesDirty = true;
                     currentMessage = "Used Smoke Bomb! Escaped successfully!";
                     state = BattleState.RUN_AWAY;
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.POISON_VIAL) {
                     player.getInventory().useKey(Item.ItemType.POISON_VIAL);
+                    usablesDirty = true;
                     enemyStatus = StatusEffect.POISON;
                     enemyStatusTimer = 4f;
                     currentMessage = "Threw Poison Vial! Enemy poisoned!";
@@ -450,6 +483,7 @@ public class BattleScreen {
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.ICE_SHARD) {
                     player.getInventory().useKey(Item.ItemType.ICE_SHARD);
+                    usablesDirty = true;
                     enemy.takeDamage(20);
                     enemyStatus = StatusEffect.STUN;
                     enemyStatusTimer = 1f;
@@ -458,18 +492,21 @@ public class BattleScreen {
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.FIRE_RUNE) {
                     player.getInventory().useKey(Item.ItemType.FIRE_RUNE);
+                    usablesDirty = true;
                     fireRuneTurns = 3;
                     currentMessage = "Used Fire Rune! Weapon inflamed for 3 turns!";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.SHADOW_RUNE) {
                     player.getInventory().useKey(Item.ItemType.SHADOW_RUNE);
+                    usablesDirty = true;
                     shadowRuneTurns = 3;
                     currentMessage = "Used Shadow Rune! Critical chance up for 3 turns!";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.FROST_RUNE) {
                     player.getInventory().useKey(Item.ItemType.FROST_RUNE);
+                    usablesDirty = true;
                     enemyStatus = StatusEffect.STUN;
                     enemyStatusTimer = 1f;
                     currentMessage = "Used Frost Rune! Enemy slowed (stunned)!";
@@ -477,6 +514,7 @@ public class BattleScreen {
                     stateTimer = 0;
                 } else {
                     player.getInventory().useItem(idx, player);
+                    usablesDirty = true;
                     currentMessage = "Used " + item.getType().displayName + "!";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
@@ -839,12 +877,13 @@ public class BattleScreen {
     }
 
     private List<Item> getUsableItems() {
-        List<Item> usable = new ArrayList<>();
+        if (!usablesDirty) return cachedUsables;
+        cachedUsables.clear();
         for (Item item : player.getInventory().getItems()) {
-            if (item.isUsable())
-                usable.add(item);
+            if (item.isUsable()) cachedUsables.add(item);
         }
-        return usable;
+        usablesDirty = false;
+        return cachedUsables;
     }
 
     private void showMessage(String msg, BattleState next) {
@@ -905,10 +944,9 @@ public class BattleScreen {
         CaveUIStyle.drawStonePanel(game.shapeRenderer, ehpX, ehpY, ehpW, ehpH, 0.92f);
 
         float hpPct = (float) enemy.getHealth() / enemy.getMaxHealth();
-        Color hpC = hpPct > 0.5f ? new Color(0.2f, 0.8f, 0.3f, 1f)
-                : hpPct > 0.2f ? new Color(0.9f, 0.7f, 0.1f, 1f) : new Color(0.9f, 0.2f, 0.15f, 1f);
+        Color hpC = hpPct > 0.5f ? BAR_HP_GREEN : hpPct > 0.2f ? BAR_HP_YELLOW : BAR_HP_RED;
         CaveUIStyle.drawBar(game.shapeRenderer, ehpX + 10, ehpY + 10, ehpW - 20, 12,
-                Math.max(0, hpPct), hpC, new Color(0.15f, 0.06f, 0.05f, 1f));
+            Math.max(0, hpPct), hpC, BAR_BG);
 
         // Status icons on enemy
         if (enemyStatus == StatusEffect.POISON) {
@@ -927,16 +965,14 @@ public class BattleScreen {
         CaveUIStyle.drawStonePanel(game.shapeRenderer, phpX, phpY, phpW, phpH, 0.92f);
 
         float pHp = (float) player.getHealth() / player.getMaxHealth();
-        Color pC = pHp > 0.5f ? new Color(0.2f, 0.8f, 0.3f, 1f)
-                : pHp > 0.2f ? new Color(0.9f, 0.7f, 0.1f, 1f) : new Color(0.9f, 0.2f, 0.15f, 1f);
+        Color pC = pHp > 0.5f ? BAR_HP_GREEN : pHp > 0.2f ? BAR_HP_YELLOW : BAR_HP_RED;
         CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 42, phpW - 20, 12,
-                Math.max(0, pHp), pC, new Color(0.15f, 0.06f, 0.05f, 1f));
+            Math.max(0, pHp), pC, BAR_BG);
 
         // Stamina bar
         float stmPct = player.getStamina() / player.getMaxStamina();
         CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 29, phpW - 20, 8,
-                Math.max(0, stmPct), new Color(0.35f, 0.60f, 0.95f, 1f),
-                new Color(0.06f, 0.08f, 0.14f, 1f));
+            Math.max(0, stmPct), STAMINA_FG, STAMINA_BG);
 
         // Player status
         if (playerStatus == StatusEffect.POISON) {
@@ -950,8 +986,7 @@ public class BattleScreen {
         // XP bar
         float xpPct = (float) player.getXP() / player.getXPToNextLevel();
         CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 16, phpW - 20, 8,
-                xpPct, new Color(0.25f, 0.62f, 0.30f, 1f),
-                new Color(0.05f, 0.12f, 0.06f, 1f));
+            xpPct, XP_FG, XP_BG);
 
         // Message/Action box
         float msgX = sw * 0.03f, msgY = 10, msgW = sw * 0.94f, msgH = sh * 0.22f;
@@ -1046,7 +1081,7 @@ public class BattleScreen {
                 int col = i % 2;
                 float tx = menuX + 15 + col * (menuW / 2f);
                 float ty = msgY + msgH - 15 - row * optH;
-                nf.setColor(i == menuSelection ? new Color(1f, 0.9f, 0.3f, 1f) : new Color(0.75f, 0.7f, 0.6f, 1f));
+                nf.setColor(i == menuSelection ? MENU_SELECTED : MENU_DEFAULT);
                 nf.draw(game.batch, (i == menuSelection ? "> " : "  ") + mainMenu[i], tx, ty);
             }
         }
@@ -1058,14 +1093,12 @@ public class BattleScreen {
                 float ty = msgY + msgH - 18 - i * 22;
                 int cost = getSkillStaminaCost(currentSkills[i]);
                 boolean affordable = player.getStamina() >= cost;
-                Color color;
                 if (!affordable)
-                    color = new Color(0.9f, 0.35f, 0.3f, 1f);
+                    nf.setColor(SKILL_UNAFFORDABLE);
                 else if (i == subSelection)
-                    color = new Color(1f, 0.9f, 0.3f, 1f);
+                    nf.setColor(SKILL_SELECTED);
                 else
-                    color = new Color(0.7f, 0.65f, 0.55f, 1f);
-                nf.setColor(color);
+                    nf.setColor(SKILL_DEFAULT);
                 nf.draw(game.batch, (i == subSelection ? "> " : "  ") + currentSkills[i] + " [" + cost + " STM]",
                         subX + 10, ty);
             }
@@ -1078,9 +1111,9 @@ public class BattleScreen {
             List<Item> usable = getUsableItems();
             for (int i = 0; i < Math.min(usable.size(), 5); i++) {
                 float ty = msgY + msgH - 18 - i * 22;
-                nf.setColor(i == subSelection ? new Color(1f, 0.9f, 0.3f, 1f) : new Color(0.7f, 0.65f, 0.55f, 1f));
+                nf.setColor(i == subSelection ? ITEM_SELECTED : ITEM_DEFAULT);
                 nf.draw(game.batch, (i == subSelection ? "> " : "  ") + usable.get(i).getType().displayName, subX + 10,
-                        ty);
+                    ty);
             }
             sf.setColor(0.5f, 0.5f, 0.45f, 0.7f);
             sf.draw(game.batch, "ESC: Back", subX + 10, msgY + 15);
@@ -1088,10 +1121,10 @@ public class BattleScreen {
 
         // Victory loot
         if (state == BattleState.VICTORY && lootDrops != null && !lootDrops.isEmpty()) {
-            sf.setColor(0.9f, 0.8f, 0.3f, 1f);
+            sf.setColor(LOOT_TITLE);
             sf.draw(game.batch, "Loot:", msgX + 20, msgY + msgH - 45);
             for (int i = 0; i < lootDrops.size(); i++) {
-                sf.setColor(0.8f, 0.75f, 0.6f, 1f);
+                sf.setColor(LOOT_TEXT);
                 sf.draw(game.batch, "  " + lootDrops.get(i).getType().displayName, msgX + 20,
                         msgY + msgH - 60 - 14 * i);
             }
@@ -1113,8 +1146,10 @@ public class BattleScreen {
         float size = enemy.getType() == Enemy.EnemyType.BOSS_GOLEM ? 116f
                 : enemy.getType() == Enemy.EnemyType.ICE_DRAKE ? 106f : 92f;
         Color base = flash ? Color.WHITE : enemy.getType().color;
-        Color dark = scaledColor(base, 0.55f, 1f);
-        Color light = scaledColor(base, 1.25f, 1f);
+        scaledColorInto(base, 0.55f, 1f, tmpColor1);
+        scaledColorInto(base, 1.25f, 1f, tmpColor2);
+        Color dark = tmpColor1;
+        Color light = tmpColor2;
 
         drawBattleStatusAura(r, cx, cy, size);
         r.setColor(0f, 0f, 0f, 0.34f);
@@ -1157,11 +1192,17 @@ public class BattleScreen {
         float bob = (float) Math.sin(stateTimer * 3.2f) * 1.5f;
         CharacterAppearance appearance = player.getAppearance();
         Color tunic = flash ? Color.WHITE : appearance.getTunicColor();
-        Color darkTunic = flash ? scaledColor(tunic, 0.58f, 1f) : appearance.getTunicAltColor();
+        Color darkTunic;
+        if (flash) {
+            scaledColorInto(tunic, 0.58f, 1f, tmpColor1);
+            darkTunic = tmpColor1;
+        } else {
+            darkTunic = appearance.getTunicAltColor();
+        }
         Color armor = player.getInventory().getEquippedArmor() != null
-                ? player.getInventory().getEquippedArmor().getType().color : null;
+            ? player.getInventory().getEquippedArmor().getType().color : null;
         Color weapon = player.getInventory().getEquippedWeapon() != null
-                ? player.getInventory().getEquippedWeapon().getType().color : new Color(0.76f, 0.80f, 0.86f, 1f);
+            ? player.getInventory().getEquippedWeapon().getType().color : DEFAULT_WEAPON_COLOR;
 
         r.setColor(0f, 0f, 0f, 0.36f);
         r.ellipse(cx - size * 0.35f, cy - 8, size * 0.72f, 18);
@@ -1191,9 +1232,11 @@ public class BattleScreen {
         r.rect(px + 19, cy + 31, 26, 3);
 
         if (armor != null) {
-            r.setColor(scaledColor(armor, 0.72f, 0.95f));
+            scaledColorInto(armor, 0.72f, 0.95f, tmpColor1);
+            r.setColor(tmpColor1);
             r.rect(px + 20, cy + 33, 24, 15);
-            r.setColor(scaledColor(armor, 1.22f, 0.75f));
+            scaledColorInto(armor, 1.22f, 0.75f, tmpColor2);
+            r.setColor(tmpColor2);
             r.rect(px + 23, cy + 43, 17, 3);
         }
 
@@ -1224,7 +1267,8 @@ public class BattleScreen {
         r.setColor(weapon);
         r.rect(px + 60, cy + 38, 6, 36);
         r.rect(px + 56, cy + 68, 14, 5);
-        r.setColor(scaledColor(weapon, 1.25f, 0.65f));
+        scaledColorInto(weapon, 1.25f, 0.65f, tmpColor1);
+        r.setColor(tmpColor1);
         r.rect(px + 62, cy + 45, 2, 22);
     }
 
@@ -1232,8 +1276,10 @@ public class BattleScreen {
         float bob = (float) Math.sin(stateTimer * 4.4f) * 2f;
         float twitch = (float) Math.sin(stateTimer * 8.0f) * 3f;
         Color base = companion.getPetType().color;
-        Color dark = scaledColor(base, 0.55f, 1f);
-        Color light = scaledColor(base, 1.25f, 1f);
+        scaledColorInto(base, 0.55f, 1f, tmpColor1);
+        scaledColorInto(base, 1.25f, 1f, tmpColor2);
+        Color dark = tmpColor1;
+        Color light = tmpColor2;
 
         r.setColor(0f, 0f, 0f, 0.31f);
         r.ellipse(cx - 30, cy - 7, 62, 15);
@@ -1401,7 +1447,7 @@ public class BattleScreen {
         r.setColor(dark);
         r.triangle(cx - 15, cy + 64, cx - 8, cy + 82, cx - 2, cy + 64);
         r.triangle(cx + 2, cy + 64, cx + 8, cy + 82, cx + 15, cy + 64);
-        r.setColor(flash ? Color.YELLOW : new Color(1f, 0.20f, 0.10f, 1f));
+        r.setColor(flash ? Color.YELLOW : ATTACK_FLASH_COLOR);
         r.rect(cx - 11, cy + 45, 7, 7);
         r.rect(cx + 5, cy + 45, 7, 7);
         r.setColor(0.96f, 0.88f, 0.76f, 1f);
@@ -1488,7 +1534,8 @@ public class BattleScreen {
         r.setColor(base);
         r.rect(cx - 33, cy + 22, 66, 46);
         r.rect(cx - 22, cy + 10, 44, 28);
-        r.setColor(scaledColor(base, 1.2f, 1f));
+        scaledColorInto(base, 1.2f, 1f, tmpColor1);
+        r.setColor(tmpColor1);
         r.rect(cx - 19, cy + 56, 38, 7);
         r.setColor(1f, 0.04f, 0.02f, 1f);
         r.rect(cx - 23, cy + 55, 6, 6);
@@ -1593,8 +1640,8 @@ public class BattleScreen {
         r.rect(cx - 7, cy + 44, 14, 10);
     }
 
-    private Color scaledColor(Color color, float scale, float alpha) {
-        return new Color(Math.min(1f, color.r * scale), Math.min(1f, color.g * scale),
+    private void scaledColorInto(Color color, float scale, float alpha, Color out) {
+        out.set(Math.min(1f, color.r * scale), Math.min(1f, color.g * scale),
                 Math.min(1f, color.b * scale), alpha);
     }
 

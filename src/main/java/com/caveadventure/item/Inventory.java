@@ -30,6 +30,14 @@ public class Inventory {
      * Returns false if inventory is full.
      */
     public boolean addItem(Item item) {
+        if (item == null) {
+            return false;
+        }
+
+        if (item.getQuantity() <= 0) {
+            return false;
+        }
+
         // Try to stack with existing
         if (item.isStackable()) {
             for (Item existing : items) {
@@ -135,11 +143,7 @@ public class Inventory {
             }
             equippedWeapon = item;
         } else if (item.getType().category == Item.Category.ARMOR) {
-            if (equippedArmor != null) {
-                setMessage("Equipped: " + item.getType().displayName);
-            } else {
-                setMessage("Equipped: " + item.getType().displayName);
-            }
+            setMessage("Equipped: " + item.getType().displayName);
             equippedArmor = item;
         }
     }
@@ -207,8 +211,9 @@ public class Inventory {
     }
 
     public void updateMessageTimer(float delta) {
-        if (messageTimer > 0)
-            messageTimer -= delta;
+        if (messageTimer > 0) {
+            messageTimer = Math.max(0f, messageTimer - delta);
+        }
     }
 
     // --- Getters ---

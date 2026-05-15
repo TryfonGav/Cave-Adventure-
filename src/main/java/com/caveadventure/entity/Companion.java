@@ -4,11 +4,15 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.world.GameMap;
 
+import java.util.Random;
+
 /**
  * Companion pet that follows the player and assists in battle.
  * Found on specific floors via rescue events.
  */
 public class Companion extends Entity {
+
+    private static final Random RANDOM = new Random();
 
     public enum PetType {
         CAVE_WOLF("Cave Wolf", 40, 5, 8, new Color(0.55f, 0.45f, 0.35f, 1f)),
@@ -51,6 +55,10 @@ public class Companion extends Entity {
     private static final float PET_COOLDOWN_SECONDS = 25f;
     private static final float LOW_LOVE_THRESHOLD = 25f;
     private static final float HIGH_LOVE_THRESHOLD = 75f;
+
+    private final Color tmpDark = new Color();
+    private final Color tmpLight = new Color();
+    private final Color tmpTint = new Color();
 
     public Companion(int gridX, int gridY, PetType type) {
         super(gridX, gridY, type.maxHp, 2f);
@@ -168,8 +176,8 @@ public class Companion extends Entity {
 
     private void renderCaveWolf(ShapeRenderer r, float px, float py, float twitch) {
         Color base = petType.color;
-        Color dark = scaledColor(base, 0.58f, 1f);
-        Color light = scaledColor(base, 1.22f, 1f);
+        Color dark = CharacterAppearance.scaledColorInto(base, 0.58f, 1f, tmpDark);
+        Color light = CharacterAppearance.scaledColorInto(base, 1.22f, 1f, tmpLight);
 
         r.setColor(OUTLINE_COLOR);
         r.triangle(px + 8, py + 15, px, py + 20 + twitch, px + 7, py + 10);
@@ -210,8 +218,8 @@ public class Companion extends Entity {
 
     private void renderFireSprite(ShapeRenderer r, float px, float py, float twitch) {
         Color base = petType.color;
-        Color dark = scaledColor(base, 0.68f, 0.95f);
-        Color light = scaledColor(base, 1.28f, 1f);
+        Color dark = CharacterAppearance.scaledColorInto(base, 0.68f, 0.95f, tmpDark);
+        Color light = CharacterAppearance.scaledColorInto(base, 1.28f, 1f, tmpLight);
         float flicker = (float) Math.sin(animTimer * 11f) * 2f;
 
         r.setColor(1f, 0.28f, 0.05f, 0.16f);
@@ -251,10 +259,12 @@ public class Companion extends Entity {
 
     private void renderShadowCat(ShapeRenderer r, float px, float py, float twitch) {
         Color base = petType.color;
-        Color dark = scaledColor(base, 0.52f, 1f);
-        Color light = scaledColor(base, 1.35f, 0.88f);
+        Color dark = CharacterAppearance.scaledColorInto(base, 0.52f, 1f, tmpDark);
+        Color light = CharacterAppearance.scaledColorInto(base, 1.35f, 0.88f, tmpLight);
 
-        r.setColor(base.r, base.g, base.b, 0.24f);
+        CharacterAppearance.scaledColorInto(base, 1f, 0.24f, tmpTint);
+
+        r.setColor(tmpTint);
         r.rect(px + 3, py + 7, 19, 8);
         r.rect(px + 16, py + 13, 12, 8);
 
@@ -296,14 +306,8 @@ public class Companion extends Entity {
         r.rect(px + 18, py + 16, 10, 1);
     }
 
-    private Color scaledColor(Color color, float scale, float alpha) {
-        return new Color(Math.min(1f, color.r * scale), Math.min(1f, color.g * scale),
-                Math.min(1f, color.b * scale), alpha);
-    }
-
     public int rollDamage() {
-        java.util.Random r = new java.util.Random();
-        int damage = petType.minDmg + r.nextInt(petType.maxDmg - petType.minDmg + 1);
+        int damage = petType.minDmg + RANDOM.nextInt(petType.maxDmg - petType.minDmg + 1);
         return Math.max(1, Math.round(damage * getBattleStatMultiplier()));
     }
 

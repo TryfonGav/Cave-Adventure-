@@ -9,7 +9,7 @@ import java.util.*;
  */
 public class LootTable {
 
-    private static final Random random = new Random();
+    private static final Random RANDOM = new Random();
 
     /**
      * Generate loot from killing an enemy.
@@ -142,10 +142,10 @@ public class LootTable {
         List<Item> loot = new ArrayList<>();
 
         // Always some gold
-        loot.add(new Item(Item.ItemType.GOLD_COINS, 1 + random.nextInt(3)));
+        loot.add(new Item(Item.ItemType.GOLD_COINS, 1 + RANDOM.nextInt(3)));
 
         // Random additional items
-        float roll = random.nextFloat();
+        float roll = RANDOM.nextFloat();
         if (roll < 0.20f) {
             loot.add(new Item(Item.ItemType.HEALTH_POTION));
         } else if (roll < 0.35f) {
@@ -186,7 +186,7 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.FIRE_RUNE));
             else
                 loot.add(new Item(Item.ItemType.FROST_RUNE));
-        };
+        }
         
         return loot;
     }
@@ -217,6 +217,6 @@ public class LootTable {
     }
 
     private static boolean chance(int percent) {
-        return random.nextInt(100) < percent;
+        return RANDOM.nextInt(100) < percent;
     }
 }

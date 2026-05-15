@@ -21,6 +21,48 @@ public class CompanionCareUI {
     private int selection;
     private float animTimer;
 
+    private static final float DEVICE_MAX_WIDTH = 430f;
+    private static final float DEVICE_MAX_HEIGHT = 560f;
+    private static final float DEVICE_SCREEN_MARGIN_X = 60f;
+    private static final float DEVICE_SCREEN_MARGIN_Y = 48f;
+
+    private static final float LCD_X_INSET = 44f;
+    private static final float LCD_Y_RATIO = 0.38f;
+    private static final float LCD_WIDTH_INSET_TOTAL = 88f;
+    private static final float LCD_HEIGHT_RATIO = 0.42f;
+
+    private static final float METERS_X_INSET = 46f;
+    private static final float METERS_Y_OFFSET = 118f;
+    private static final float METERS_WIDTH_INSET_TOTAL = 92f;
+
+    private static final float BUTTONS_SIDE_INSET = 48f;
+    private static final float BUTTONS_GAP = 24f;
+    private static final float BUTTONS_Y_OFFSET = 48f;
+    private static final float BUTTON_HEIGHT = 42f;
+    private static final float BUTTON_FRAME_X_INSET = 7f;
+    private static final float BUTTON_FRAME_Y_INSET = 8f;
+    private static final float BUTTON_FRAME_H = 26f;
+    private static final float BUTTON_FRAME_THICKNESS = 2f;
+
+    private static final float METER_STEP = 24f;
+    private static final float METER_START_OFFSET = 68f;
+    private static final float METER_LABEL_WIDTH = 38f;
+    private static final float METER_BAR_X_OFFSET = 44f;
+    private static final float METER_HEIGHT = 16f;
+
+    private static final float LABEL_X_OFFSET = 52f;
+    private static final float LABEL_LUV_Y_OFFSET = 199f;
+    private static final float LABEL_HNG_Y_OFFSET = 175f;
+    private static final float LABEL_JOY_Y_OFFSET = 151f;
+    private static final float LABEL_TIR_Y_OFFSET = 127f;
+    private static final float MESSAGE_X_OFFSET = 34f;
+    private static final float MESSAGE_Y_OFFSET = 98f;
+    private static final float MESSAGE_WIDTH_INSET_TOTAL = 68f;
+    private static final float ACTION_TEXT_BASELINE_Y = 75f;
+    private static final float HINT_X_OFFSET = 24f;
+    private static final float HINT_Y_OFFSET = 26f;
+    private static final float HINT_WIDTH_INSET_TOTAL = 48f;
+
     private static final Color DEVICE_BODY = new Color(0.72f, 0.60f, 0.42f, 1f);
     private static final Color DEVICE_DARK = new Color(0.19f, 0.15f, 0.12f, 1f);
     private static final Color DEVICE_LIGHT = new Color(0.93f, 0.82f, 0.58f, 1f);
@@ -28,6 +70,13 @@ public class CompanionCareUI {
     private static final Color LCD_DARK = new Color(0.08f, 0.13f, 0.10f, 1f);
     private static final Color BUTTON = new Color(0.30f, 0.16f, 0.18f, 1f);
     private static final Color BUTTON_SELECTED = new Color(0.72f, 0.24f, 0.23f, 1f);
+    private static final Color BUTTON_FRAME_DARK = new Color(0.12f, 0.06f, 0.07f, 1f);
+
+    private static final Color METER_LUV_BG = new Color(0.12f, 0.23f, 0.12f, 1f);
+    private static final Color METER_HNG_BG = new Color(0.25f, 0.08f, 0.06f, 1f);
+    private static final Color METER_JOY_BG = new Color(0.24f, 0.17f, 0.06f, 1f);
+    private static final Color METER_TIR_FILL = new Color(0.38f, 0.62f, 0.88f, 1f);
+    private static final Color METER_TIR_BG = new Color(0.06f, 0.11f, 0.18f, 1f);
 
     public CompanionCareUI(CaveAdventure game) {
         this.game = game;
@@ -75,14 +124,14 @@ public class CompanionCareUI {
 
         float sw = Gdx.graphics.getWidth();
         float sh = Gdx.graphics.getHeight();
-        float deviceW = Math.min(430f, sw - 60f);
-        float deviceH = Math.min(560f, sh - 48f);
+        float deviceW = Math.min(DEVICE_MAX_WIDTH, sw - DEVICE_SCREEN_MARGIN_X);
+        float deviceH = Math.min(DEVICE_MAX_HEIGHT, sh - DEVICE_SCREEN_MARGIN_Y);
         float x = sw / 2f - deviceW / 2f;
         float y = sh / 2f - deviceH / 2f;
-        float lcdX = x + 44f;
-        float lcdY = y + deviceH * 0.38f;
-        float lcdW = deviceW - 88f;
-        float lcdH = deviceH * 0.42f;
+        float lcdX = x + LCD_X_INSET;
+        float lcdY = y + deviceH * LCD_Y_RATIO;
+        float lcdW = deviceW - LCD_WIDTH_INSET_TOTAL;
+        float lcdH = deviceH * LCD_HEIGHT_RATIO;
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -96,7 +145,8 @@ public class CompanionCareUI {
         drawDevice(game.shapeRenderer, x, y, deviceW, deviceH);
         drawLcd(game.shapeRenderer, lcdX, lcdY, lcdW, lcdH);
         drawPet(game.shapeRenderer, companion, lcdX + lcdW * 0.50f, lcdY + lcdH * 0.42f);
-        drawMeters(game.shapeRenderer, companion, x + 46f, y + 118f, deviceW - 92f);
+        drawMeters(game.shapeRenderer, companion, x + METERS_X_INSET, y + METERS_Y_OFFSET,
+            deviceW - METERS_WIDTH_INSET_TOTAL);
         drawButtons(game.shapeRenderer, x, y, deviceW);
 
         game.shapeRenderer.end();
@@ -143,32 +193,32 @@ public class CompanionCareUI {
     }
 
     private void drawMeters(ShapeRenderer r, Companion companion, float x, float y, float w) {
-        drawMeter(r, x, y + 68, w, "LUV", companion.getLove() / 100f, CaveUIStyle.GOOD,
-                new Color(0.12f, 0.23f, 0.12f, 1f));
-        drawMeter(r, x, y + 44, w, "HNG", companion.getHunger() / 100f, CaveUIStyle.DANGER,
-                new Color(0.25f, 0.08f, 0.06f, 1f));
-        drawMeter(r, x, y + 20, w, "JOY", companion.getHappiness() / 100f, CaveUIStyle.GOLD,
-                new Color(0.24f, 0.17f, 0.06f, 1f));
-        drawMeter(r, x, y - 4, w, "TIR", companion.getFatigue() / 100f, new Color(0.38f, 0.62f, 0.88f, 1f),
-                new Color(0.06f, 0.11f, 0.18f, 1f));
+        drawMeter(r, x, y + METER_START_OFFSET, w, "LUV", companion.getLove() / 100f, CaveUIStyle.GOOD,
+            METER_LUV_BG);
+        drawMeter(r, x, y + (METER_START_OFFSET - METER_STEP), w, "HNG", companion.getHunger() / 100f,
+            CaveUIStyle.DANGER, METER_HNG_BG);
+        drawMeter(r, x, y + (METER_START_OFFSET - METER_STEP * 2f), w, "JOY",
+            companion.getHappiness() / 100f, CaveUIStyle.GOLD, METER_JOY_BG);
+        drawMeter(r, x, y + (METER_START_OFFSET - METER_STEP * 3f), w, "TIR",
+            companion.getFatigue() / 100f, METER_TIR_FILL, METER_TIR_BG);
     }
 
     private void drawMeter(ShapeRenderer r, float x, float y, float w, String label, float pct, Color fill, Color bg) {
         r.setColor(DEVICE_DARK);
-        r.rect(x, y, 38, 16);
-        CaveUIStyle.drawBar(r, x + 44, y, w - 44, 16, pct, fill, bg);
+        r.rect(x, y, METER_LABEL_WIDTH, METER_HEIGHT);
+        CaveUIStyle.drawBar(r, x + METER_BAR_X_OFFSET, y, w - METER_BAR_X_OFFSET, METER_HEIGHT, pct, fill, bg);
     }
 
     private void drawButtons(ShapeRenderer r, float x, float y, float w) {
-        float gap = 24f;
-        float bw = (w - 96f - gap * 2f) / 3f;
-        float by = y + 48f;
+        float bw = (w - BUTTONS_SIDE_INSET * 2f - BUTTONS_GAP * 2f) / actions.length;
+        float by = y + BUTTONS_Y_OFFSET;
         for (int i = 0; i < actions.length; i++) {
-            float bx = x + 48f + i * (bw + gap);
+            float bx = x + BUTTONS_SIDE_INSET + i * (bw + BUTTONS_GAP);
             r.setColor(i == selection ? BUTTON_SELECTED : BUTTON);
-            r.ellipse(bx, by, bw, 42f);
-            r.setColor(i == selection ? DEVICE_LIGHT : new Color(0.12f, 0.06f, 0.07f, 1f));
-            CaveUIStyle.drawFrame(r, bx + 7, by + 8, bw - 14, 26, 2);
+            r.ellipse(bx, by, bw, BUTTON_HEIGHT);
+            r.setColor(i == selection ? DEVICE_LIGHT : BUTTON_FRAME_DARK);
+            CaveUIStyle.drawFrame(r, bx + BUTTON_FRAME_X_INSET, by + BUTTON_FRAME_Y_INSET,
+                bw - BUTTON_FRAME_X_INSET * 2f, BUTTON_FRAME_H, BUTTON_FRAME_THICKNESS);
         }
     }
 
@@ -229,27 +279,27 @@ public class CompanionCareUI {
         drawCentered(small, companion.getMoodLabel().toUpperCase(), lcdX, lcdY + 22, lcdW);
 
         small.setColor(DEVICE_LIGHT);
-        small.draw(game.batch, "LUV", x + 52, y + 199);
-        small.draw(game.batch, "HNG", x + 52, y + 175);
-        small.draw(game.batch, "JOY", x + 52, y + 151);
-        small.draw(game.batch, "TIR", x + 52, y + 127);
+        small.draw(game.batch, "LUV", x + LABEL_X_OFFSET, y + LABEL_LUV_Y_OFFSET);
+        small.draw(game.batch, "HNG", x + LABEL_X_OFFSET, y + LABEL_HNG_Y_OFFSET);
+        small.draw(game.batch, "JOY", x + LABEL_X_OFFSET, y + LABEL_JOY_Y_OFFSET);
+        small.draw(game.batch, "TIR", x + LABEL_X_OFFSET, y + LABEL_TIR_Y_OFFSET);
 
         small.setColor(DEVICE_DARK);
-        drawCentered(small, companion.getCareMessage(), x + 34, y + 98, w - 68);
+        drawCentered(small, companion.getCareMessage(), x + MESSAGE_X_OFFSET, y + MESSAGE_Y_OFFSET,
+                w - MESSAGE_WIDTH_INSET_TOTAL);
 
+        float buttonWidth = (w - BUTTONS_SIDE_INSET * 2f - BUTTONS_GAP * 2f) / actions.length;
         for (int i = 0; i < actions.length; i++) {
-            float gap = 24f;
-            float bw = (w - 96f - gap * 2f) / 3f;
-            float bx = x + 48f + i * (bw + gap);
+            float bx = x + BUTTONS_SIDE_INSET + i * (buttonWidth + BUTTONS_GAP);
             small.setColor(i == selection ? Color.WHITE : CaveUIStyle.TEXT);
-            drawCentered(small, actions[i], bx, y + 75f, bw);
+            drawCentered(small, actions[i], bx, y + ACTION_TEXT_BASELINE_Y, buttonWidth);
         }
 
         small.setColor(DEVICE_DARK.r, DEVICE_DARK.g, DEVICE_DARK.b, 0.76f);
         String hint = companion.getPetCooldownTimer() > 0f
                 ? "Pet cooldown: " + (int) Math.ceil(companion.getPetCooldownTimer()) + "s"
                 : "Left/Right select   Enter act   C/Esc close";
-        drawCentered(small, hint, x + 24f, y + 26f, w - 48f);
+        drawCentered(small, hint, x + HINT_X_OFFSET, y + HINT_Y_OFFSET, w - HINT_WIDTH_INSET_TOTAL);
     }
 
     private void drawCentered(BitmapFont font, String text, float x, float baselineY, float width) {

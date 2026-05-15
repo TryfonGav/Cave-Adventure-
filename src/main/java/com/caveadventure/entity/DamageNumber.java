@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.Matrix4;
 
 /**
  * Floating damage number that rises and fades out.
@@ -12,18 +13,40 @@ public class DamageNumber {
 
     private float x, y;
     private final String text;
-    private final Color color;
+    private final float colorR;
+    private final float colorG;
+    private final float colorB;
+    private final float colorA;
     private float timer;
     private static final float DURATION = 1.0f;
     private static final float RISE_SPEED = 40f;
+
+    private static final float CRIT_R = 1f;
+    private static final float CRIT_G = 0.9f;
+    private static final float CRIT_B = 0.1f;
+    private static final float NORMAL_R = 1f;
+    private static final float NORMAL_G = 0.3f;
+    private static final float NORMAL_B = 0.2f;
+    private static final float BASE_SCALE = 1.3f;
+
+    private static final GlyphLayout SHARED_LAYOUT = new GlyphLayout();
+    private static final Matrix4 ORIGINAL_TRANSFORM = new Matrix4();
+    private static final Matrix4 SCALED_TRANSFORM = new Matrix4();
 
     public DamageNumber(float x, float y, int amount, boolean isCritical) {
         this.x = x;
         this.y = y;
         this.text = isCritical ? amount + "!" : String.valueOf(amount);
-        this.color = isCritical
-                ? new Color(1f, 0.9f, 0.1f, 1f) // Gold for crits
-                : new Color(1f, 0.3f, 0.2f, 1f); // Red for normal
+        if (isCritical) {
+            this.colorR = CRIT_R;
+            this.colorG = CRIT_G;
+            this.colorB = CRIT_B;
+        } else {
+            this.colorR = NORMAL_R;
+            this.colorG = NORMAL_G;
+            this.colorB = NORMAL_B;
+        }
+        this.colorA = 1f;
         this.timer = 0;
     }
 
@@ -31,7 +54,11 @@ public class DamageNumber {
         this.x = x;
         this.y = y;
         this.text = text;
-        this.color = new Color(color);
+        Color safeColor = color == null ? Color.WHITE : color;
+        this.colorR = safeColor.r;
+        this.colorG = safeColor.g;
+        this.colorB = safeColor.b;
+        this.colorA = safeColor.a;
         this.timer = 0;
     }
 
@@ -45,14 +72,23 @@ public class DamageNumber {
         if (alpha <= 0)
             return;
 
-        float scale = timer < 0.1f ? 1f + (0.1f - timer) * 5f : 1f; // Pop effect
-        font.getData().setScale(scale * 1.3f);
-        font.setColor(color.r, color.g, color.b, alpha);
+        float popScale = timer < 0.1f ? 1f + (0.1f - timer) * 5f : 1f;
+        float drawScale = popScale * BASE_SCALE;
 
-        GlyphLayout layout = new GlyphLayout(font, text);
-        font.draw(batch, text, x - layout.width / 2, y);
+        SHARED_LAYOUT.setText(font, text);
+        float drawX = x - SHARED_LAYOUT.width * 0.5f * drawScale;
+        float drawY = y;
 
-        font.getData().setScale(1.2f); // Reset scale
+        ORIGINAL_TRANSFORM.set(batch.getTransformMatrix());
+        SCALED_TRANSFORM.set(ORIGINAL_TRANSFORM);
+        SCALED_TRANSFORM.translate(drawX, drawY, 0f);
+        SCALED_TRANSFORM.scale(drawScale, drawScale, 1f);
+        batch.setTransformMatrix(SCALED_TRANSFORM);
+
+        font.setColor(colorR, colorG, colorB, colorA * alpha);
+        font.draw(batch, text, 0f, 0f);
+
+        batch.setTransformMatrix(ORIGINAL_TRANSFORM);
     }
 
     public boolean isExpired() {

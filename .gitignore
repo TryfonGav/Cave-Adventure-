@@ -6,3 +6,5 @@ build-temp/
 .idea/
 *.log
 *.class
+cave-adventure_save.dat
+cave-adventure_save_backup.dat

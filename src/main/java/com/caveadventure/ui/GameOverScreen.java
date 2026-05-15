@@ -19,6 +19,7 @@ public class GameOverScreen {
     private final CaveAdventure game;
     private final OrthographicCamera camera;
     private final GlyphLayout layout;
+    private final Color titleFadeColor = new Color();
     private float animTimer;
 
     private boolean isVictory;
@@ -90,8 +91,9 @@ public class GameOverScreen {
 
         // Title
         String title = isVictory ? "VICTORY!" : "YOU DIED";
-        largeFont.setColor(isVictory ? new Color(CaveUIStyle.GOOD.r, CaveUIStyle.GOOD.g, CaveUIStyle.GOOD.b, fadeIn)
-                : new Color(CaveUIStyle.DANGER.r, CaveUIStyle.DANGER.g, CaveUIStyle.DANGER.b, fadeIn));
+        Color baseTitleColor = isVictory ? CaveUIStyle.GOOD : CaveUIStyle.DANGER;
+        titleFadeColor.set(baseTitleColor.r, baseTitleColor.g, baseTitleColor.b, fadeIn);
+        largeFont.setColor(titleFadeColor);
         layout.setText(largeFont, title);
         largeFont.draw(game.batch, title, screenW / 2 - layout.width / 2, panelY + panelH - 25);
 
