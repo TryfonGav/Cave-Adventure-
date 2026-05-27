@@ -15,6 +15,9 @@ public enum Tile {
     // Hazards
     WATER(new Color(0.15f, 0.3f, 0.6f, 1f), false, false, "Shallow water"),
     LAVA(new Color(0.9f, 0.3f, 0.05f, 1f), false, true, "Molten lava"),
+    ICE(new Color(0.52f, 0.82f, 0.95f, 1f), false, false, "Slick ice", 0, 1.65f),
+    TOXIC_MIST(new Color(0.34f, 0.78f, 0.18f, 1f), false, true, "Toxic mist", 5, 1.1f),
+    CRYSTAL_SPIKES(new Color(0.58f, 0.78f, 1f, 1f), false, true, "Crystal spikes", 7, 1.25f),
 
     // Interactive
     DOOR_LOCKED(new Color(0.55f, 0.35f, 0.1f, 1f), true, false, "Locked door"),
@@ -35,12 +38,20 @@ public enum Tile {
     private final boolean solid;
     private final boolean lethal;
     private final String description;
+    private final int hazardDamage;
+    private final float movementMultiplier;
 
     Tile(Color color, boolean solid, boolean lethal, String description) {
+        this(color, solid, lethal, description, 0, tileMovementMultiplier(description));
+    }
+
+    Tile(Color color, boolean solid, boolean lethal, String description, int hazardDamage, float movementMultiplier) {
         this.color = color;
         this.solid = solid;
         this.lethal = lethal;
         this.description = description;
+        this.hazardDamage = hazardDamage;
+        this.movementMultiplier = movementMultiplier;
     }
 
     public Color getColor() {
@@ -59,10 +70,26 @@ public enum Tile {
         return description;
     }
 
+    public int getHazardDamage() {
+        if (this == LAVA)
+            return 10;
+        return hazardDamage;
+    }
+
+    public float getMovementMultiplier() {
+        return movementMultiplier;
+    }
+
     /**
      * Whether this tile can be walked on.
      */
     public boolean isPassable() {
         return !solid;
+    }
+
+    private static float tileMovementMultiplier(String description) {
+        if ("Shallow water".equals(description))
+            return 1.3f;
+        return 1f;
     }
 }

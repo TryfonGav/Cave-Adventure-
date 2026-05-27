@@ -1,0 +1,24 @@
+{
+  "recipes": [
+    {
+      "id": "crystal_blade",
+      "result": "CRYSTAL_BLADE",
+      "ingredients": { "CRYSTAL_SHARD": 4, "IRON_SWORD": 1 }
+    },
+    {
+      "id": "ember_axe",
+      "result": "FIRE_AXE",
+      "ingredients": { "EMBER_CORE": 3, "STEEL_SWORD": 1 }
+    },
+    {
+      "id": "shadow_charm",
+      "result": "SHADOW_CHARM",
+      "ingredients": { "SHADOW_ESSENCE": 3, "ANCIENT_RELIC": 1 }
+    },
+    {
+      "id": "frost_boots",
+      "result": "FROSTSTEP_BOOTS",
+      "ingredients": { "FROST_ORE": 3, "GLOWCAP_SPORE": 2 }
+    }
+  ]
+}

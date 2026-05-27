@@ -21,7 +21,8 @@ public class Enemy extends Entity {
         NECROMANCER("Necromancer", 55, 1.2f, 14, 20, new Color(0.4f, 0.1f, 0.5f, 1f), 110),
         SHADOW("Shadow", 35, 3.0f, 10, 16, new Color(0.15f, 0.1f, 0.2f, 1f), 90),
         ICE_DRAKE("Ice Drake", 90, 1.4f, 18, 28, new Color(0.5f, 0.7f, 0.9f, 1f), 140),
-        BOSS_GOLEM("Stone Golem", 200, 0.8f, 25, 35, new Color(0.5f, 0.45f, 0.4f, 1f), 300);
+        BOSS_GOLEM("Stone Golem", 220, 0.8f, 25, 35, new Color(0.5f, 0.45f, 0.4f, 1f), 300),
+        BOSS_WYRM("Mire Wyrm", 320, 1.1f, 30, 42, new Color(0.32f, 0.85f, 0.24f, 1f), 520);
 
         public final String name;
         public final int maxHealth;
@@ -40,10 +41,18 @@ public class Enemy extends Entity {
             this.color = color;
             this.xpReward = xpReward;
         }
+
+        public boolean isBoss() {
+            return this == BOSS_GOLEM || this == BOSS_WYRM;
+        }
+
+        public boolean isRanged() {
+            return this == NECROMANCER || this == ICE_DRAKE || this == BOSS_WYRM;
+        }
     }
 
     public enum AIState {
-        IDLE, PATROL, CHASE, ATTACK, FLEE
+        IDLE, PATROL, CHASE, RANGED, ATTACK, FLEE
     }
 
     private final EnemyType type;
@@ -69,6 +78,7 @@ public class Enemy extends Entity {
 
     // Detection
     private static final int DETECTION_RANGE = 8;
+    private static final int RANGED_RANGE = 5;
     private static final int ATTACK_RANGE = 1;
     private static final int FLEE_HEALTH_PERCENT = 20;
 
@@ -145,13 +155,15 @@ public class Enemy extends Entity {
         int dist = Math.abs(getGridX() - playerGX) + Math.abs(getGridY() - playerGY);
 
         // State transitions
-        if (health < maxHealth * FLEE_HEALTH_PERCENT / 100f && type != EnemyType.BOSS_GOLEM) {
+        if (health < maxHealth * FLEE_HEALTH_PERCENT / 100f && !type.isBoss()) {
             aiState = AIState.FLEE;
         } else if (dist <= ATTACK_RANGE && attackCooldown <= 0) {
             aiState = AIState.ATTACK;
+        } else if (type.isRanged() && dist <= RANGED_RANGE) {
+            aiState = AIState.RANGED;
         } else if (dist <= DETECTION_RANGE) {
             aiState = AIState.CHASE;
-        } else if (aiState == AIState.CHASE || aiState == AIState.ATTACK) {
+        } else if (aiState == AIState.CHASE || aiState == AIState.ATTACK || aiState == AIState.RANGED) {
             aiState = AIState.PATROL;
         }
 
@@ -180,6 +192,16 @@ public class Enemy extends Entity {
                 if (!isMoving) {
                     moveTowards(playerGX, playerGY, map);
                 }
+                break;
+
+            case RANGED:
+                if (!isMoving) {
+                    if (dist <= 2)
+                        moveAwayFrom(playerGX, playerGY, map);
+                    else if (random.nextFloat() < 0.35f)
+                        tryMoveRandom(map);
+                }
+                updateFacing(Integer.compare(playerGX, getGridX()), Integer.compare(playerGY, getGridY()));
                 break;
 
             case ATTACK:
@@ -372,6 +394,9 @@ public class Enemy extends Entity {
                 break;
             case BOSS_GOLEM:
                 renderGolem(renderer, px, py, size, bodyColor, darkColor);
+                break;
+            case BOSS_WYRM:
+                renderIceDrake(renderer, px, py, size, bodyColor, darkColor);
                 break;
         }
 

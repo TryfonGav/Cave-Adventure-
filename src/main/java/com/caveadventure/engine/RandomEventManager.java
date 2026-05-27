@@ -134,6 +134,7 @@ public class RandomEventManager {
     private float eventCooldown;
     private EventEffect lastEffect;
     private Companion.PetType lastCompanionType;
+    private String lastEventTitle;
 
     public RandomEventManager(CaveAdventure game) {
         this.game = game;
@@ -175,6 +176,7 @@ public class RandomEventManager {
             if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
                 lastEffect = pendingEffect;
                 lastCompanionType = resolveCompanionType(currentEvent);
+                lastEventTitle = currentEvent.title;
                 applyEffect(pendingEffect, player);
                 active = false;
                 eventCooldown = 30f; // 30s cooldown
@@ -245,6 +247,7 @@ public class RandomEventManager {
 
     public EventEffect getLastEffect() { return lastEffect; }
     public Companion.PetType getLastCompanionType() { return lastCompanionType; }
+    public String getLastEventTitle() { return lastEventTitle; }
 
     public void render() {
         if (!active)

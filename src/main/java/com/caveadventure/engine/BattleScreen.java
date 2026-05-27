@@ -75,6 +75,7 @@ public class BattleScreen {
     private boolean battleActive;
     private boolean battleResult;
     private boolean bossKilled;
+    private int bossPhase;
 
     // Menu
     private int menuSelection;
@@ -141,6 +142,7 @@ public class BattleScreen {
         this.battleActive = true;
         this.battleResult = false;
         this.bossKilled = false;
+        this.bossPhase = 1;
         this.menuSelection = 0;
         this.subSelection = 0;
         this.playerDefending = false;
@@ -298,7 +300,7 @@ public class BattleScreen {
                         for (Item item : lootDrops)
                             player.getInventory().addItem(item);
                         this.usablesDirty = true;
-                        if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM)
+                        if (enemy.getType().isBoss())
                             bossKilled = true;
                         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.BERSERKER))
                             player.addBerserkerKill();
@@ -534,6 +536,7 @@ public class BattleScreen {
         if (fireRuneTurns > 0) baseDmg += 10;
         
         float critChance = 0.12f;
+        critChance += player.getCritBonusFromEquipment();
         if (shadowRuneTurns > 0) critChance += 0.20f;
         
         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.CRITICAL_MASTER))
@@ -733,7 +736,7 @@ public class BattleScreen {
         }
 
         // Boss special moves
-        if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM) {
+        if (enemy.getType().isBoss()) {
             performBossAttack(damage);
             return;
         }
@@ -785,22 +788,28 @@ public class BattleScreen {
     }
 
     private void performBossAttack(int baseDamage) {
+        updateBossPhase();
         float roll = random.nextFloat();
 
-        if (roll < 0.25f) {
+        if (enemy.getType() == Enemy.EnemyType.BOSS_WYRM) {
+            performWyrmAttack(baseDamage, roll);
+            return;
+        }
+
+        if (roll < 0.22f + bossPhase * 0.03f) {
             // AoE Slam
-            int dmg = (int) (baseDamage * 1.4f);
+            int dmg = (int) (baseDamage * (1.25f + bossPhase * 0.18f));
             if (playerDefending) {
                 dmg /= 3;
                 playerDefending = false;
             }
             applyDamageToPlayer(dmg);
-            currentMessage += "Stone Golem uses GROUND SLAM! " + dmg + " damage!";
-        } else if (roll < 0.4f) {
+            currentMessage += "Phase " + bossPhase + ": Stone Golem uses GROUND SLAM! " + dmg + " damage!";
+        } else if (roll < 0.38f) {
             // Self heal
             int heal = 20 + random.nextInt(15);
             enemy.heal(heal);
-            currentMessage += "Stone Golem regenerates " + heal + " HP!";
+            currentMessage += "Phase " + bossPhase + ": Stone Golem regenerates " + heal + " HP!";
         } else if (roll < 0.6f) {
             // Multi-hit (2 hits)
             int hit1 = baseDamage / 2 + random.nextInt(5);
@@ -812,7 +821,7 @@ public class BattleScreen {
             }
             applyDamageToPlayer(hit1);
             applyDamageToPlayer(hit2);
-            currentMessage += "Stone Golem DOUBLE STRIKE! " + hit1 + "+" + hit2 + " damage!";
+            currentMessage += "Phase " + bossPhase + ": Stone Golem DOUBLE STRIKE! " + hit1 + "+" + hit2 + " damage!";
         } else if (roll < 0.75f) {
             // Stun attack
             int dmg = baseDamage;
@@ -823,7 +832,7 @@ public class BattleScreen {
             applyDamageToPlayer(dmg);
             playerStatus = StatusEffect.STUN;
             playerStatusTimer = 1f;
-            currentMessage += "Stone Golem PETRIFY STRIKE! " + dmg + " dmg + STUNNED!";
+            currentMessage += "Phase " + bossPhase + ": Stone Golem PETRIFY STRIKE! " + dmg + " dmg + STUNNED!";
         } else {
             // Normal attack
             int dmg = baseDamage;
@@ -832,7 +841,7 @@ public class BattleScreen {
                 playerDefending = false;
             }
             applyDamageToPlayer(dmg);
-            currentMessage += "Stone Golem attacks for " + dmg + " damage!";
+            currentMessage += "Phase " + bossPhase + ": Stone Golem attacks for " + dmg + " damage!";
         }
 
         triggerAttackAnim(false);
@@ -840,8 +849,57 @@ public class BattleScreen {
         stateTimer = 0;
     }
 
+    private void performWyrmAttack(int baseDamage, float roll) {
+        int phaseBonus = bossPhase * 4;
+        if (roll < 0.25f) {
+            int dmg = baseDamage + phaseBonus;
+            applyDamageToPlayer(dmg);
+            playerStatus = StatusEffect.POISON;
+            playerStatusTimer = 4f;
+            currentMessage += "Phase " + bossPhase + ": Mire Wyrm sprays venom! " + dmg + " dmg + POISON!";
+        } else if (roll < 0.50f) {
+            int hit1 = Math.max(1, baseDamage / 2 + phaseBonus);
+            int hit2 = Math.max(1, baseDamage / 2 + random.nextInt(8));
+            applyDamageToPlayer(hit1);
+            applyDamageToPlayer(hit2);
+            currentMessage += "Phase " + bossPhase + ": Mire Wyrm coils twice! " + hit1 + "+" + hit2 + " damage!";
+        } else if (roll < 0.70f && bossPhase >= 2) {
+            int heal = 16 + random.nextInt(12);
+            enemy.heal(heal);
+            currentMessage += "Phase " + bossPhase + ": Mire Wyrm drinks toxic mist and heals " + heal + " HP!";
+        } else if (roll < 0.88f && bossPhase >= 3) {
+            int dmg = (int) (baseDamage * 1.55f);
+            applyDamageToPlayer(dmg);
+            playerStatus = StatusEffect.STUN;
+            playerStatusTimer = 1f;
+            currentMessage += "Phase 3: Mire Wyrm crushes the arena! " + dmg + " dmg + STUN!";
+        } else {
+            int dmg = baseDamage + phaseBonus;
+            applyDamageToPlayer(dmg);
+            currentMessage += "Phase " + bossPhase + ": Mire Wyrm strikes for " + dmg + " damage!";
+        }
+
+        triggerAttackAnim(false);
+        state = BattleState.ENEMY_ATTACK;
+        stateTimer = 0;
+    }
+
+    private void updateBossPhase() {
+        if (!enemy.getType().isBoss()) {
+            bossPhase = 1;
+            return;
+        }
+        float hpPct = (float) enemy.getHealth() / enemy.getMaxHealth();
+        if (hpPct <= 0.30f)
+            bossPhase = 3;
+        else if (hpPct <= 0.65f)
+            bossPhase = 2;
+        else
+            bossPhase = 1;
+    }
+
     private void attemptRun() {
-        if (enemy.getType() == Enemy.EnemyType.BOSS_GOLEM) {
+        if (enemy.getType().isBoss()) {
             currentMessage = "Can't escape from a boss!";
             return;
         }
@@ -1143,7 +1201,7 @@ public class BattleScreen {
     }
 
     private void drawBattleEnemy(ShapeRenderer r, float cx, float cy, boolean flash) {
-        float size = enemy.getType() == Enemy.EnemyType.BOSS_GOLEM ? 116f
+        float size = enemy.getType().isBoss() ? 116f
                 : enemy.getType() == Enemy.EnemyType.ICE_DRAKE ? 106f : 92f;
         Color base = flash ? Color.WHITE : enemy.getType().color;
         scaledColorInto(base, 0.55f, 1f, tmpColor1);
@@ -1182,6 +1240,9 @@ public class BattleScreen {
                 break;
             case BOSS_GOLEM:
                 drawBattleGolem(r, cx, cy, size, base, dark, light);
+                break;
+            case BOSS_WYRM:
+                drawBattleIceDrake(r, cx, cy, size, base, dark, light);
                 break;
         }
     }

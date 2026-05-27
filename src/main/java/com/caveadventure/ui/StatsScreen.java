@@ -31,6 +31,9 @@ public class StatsScreen {
     public int eventsCompleted;
     public int battlesFought;
     public int timesFled;
+    public int questsCompleted;
+    public int itemsCrafted;
+    public int bossesKilled;
 
     private boolean visible;
 
@@ -56,7 +59,7 @@ public class StatsScreen {
         camera.update();
 
         float sw = Gdx.graphics.getWidth(), sh = Gdx.graphics.getHeight();
-        float panelW = 350, panelH = 400;
+        float panelW = 350, panelH = 470;
         float px = sw / 2 - panelW / 2, py = sh / 2 - panelH / 2;
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
@@ -105,6 +108,9 @@ public class StatsScreen {
         drawStat(sf, sx, sy - gap * 13, "Traps Triggered", "" + trapsTriggered);
         drawStat(sf, sx, sy - gap * 14, "Items Used", "" + itemsUsed);
         drawStat(sf, sx, sy - gap * 15, "Gold Spent", "" + goldSpent);
+        drawStat(sf, sx, sy - gap * 16, "Quests Completed", "" + questsCompleted);
+        drawStat(sf, sx, sy - gap * 17, "Items Crafted", "" + itemsCrafted);
+        drawStat(sf, sx, sy - gap * 18, "Bosses Killed", "" + bossesKilled);
 
         sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Press P or ESC to close", px + 15, py + 12);
@@ -117,5 +123,50 @@ public class StatsScreen {
         font.draw(game.batch, label, x, y);
         layout.setText(font, value);
         font.draw(game.batch, value, x + 280 - layout.width, y);
+    }
+
+    public java.util.Map<String, Integer> toSaveMap() {
+        java.util.Map<String, Integer> stats = new java.util.LinkedHashMap<>();
+        stats.put("totalDamageDealt", totalDamageDealt);
+        stats.put("totalDamageTaken", totalDamageTaken);
+        stats.put("stepsTaken", stepsTaken);
+        stats.put("trapsTriggered", trapsTriggered);
+        stats.put("itemsUsed", itemsUsed);
+        stats.put("chestsOpened", chestsOpened);
+        stats.put("doorsUnlocked", doorsUnlocked);
+        stats.put("goldSpent", goldSpent);
+        stats.put("eventsCompleted", eventsCompleted);
+        stats.put("battlesFought", battlesFought);
+        stats.put("timesFled", timesFled);
+        stats.put("questsCompleted", questsCompleted);
+        stats.put("itemsCrafted", itemsCrafted);
+        stats.put("bossesKilled", bossesKilled);
+        return stats;
+    }
+
+    public void restore(java.util.Map<String, Integer> stats) {
+        if (stats == null)
+            return;
+        totalDamageDealt = stats.getOrDefault("totalDamageDealt", totalDamageDealt);
+        totalDamageTaken = stats.getOrDefault("totalDamageTaken", totalDamageTaken);
+        stepsTaken = stats.getOrDefault("stepsTaken", stepsTaken);
+        trapsTriggered = stats.getOrDefault("trapsTriggered", trapsTriggered);
+        itemsUsed = stats.getOrDefault("itemsUsed", itemsUsed);
+        chestsOpened = stats.getOrDefault("chestsOpened", chestsOpened);
+        doorsUnlocked = stats.getOrDefault("doorsUnlocked", doorsUnlocked);
+        goldSpent = stats.getOrDefault("goldSpent", goldSpent);
+        eventsCompleted = stats.getOrDefault("eventsCompleted", eventsCompleted);
+        battlesFought = stats.getOrDefault("battlesFought", battlesFought);
+        timesFled = stats.getOrDefault("timesFled", timesFled);
+        questsCompleted = stats.getOrDefault("questsCompleted", questsCompleted);
+        itemsCrafted = stats.getOrDefault("itemsCrafted", itemsCrafted);
+        bossesKilled = stats.getOrDefault("bossesKilled", bossesKilled);
+    }
+
+    public void reset() {
+        totalDamageDealt = totalDamageTaken = stepsTaken = trapsTriggered = itemsUsed = chestsOpened = 0;
+        doorsUnlocked = goldSpent = eventsCompleted = battlesFought = timesFled = questsCompleted = 0;
+        itemsCrafted = bossesKilled = 0;
+        visible = false;
     }
 }

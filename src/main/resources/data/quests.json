@@ -1,0 +1,23 @@
+{
+  "quests": [
+    {
+      "id": "fetch_crystal_shards",
+      "title": "A Smith's Spark",
+      "objective": "FETCH",
+      "target": "CRYSTAL_SHARD",
+      "amount": 3,
+      "rewardXp": 70,
+      "rewardItem": "HEALTH_POTION"
+    },
+    {
+      "id": "reach_frost_vaults",
+      "title": "Scout the Vaults",
+      "objective": "REACH",
+      "targetBiome": "FROST_VAULTS",
+      "targetFloor": 11,
+      "amount": 1,
+      "rewardXp": 160,
+      "rewardItem": "FROST_ORE"
+    }
+  ]
+}
