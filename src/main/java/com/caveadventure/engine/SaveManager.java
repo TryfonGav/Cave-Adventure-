@@ -377,6 +377,73 @@ public class SaveManager {
         }
     }
 
+    public static SaveData parseSaveText(String content) {
+        SaveData data = new SaveData();
+        if (content == null || content.isBlank())
+            return data;
+        String[] lines = content.split("\n");
+        for (String rawLine : lines) {
+            String line = rawLine.trim();
+            if (line.isEmpty())
+                continue;
+            String[] parts = line.split("=", 2);
+            if (parts.length < 2)
+                continue;
+            String key = parts[0];
+            String value = parts[1];
+            switch (key) {
+                case "version":
+                    data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
+                    break;
+                case "profile":
+                    data.profile = sanitizeProfile(value);
+                    break;
+                case "difficulty":
+                    data.difficulty = parseDifficulty(value, data.difficulty);
+                    break;
+                case "biome":
+                    data.biome = parseBiome(value, data.biome);
+                    break;
+                case "skillPoints":
+                    data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
+                    break;
+                case "floor":
+                    data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                    break;
+                case "item":
+                    parseItemEntry(data, value);
+                    break;
+                case "weapon":
+                    data.equippedWeapon = parseItemType("weapon", value, Item.Category.WEAPON);
+                    break;
+                case "armor":
+                    data.equippedArmor = parseItemType("armor", value, Item.Category.ARMOR);
+                    break;
+                case "accessory":
+                    data.equippedAccessory = parseItemType("accessory", value, Item.Category.ACCESSORY);
+                    break;
+                case "boots":
+                    data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
+                    break;
+                case "skillUnlocked":
+                    parseSkillEntry(data, value);
+                    break;
+                case "quest":
+                    data.questLines.add(value.trim());
+                    break;
+                case "achievement":
+                    parseAchievementEntry(data, value);
+                    break;
+                case "stat":
+                    parseStatEntry(data, value);
+                    break;
+                default:
+                    break;
+            }
+        }
+        return sanitize(data);
+    }
+
     public static void deleteSave() {
         try {
             FileHandle file = getActiveSaveFile();
