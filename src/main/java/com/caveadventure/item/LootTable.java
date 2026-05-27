@@ -1,6 +1,7 @@
 package com.caveadventure.item;
 
 import com.caveadventure.entity.Enemy;
+import com.caveadventure.world.Biome;
 
 import java.util.*;
 
@@ -21,6 +22,8 @@ public class LootTable {
             case BAT:
                 if (chance(30))
                     loot.add(new Item(Item.ItemType.COOKED_MEAT));
+                if (chance(12))
+                    loot.add(new Item(Item.ItemType.GLOWCAP_SPORE));
                 if (chance(10))
                     loot.add(new Item(Item.ItemType.HEALTH_POTION));
                 if (chance(15))
@@ -30,6 +33,8 @@ public class LootTable {
             case SLIME:
                 if (chance(25))
                     loot.add(new Item(Item.ItemType.HEALTH_POTION));
+                if (chance(18))
+                    loot.add(new Item(Item.ItemType.TOXIN_SAC));
                 if (chance(15))
                     loot.add(new Item(Item.ItemType.ANTIDOTE));
                 if (chance(20))
@@ -39,6 +44,8 @@ public class LootTable {
             case CAVE_SPIDER:
                 if (chance(20))
                     loot.add(new Item(Item.ItemType.ANTIDOTE));
+                if (chance(25))
+                    loot.add(new Item(Item.ItemType.TOXIN_SAC));
                 if (chance(15))
                     loot.add(new Item(Item.ItemType.COOKED_MEAT));
                 if (chance(10))
@@ -61,6 +68,8 @@ public class LootTable {
             case SKELETON:
                 if (chance(30))
                     loot.add(new Item(Item.ItemType.GOLD_COINS));
+                if (chance(14))
+                    loot.add(new Item(Item.ItemType.EMBER_CORE));
                 if (chance(20))
                     loot.add(new Item(Item.ItemType.HEALTH_POTION));
                 if (chance(10))
@@ -89,6 +98,8 @@ public class LootTable {
             case SHADOW:
                 if (chance(30))
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 2));
+                if (chance(30))
+                    loot.add(new Item(Item.ItemType.SHADOW_ESSENCE));
                 if (chance(15))
                     loot.add(new Item(Item.ItemType.GEMSTONE));
                 if (chance(8) && floor > 3 && floor <= 7)
@@ -104,6 +115,8 @@ public class LootTable {
             case ICE_DRAKE:
                 if (chance(40))
                     loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION));
+                if (chance(35))
+                    loot.add(new Item(Item.ItemType.FROST_ORE));
                 if (chance(20))
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 3));
                 if (chance(8) && floor > 5)
@@ -122,6 +135,7 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.LARGE_HEALTH_POTION, 2));
                 loot.add(new Item(Item.ItemType.GOLD_COINS, 5));
                 loot.add(new Item(Item.ItemType.ANCIENT_RELIC));
+                loot.add(new Item(Item.ItemType.EMBER_CORE, 2));
                 if (chance(50) && floor > 5)
                     loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
                 if (chance(50))
@@ -129,6 +143,14 @@ public class LootTable {
                 loot.add(new Item(Item.ItemType.GOLD_KEY));
                 loot.add(new Item(Item.ItemType.STAMINA_ELIXIR));
                 loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
+                break;
+            case BOSS_WYRM:
+                loot.add(new Item(Item.ItemType.ELIXIR));
+                loot.add(new Item(Item.ItemType.GOLD_NUGGET, 6));
+                loot.add(new Item(Item.ItemType.TOXIN_SAC, 4));
+                loot.add(new Item(Item.ItemType.SHADOW_CHARM));
+                loot.add(new Item(Item.ItemType.FROST_MAIL));
+                loot.add(new Item(Item.ItemType.GOLD_KEY));
                 break;
         }
 
@@ -208,12 +230,45 @@ public class LootTable {
      * Generate chest loot with LUCKY skill bonus.
      */
     public static List<Item> getChestLoot(int floor, boolean lucky) {
+        return getChestLoot(floor, lucky, Biome.forFloor(floor));
+    }
+
+    public static List<Item> getChestLoot(int floor, boolean lucky, Biome biome) {
         List<Item> loot = getChestLoot(floor);
+        addBiomeLoot(loot, biome);
         if (lucky) {
             loot.add(new Item(Item.ItemType.GOLD_COINS));
             if (chance(40)) loot.add(new Item(Item.ItemType.HEALTH_POTION));
         }
         return loot;
+    }
+
+    private static void addBiomeLoot(List<Item> loot, Biome biome) {
+        if (biome == null)
+            return;
+        switch (biome) {
+            case CRYSTAL_CAVES:
+                if (chance(65)) loot.add(new Item(Item.ItemType.CRYSTAL_SHARD, 1 + RANDOM.nextInt(2)));
+                if (chance(10)) loot.add(new Item(Item.ItemType.LANTERN_CHARM));
+                break;
+            case MUSHROOM_GROTTO:
+                if (chance(70)) loot.add(new Item(Item.ItemType.GLOWCAP_SPORE, 1 + RANDOM.nextInt(2)));
+                break;
+            case LAVA_CAVERNS:
+                if (chance(65)) loot.add(new Item(Item.ItemType.EMBER_CORE));
+                break;
+            case SHADOW_ABYSS:
+                if (chance(65)) loot.add(new Item(Item.ItemType.SHADOW_ESSENCE));
+                break;
+            case FROST_VAULTS:
+                if (chance(75)) loot.add(new Item(Item.ItemType.FROST_ORE, 1 + RANDOM.nextInt(2)));
+                if (chance(14)) loot.add(new Item(Item.ItemType.FROSTSTEP_BOOTS));
+                break;
+            case TOXIC_MIRE:
+                if (chance(75)) loot.add(new Item(Item.ItemType.TOXIN_SAC, 1 + RANDOM.nextInt(2)));
+                if (chance(20)) loot.add(new Item(Item.ItemType.TOXIN_KIT));
+                break;
+        }
     }
 
     private static boolean chance(int percent) {

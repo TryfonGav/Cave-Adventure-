@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.engine.SaveManager;
 
 /**
  * Main menu screen with title, options, and atmospheric background.
@@ -133,8 +134,12 @@ public class MainMenu {
         }
 
         smallFont.setColor(CaveUIStyle.MUTED_TEXT);
-        layout.setText(smallFont, "Arrow Keys: Navigate   Enter: Select");
-        smallFont.draw(game.batch, "Arrow Keys: Navigate   Enter: Select", screenW / 2f - layout.width / 2f, 40);
+        String hint = "Arrow Keys: Navigate   Enter: Select   P: Profile";
+        layout.setText(smallFont, hint);
+        smallFont.draw(game.batch, hint, screenW / 2f - layout.width / 2f, 40);
+        String profile = "Profile: " + SaveManager.getActiveProfile();
+        layout.setText(smallFont, profile);
+        smallFont.draw(game.batch, profile, screenW / 2f - layout.width / 2f, 22);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);

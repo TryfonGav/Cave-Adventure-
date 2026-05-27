@@ -130,6 +130,11 @@ public class GameMap {
                 return lerpColor(new Color(0.85f, 0.7f, 0.1f, 1f), biome.accentColor, 0.25f);
             case STAIRS_DOWN:
                 return lerpColor(new Color(0.6f, 0.5f, 0.8f, 1f), biome.accentColor, 0.45f);
+            case ICE:
+            case TOXIC_MIST:
+            case CRYSTAL_SPIKES:
+            case LAVA:
+                return lerpColor(tile.getColor(), biome.accentColor, 0.18f);
             default:
                 return tile.getColor();
         }

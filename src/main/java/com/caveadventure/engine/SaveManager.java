@@ -10,11 +10,17 @@ import com.caveadventure.entity.Player;
 import com.caveadventure.engine.SkillTree.Skill;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.item.Item;
+import com.caveadventure.quest.QuestManager;
+import com.caveadventure.ui.AchievementManager;
+import com.caveadventure.ui.StatsScreen;
+import com.caveadventure.world.Biome;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,10 +31,13 @@ import java.util.logging.Logger;
 public class SaveManager {
 
     private static final String SAVE_FILE = "cave_adventure_save.dat";
+    private static final String PROFILE_DIR = "profiles";
+    private static final int SAVE_VERSION = 2;
     private static final Logger LOGGER = Logger.getLogger(SaveManager.class.getName());
+    private static String activeProfile = "profile1";
 
     private static final int MIN_FLOOR = 1;
-    private static final int MAX_FLOOR = 10;
+    private static final int MAX_FLOOR = 14;
     private static final int MIN_LEVEL = 1;
     private static final int MAX_LEVEL = 200;
     private static final int MIN_HEALTH = 0;
@@ -55,12 +64,24 @@ public class SaveManager {
      */
     public static void saveGame(Player player, Companion companion, int floor, int enemiesKilled,
             boolean finalBossDefeated, java.util.Collection<Skill> unlockedSkills) {
+        saveGame(player, companion, floor, enemiesKilled, finalBossDefeated, unlockedSkills, null);
+    }
+
+    public static void saveGame(Player player, Companion companion, int floor, int enemiesKilled,
+            boolean finalBossDefeated, java.util.Collection<Skill> unlockedSkills, SaveExtras extras) {
         if (player == null) {
             LOGGER.warning("saveGame aborted: player is null.");
             return;
         }
 
         StringBuilder sb = new StringBuilder();
+        sb.append("version=").append(SAVE_VERSION).append("\n");
+        sb.append("profile=").append(sanitizeProfile(activeProfile)).append("\n");
+        sb.append("difficulty=").append(Difficulty.getCurrent().name()).append("\n");
+        if (extras != null && extras.biome != null)
+            sb.append("biome=").append(extras.biome.name()).append("\n");
+        if (extras != null)
+            sb.append("skillPoints=").append(Math.max(0, extras.skillPoints)).append("\n");
         sb.append("floor=").append(clampInt(floor, MIN_FLOOR, MAX_FLOOR)).append("\n");
         sb.append("health=").append(clampInt(player.getHealth(), MIN_HEALTH, MAX_HEALTH)).append("\n");
         sb.append("maxHealth=").append(clampInt(player.getMaxHealth(), 1, MAX_HEALTH)).append("\n");
@@ -96,6 +117,12 @@ public class SaveManager {
         if (inv.getEquippedArmor() != null) {
             sb.append("armor=").append(inv.getEquippedArmor().getType().name()).append("\n");
         }
+        if (inv.getEquippedAccessory() != null) {
+            sb.append("accessory=").append(inv.getEquippedAccessory().getType().name()).append("\n");
+        }
+        if (inv.getEquippedBoots() != null) {
+            sb.append("boots=").append(inv.getEquippedBoots().getType().name()).append("\n");
+        }
 
         if (companion != null) {
             sb.append("companionType=").append(companion.getPetType().name()).append("\n");
@@ -117,11 +144,33 @@ public class SaveManager {
             }
         }
 
+        if (extras != null) {
+            if (extras.questLines != null) {
+                for (String quest : extras.questLines) {
+                    if (quest != null && !quest.isBlank())
+                        sb.append("quest=").append(quest).append("\n");
+                }
+            }
+            if (extras.achievements != null) {
+                for (AchievementManager.Achievement achievement : extras.achievements) {
+                    if (achievement != null)
+                        sb.append("achievement=").append(achievement.name()).append("\n");
+                }
+            }
+            if (extras.stats != null) {
+                for (Map.Entry<String, Integer> entry : extras.stats.entrySet()) {
+                    sb.append("stat=").append(entry.getKey()).append(",")
+                            .append(Math.max(0, entry.getValue())).append("\n");
+                }
+            }
+        }
+
         try {
-            FileHandle file = Gdx.files.local(SAVE_FILE);
+            FileHandle file = getActiveSaveFile();
+            file.parent().mkdirs();
             file.writeString(sb.toString(), false);
         } catch (GdxRuntimeException | SecurityException ex) {
-            LOGGER.log(Level.SEVERE, "Failed to save game to " + SAVE_FILE, ex);
+            LOGGER.log(Level.SEVERE, "Failed to save game.", ex);
         }
     }
 
@@ -130,7 +179,9 @@ public class SaveManager {
      */
     public static SaveData loadGame() {
         try {
-            FileHandle file = Gdx.files.local(SAVE_FILE);
+            FileHandle file = getActiveSaveFile();
+            if (!file.exists() && "profile1".equals(activeProfile))
+                file = Gdx.files.local(SAVE_FILE);
             if (!file.exists())
                 return null;
 
@@ -158,6 +209,22 @@ public class SaveManager {
                 switch (key) {
                     case "floor":
                         data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                        break;
+                    case "version":
+                        data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
+                        break;
+                    case "profile":
+                        data.profile = sanitizeProfile(value);
+                        break;
+                    case "difficulty":
+                        data.difficulty = parseDifficulty(value, data.difficulty);
+                        Difficulty.setCurrent(data.difficulty);
+                        break;
+                    case "biome":
+                        data.biome = parseBiome(value, data.biome);
+                        break;
+                    case "skillPoints":
+                        data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
                         break;
                     case "health":
                         data.health = parseIntBounded("health", value, MIN_HEALTH, MAX_HEALTH, data.health);
@@ -235,6 +302,12 @@ public class SaveManager {
                     case "armor":
                         data.equippedArmor = parseItemType("armor", value, Item.Category.ARMOR);
                         break;
+                    case "accessory":
+                        data.equippedAccessory = parseItemType("accessory", value, Item.Category.ACCESSORY);
+                        break;
+                    case "boots":
+                        data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
+                        break;
                     case "companionType":
                         data.companionType = parseCompanionType("companionType", value, data.companionType);
                         break;
@@ -265,6 +338,15 @@ public class SaveManager {
                     case "skillUnlocked":
                         parseSkillEntry(data, value);
                         break;
+                    case "quest":
+                        data.questLines.add(value.trim());
+                        break;
+                    case "achievement":
+                        parseAchievementEntry(data, value);
+                        break;
+                    case "stat":
+                        parseStatEntry(data, value);
+                        break;
                     default:
                         LOGGER.fine("Ignoring unknown save key: " + key);
                         break;
@@ -287,7 +369,8 @@ public class SaveManager {
 
     public static boolean hasSave() {
         try {
-            return Gdx.files.local(SAVE_FILE).exists();
+            return getActiveSaveFile().exists()
+                    || ("profile1".equals(activeProfile) && Gdx.files.local(SAVE_FILE).exists());
         } catch (GdxRuntimeException | SecurityException ex) {
             LOGGER.log(Level.WARNING, "Failed checking save existence for " + SAVE_FILE, ex);
             return false;
@@ -296,7 +379,7 @@ public class SaveManager {
 
     public static void deleteSave() {
         try {
-            FileHandle file = Gdx.files.local(SAVE_FILE);
+            FileHandle file = getActiveSaveFile();
             if (file.exists())
                 file.delete();
         } catch (GdxRuntimeException | SecurityException ex) {
@@ -467,6 +550,48 @@ public class SaveManager {
         }
     }
 
+    private static void parseAchievementEntry(SaveData data, String value) {
+        if (value == null || value.isBlank())
+            return;
+        try {
+            data.unlockedAchievements.add(AchievementManager.Achievement.valueOf(value.trim()));
+        } catch (IllegalArgumentException ex) {
+            LOGGER.log(Level.WARNING, "Ignoring unknown achievement in save: " + value, ex);
+        }
+    }
+
+    private static void parseStatEntry(SaveData data, String value) {
+        if (value == null || value.isBlank())
+            return;
+        String[] parts = value.split(",", 2);
+        if (parts.length != 2)
+            return;
+        int statValue = parseIntBounded("stat." + parts[0], parts[1], 0, Integer.MAX_VALUE, 0);
+        data.stats.put(parts[0].trim(), statValue);
+    }
+
+    private static Difficulty parseDifficulty(String value, Difficulty fallback) {
+        if (value == null || value.isBlank())
+            return fallback;
+        try {
+            return Difficulty.valueOf(value.trim());
+        } catch (IllegalArgumentException ex) {
+            LOGGER.log(Level.WARNING, "Invalid difficulty in save: " + value, ex);
+            return fallback;
+        }
+    }
+
+    private static Biome parseBiome(String value, Biome fallback) {
+        if (value == null || value.isBlank())
+            return fallback;
+        try {
+            return Biome.valueOf(value.trim());
+        } catch (IllegalArgumentException ex) {
+            LOGGER.log(Level.WARNING, "Invalid biome in save: " + value, ex);
+            return fallback;
+        }
+    }
+
     private static SaveData sanitize(SaveData in) {
         SaveData out = new SaveData();
         if (in == null) {
@@ -475,6 +600,11 @@ public class SaveManager {
         }
 
         out.floor = clampInt(in.floor, MIN_FLOOR, MAX_FLOOR);
+        out.version = clampInt(in.version, 1, SAVE_VERSION);
+        out.profile = sanitizeProfile(in.profile);
+        out.difficulty = in.difficulty == null ? Difficulty.NORMAL : in.difficulty;
+        out.biome = in.biome == null ? Biome.forFloor(out.floor) : in.biome;
+        out.skillPoints = clampInt(in.skillPoints, 0, 999);
         out.maxHealth = clampInt(in.maxHealth, 1, MAX_HEALTH);
         out.health = clampInt(in.health, MIN_HEALTH, out.maxHealth);
         out.hunger = clampInt(in.hunger, MIN_HUNGER, MAX_HUNGER);
@@ -522,6 +652,9 @@ public class SaveManager {
 
         out.equippedWeapon = isTypePresent(out.items, in.equippedWeapon, Item.Category.WEAPON) ? in.equippedWeapon : null;
         out.equippedArmor = isTypePresent(out.items, in.equippedArmor, Item.Category.ARMOR) ? in.equippedArmor : null;
+        out.equippedAccessory = isTypePresent(out.items, in.equippedAccessory, Item.Category.ACCESSORY)
+                ? in.equippedAccessory : null;
+        out.equippedBoots = isTypePresent(out.items, in.equippedBoots, Item.Category.BOOTS) ? in.equippedBoots : null;
 
         out.companionType = in.companionType;
         out.companionHealth = clampInt(in.companionHealth, MIN_COMPANION_HEALTH, MAX_COMPANION_HEALTH);
@@ -549,6 +682,9 @@ public class SaveManager {
             }
         }
         out.unlockedSkills = new ArrayList<>(uniqueSkills);
+        out.questLines = new ArrayList<>(in.questLines);
+        out.unlockedAchievements = new LinkedHashSet<>(in.unlockedAchievements);
+        out.stats = new LinkedHashMap<>(in.stats);
 
         return out;
     }
@@ -582,10 +718,70 @@ public class SaveManager {
         return Math.max(min, Math.min(max, value));
     }
 
+    private static FileHandle getActiveSaveFile() {
+        return Gdx.files.local(PROFILE_DIR + "/" + sanitizeProfile(activeProfile) + ".dat");
+    }
+
+    public static String getActiveProfile() {
+        return activeProfile;
+    }
+
+    public static void setActiveProfile(String profile) {
+        activeProfile = sanitizeProfile(profile);
+    }
+
+    public static void cycleProfile() {
+        String[] profiles = { "profile1", "profile2", "profile3" };
+        int index = 0;
+        for (int i = 0; i < profiles.length; i++) {
+            if (profiles[i].equals(activeProfile)) {
+                index = i;
+                break;
+            }
+        }
+        activeProfile = profiles[(index + 1) % profiles.length];
+    }
+
+    private static String sanitizeProfile(String raw) {
+        if (raw == null || raw.isBlank())
+            return "profile1";
+        String cleaned = raw.trim().replaceAll("[^A-Za-z0-9_-]", "_");
+        if (cleaned.isEmpty())
+            return "profile1";
+        return cleaned.length() > 24 ? cleaned.substring(0, 24) : cleaned;
+    }
+
+    public static SaveExtras extrasFrom(QuestManager questManager, AchievementManager achievements,
+            StatsScreen statsScreen, Biome biome, int skillPoints) {
+        SaveExtras extras = new SaveExtras();
+        extras.biome = biome;
+        extras.skillPoints = skillPoints;
+        if (questManager != null)
+            extras.questLines = questManager.serialize();
+        if (achievements != null)
+            extras.achievements = achievements.getUnlocked();
+        if (statsScreen != null)
+            extras.stats = statsScreen.toSaveMap();
+        return extras;
+    }
+
+    public static class SaveExtras {
+        public Biome biome;
+        public int skillPoints;
+        public List<String> questLines = new ArrayList<>();
+        public Set<AchievementManager.Achievement> achievements = new LinkedHashSet<>();
+        public Map<String, Integer> stats = new LinkedHashMap<>();
+    }
+
     /**
      * Container for loaded save data.
      */
     public static class SaveData {
+        public int version = 1;
+        public String profile = "profile1";
+        public Difficulty difficulty = Difficulty.NORMAL;
+        public Biome biome = Biome.CRYSTAL_CAVES;
+        public int skillPoints = 0;
         public int floor = 1;
         public int health = 100;
         public int maxHealth = 100;
@@ -601,6 +797,8 @@ public class SaveManager {
         public java.util.List<Item> items = new java.util.ArrayList<>();
         public Item.ItemType equippedWeapon = null;
         public Item.ItemType equippedArmor = null;
+        public Item.ItemType equippedAccessory = null;
+        public Item.ItemType equippedBoots = null;
         public Companion.PetType companionType = null;
         public int companionHealth = -1;
         public float companionLove = 60f;
@@ -610,5 +808,8 @@ public class SaveManager {
         public float companionPetCooldown = 0f;
         public java.util.List<Skill> unlockedSkills = new java.util.ArrayList<>();
         public CharacterAppearance characterAppearance = CharacterAppearance.defaultAppearance();
+        public java.util.List<String> questLines = new java.util.ArrayList<>();
+        public java.util.Set<AchievementManager.Achievement> unlockedAchievements = new java.util.LinkedHashSet<>();
+        public java.util.Map<String, Integer> stats = new java.util.LinkedHashMap<>();
     }
 }

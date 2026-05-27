@@ -323,7 +323,9 @@ public class InventoryUI {
                 boolean hasItem = slotIndex < visibleEnd;
                 boolean isSelected = slotIndex == selectedIndex && visible;
                 boolean isEquipped = hasItem && (items.get(slotIndex) == inventory.getEquippedWeapon() ||
-                        items.get(slotIndex) == inventory.getEquippedArmor());
+                        items.get(slotIndex) == inventory.getEquippedArmor() ||
+                        items.get(slotIndex) == inventory.getEquippedAccessory() ||
+                        items.get(slotIndex) == inventory.getEquippedBoots());
 
                 drawSlot(renderer, slotX, slotY, isSelected, isEquipped, alpha);
 
@@ -532,7 +534,8 @@ public class InventoryUI {
             lineY -= 22;
         }
 
-        if (selected == inventory.getEquippedWeapon() || selected == inventory.getEquippedArmor()) {
+        if (selected == inventory.getEquippedWeapon() || selected == inventory.getEquippedArmor()
+                || selected == inventory.getEquippedAccessory() || selected == inventory.getEquippedBoots()) {
             game.font.setColor(0.54f, 1f, 0.54f, alpha);
             game.font.draw(batch, "Equipped", x, lineY);
             lineY -= 22;
@@ -540,8 +543,12 @@ public class InventoryUI {
 
         if (selected.isEquippable()) {
             game.font.setColor(0.74f, 0.95f, 0.72f, alpha);
-            game.font.draw(batch, "ATK +" + selected.getType().attackBonus + "  DEF +" + selected.getType().defenseBonus,
+            game.font.draw(batch, selected.getType().equipmentSlot.label + "  ATK +" + selected.getType().attackBonus
+                            + "  DEF +" + selected.getType().defenseBonus,
                     x, lineY);
+            lineY -= 22;
+            game.font.draw(batch, "SPD +" + (int) (selected.getType().speedBonus * 100) + "%  LGT +"
+                    + selected.getType().lightBonus, x, lineY);
             lineY -= 22;
         } else if (selected.getType().restoreAmount > 0) {
             game.font.setColor(0.74f, 0.95f, 0.72f, alpha);

@@ -14,6 +14,8 @@ public class Inventory {
     private final List<Item> items;
     private Item equippedWeapon;
     private Item equippedArmor;
+    private Item equippedAccessory;
+    private Item equippedBoots;
 
     // Loot message
     private String lastMessage;
@@ -114,6 +116,11 @@ public class Inventory {
                 player.activateManaCrystal();
                 setMessage("Mana Crystal! Stamina costs -30% this battle.");
                 break;
+            case TOXIN_KIT:
+                player.clearPoison();
+                player.heal(type.restoreAmount);
+                setMessage("Toxin kit used! +" + type.restoreAmount + " HP");
+                break;
             default:
                 if (item.isBattleOnly()) {
                     setMessage("Use " + type.displayName + " in battle!");
@@ -134,17 +141,19 @@ public class Inventory {
             return;
         Item item = items.get(slotIndex);
 
-        if (item.getType().category == Item.Category.WEAPON) {
-            if (equippedWeapon != null) {
-                setMessage("Equipped: " + item.getType().displayName +
-                        " (was: " + equippedWeapon.getType().displayName + ")");
-            } else {
-                setMessage("Equipped: " + item.getType().displayName);
-            }
+        EquipmentSlot slot = item.getType().equipmentSlot;
+        if (slot == EquipmentSlot.WEAPON) {
             equippedWeapon = item;
-        } else if (item.getType().category == Item.Category.ARMOR) {
             setMessage("Equipped: " + item.getType().displayName);
+        } else if (slot == EquipmentSlot.ARMOR) {
             equippedArmor = item;
+            setMessage("Equipped: " + item.getType().displayName);
+        } else if (slot == EquipmentSlot.ACCESSORY) {
+            equippedAccessory = item;
+            setMessage("Equipped: " + item.getType().displayName);
+        } else if (slot == EquipmentSlot.BOOTS) {
+            equippedBoots = item;
+            setMessage("Equipped: " + item.getType().displayName);
         }
     }
 
@@ -161,6 +170,10 @@ public class Inventory {
             equippedWeapon = null;
         if (item == equippedArmor)
             equippedArmor = null;
+        if (item == equippedAccessory)
+            equippedAccessory = null;
+        if (item == equippedBoots)
+            equippedBoots = null;
 
         items.remove(slotIndex);
         setMessage("Dropped: " + item.getType().displayName);
@@ -198,11 +211,95 @@ public class Inventory {
     }
 
     public int getTotalAttackBonus() {
-        return equippedWeapon != null ? equippedWeapon.getType().attackBonus : 0;
+        return statSum(StatType.ATTACK);
     }
 
     public int getTotalDefenseBonus() {
-        return equippedArmor != null ? equippedArmor.getType().defenseBonus : 0;
+        return statSum(StatType.DEFENSE);
+    }
+
+    public float getTotalSpeedBonus() {
+        float bonus = 0f;
+        for (Item item : equippedItems()) {
+            if (item != null)
+                bonus += item.getType().speedBonus;
+        }
+        return bonus;
+    }
+
+    public float getTotalLightBonus() {
+        float bonus = 0f;
+        for (Item item : equippedItems()) {
+            if (item != null)
+                bonus += item.getType().lightBonus;
+        }
+        return bonus;
+    }
+
+    public float getTotalCritBonus() {
+        float bonus = 0f;
+        for (Item item : equippedItems()) {
+            if (item != null)
+                bonus += item.getType().critBonus;
+        }
+        return bonus;
+    }
+
+    public int count(Item.ItemType type) {
+        int total = 0;
+        for (Item item : items) {
+            if (item.getType() == type) {
+                total += item.getQuantity();
+            }
+        }
+        return total;
+    }
+
+    public boolean removeItems(Item.ItemType type, int amount) {
+        if (amount <= 0)
+            return true;
+        if (count(type) < amount)
+            return false;
+        int remaining = amount;
+        Iterator<Item> it = items.iterator();
+        while (it.hasNext() && remaining > 0) {
+            Item item = it.next();
+            if (item.getType() != type)
+                continue;
+            int take = Math.min(remaining, item.getQuantity());
+            item.removeQuantity(take);
+            remaining -= take;
+            if (item.getQuantity() <= 0) {
+                if (item == equippedWeapon)
+                    equippedWeapon = null;
+                if (item == equippedArmor)
+                    equippedArmor = null;
+                if (item == equippedAccessory)
+                    equippedAccessory = null;
+                if (item == equippedBoots)
+                    equippedBoots = null;
+                it.remove();
+            }
+        }
+        return true;
+    }
+
+    private enum StatType {
+        ATTACK, DEFENSE
+    }
+
+    private int statSum(StatType statType) {
+        int total = 0;
+        for (Item item : equippedItems()) {
+            if (item == null)
+                continue;
+            total += statType == StatType.ATTACK ? item.getType().attackBonus : item.getType().defenseBonus;
+        }
+        return total;
+    }
+
+    private Item[] equippedItems() {
+        return new Item[] { equippedWeapon, equippedArmor, equippedAccessory, equippedBoots };
     }
 
     private void setMessage(String msg) {
@@ -235,6 +332,14 @@ public class Inventory {
 
     public Item getEquippedArmor() {
         return equippedArmor;
+    }
+
+    public Item getEquippedAccessory() {
+        return equippedAccessory;
+    }
+
+    public Item getEquippedBoots() {
+        return equippedBoots;
     }
 
     public String getLastMessage() {

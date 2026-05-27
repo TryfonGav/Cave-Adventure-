@@ -15,7 +15,9 @@ import com.caveadventure.entity.Companion;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
 import com.caveadventure.entity.Shopkeeper;
+import com.caveadventure.item.CraftingManager;
 import com.caveadventure.ui.*;
+import com.caveadventure.quest.QuestManager;
 import com.caveadventure.world.Biome;
 import com.caveadventure.world.GameMap;
 
@@ -26,7 +28,7 @@ public class GameScreen extends ScreenAdapter {
 
     public enum GameState {
         MENU, CHARACTER_SELECT, SETTINGS, PLAYING, BATTLE, SHOP, GAME_OVER, FLOOR_TRANSITION,
-        EVENT, SKILL_PICK, NPC_DIALOGUE, COMPANION_CARE, MINIMAP_VIEW
+        EVENT, SKILL_PICK, NPC_DIALOGUE, COMPANION_CARE, MINIMAP_VIEW, CRAFTING
     }
 
     private final CaveAdventure game;
@@ -47,6 +49,8 @@ public class GameScreen extends ScreenAdapter {
     private final ScreenTransition transition;
     private final SkillTree skillTree;
     private final RandomEventManager eventManager;
+    private final QuestManager questManager;
+    private final CraftingManager craftingManager;
 
     // UI
     private final HUD hud;
@@ -62,6 +66,8 @@ public class GameScreen extends ScreenAdapter {
     private final SettingsMenu settingsMenu;
     private final CharacterSelectUI characterSelectUI;
     private final CompanionCareUI companionCareUI;
+    private final CraftingUI craftingUI;
+    private final QuestLogUI questLogUI;
 
     // State
     private GameState state;
@@ -76,6 +82,8 @@ public class GameScreen extends ScreenAdapter {
     private int lastPlayerLevel;
     private Biome currentBiome;
     private CharacterAppearance selectedAppearance;
+    private float autosaveTimer;
+    private float terrainHazardCooldown;
 
     public GameScreen(CaveAdventure game) {
         this.game = game;
@@ -92,6 +100,8 @@ public class GameScreen extends ScreenAdapter {
         this.transition = new ScreenTransition(game);
         this.skillTree = new SkillTree(game);
         this.eventManager = new RandomEventManager(game);
+        this.questManager = new QuestManager();
+        this.craftingManager = new CraftingManager();
 
         // UI
         this.hud = new HUD(game);
@@ -109,9 +119,14 @@ public class GameScreen extends ScreenAdapter {
         this.settingsMenu = new SettingsMenu(game);
         this.characterSelectUI = new CharacterSelectUI(game);
         this.companionCareUI = new CompanionCareUI(game);
+        this.craftingUI = new CraftingUI(game, craftingManager);
+        this.questLogUI = new QuestLogUI(game);
         this.levelManager = new LevelManager();
         this.selectedAppearance = CharacterAppearance.defaultAppearance();
 
+        Difficulty.loadCurrent();
+        ControlSettings.load();
+        SoundManager.getInstance().init();
         this.state = GameState.MENU;
         this.mainMenu.setHasSave(SaveManager.hasSave());
     }
@@ -130,6 +145,9 @@ public class GameScreen extends ScreenAdapter {
         lastPlayerLevel = 1;
         companion = null;
         skillTree.clearUnlockedSkills();
+        questManager.reset();
+        achievements.restoreUnlocked(java.util.Collections.emptySet());
+        statsScreen.reset();
         setupFloor(1);
     }
 
@@ -142,8 +160,13 @@ public class GameScreen extends ScreenAdapter {
         }
 
         selectedAppearance = data.characterAppearance.copy();
+        Difficulty.setCurrent(data.difficulty);
         setupFloor(data.floor);
         skillTree.restoreUnlockedSkills(data.unlockedSkills);
+        skillTree.restoreSkillPoints(data.skillPoints);
+        questManager.restore(data.questLines);
+        achievements.restoreUnlocked(data.unlockedAchievements);
+        statsScreen.restore(data.stats);
         player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
         player.modifyHunger(data.hunger - player.getHunger());
         lastPlayerLevel = player.getLevel();
@@ -167,6 +190,22 @@ public class GameScreen extends ScreenAdapter {
                 }
             }
         }
+        if (data.equippedAccessory != null) {
+            for (int i = 0; i < player.getInventory().getSize(); i++) {
+                if (player.getInventory().getItem(i).getType() == data.equippedAccessory) {
+                    player.getInventory().equipItem(i);
+                    break;
+                }
+            }
+        }
+        if (data.equippedBoots != null) {
+            for (int i = 0; i < player.getInventory().getSize(); i++) {
+                if (player.getInventory().getItem(i).getType() == data.equippedBoots) {
+                    player.getInventory().equipItem(i);
+                    break;
+                }
+            }
+        }
         if (data.poisonRemaining > 0f)
             player.applyPoison(data.poisonRemaining);
         player.addTorchDuration(data.torchDuration - player.getTorchDuration());
@@ -185,8 +224,7 @@ public class GameScreen extends ScreenAdapter {
             combatManager.getEnemies().removeIf(enemy -> enemy.getType() == Enemy.EnemyType.BOSS_GOLEM);
         }
         enemiesKilledTotal = data.enemiesKilled;
-        SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal, bossKilledThisFloor,
-            skillTree.getUnlockedSkills());
+        saveCurrentGame();
     }
 
     private void setupFloor(int floor) {
@@ -195,7 +233,10 @@ public class GameScreen extends ScreenAdapter {
         this.combatManager = levelManager.getCombatManager();
         this.player = new Player(spawn[0], spawn[1]);
         this.player.setAppearance(selectedAppearance);
-        this.currentBiome = Biome.forFloor(floor);
+        this.currentBiome = levelManager.getCurrentBiome();
+        questManager.offerQuestForBiome(currentBiome, floor);
+        questManager.recordReach(floor, currentBiome);
+        SoundManager.getInstance().playAmbient(currentBiome);
 
         OrthographicCamera cam = new OrthographicCamera();
         this.viewport = new FitViewport(960, 640, cam);
@@ -210,9 +251,20 @@ public class GameScreen extends ScreenAdapter {
 
         state = GameState.PLAYING;
         battleEncounterCooldown = 1.0f;
+        terrainHazardCooldown = 0.5f;
+        autosaveTimer = 0f;
         transition.fadeIn(0.8f);
-        SaveManager.saveGame(player, companion, floor, enemiesKilledTotal, bossKilledThisFloor,
-            skillTree.getUnlockedSkills());
+        saveCurrentGame();
+    }
+
+    private void saveCurrentGame() {
+        if (player == null || levelManager == null)
+            return;
+        SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal,
+                bossKilledThisFloor, skillTree.getUnlockedSkills(),
+                SaveManager.extrasFrom(questManager, achievements, statsScreen, currentBiome,
+                        skillTree.getSkillPoints()));
+        mainMenu.setHasSave(true);
     }
 
     private void transitionToNextFloor() {
@@ -236,7 +288,7 @@ public class GameScreen extends ScreenAdapter {
     public void render(float delta) {
         delta = Math.min(delta, 1 / 30f);
 
-        boolean inventoryPaused = state == GameState.PLAYING && inventoryUI.isVisible();
+        boolean inventoryPaused = state == GameState.PLAYING && (inventoryUI.isVisible() || questLogUI.isVisible());
         boolean carePaused = state == GameState.COMPANION_CARE;
         achievements.update(delta);
         transition.update(delta);
@@ -291,6 +343,10 @@ public class GameScreen extends ScreenAdapter {
                 updateMinimapView(delta);
                 drawMinimapView();
                 break;
+            case CRAFTING:
+                updateCrafting(delta);
+                drawCrafting();
+                break;
             case FLOOR_TRANSITION:
                 updateTransition(delta);
                 drawTransition();
@@ -318,6 +374,10 @@ public class GameScreen extends ScreenAdapter {
             Difficulty[] diffs = Difficulty.values();
             int idx = (Difficulty.getCurrent().ordinal() + 1) % diffs.length;
             Difficulty.setCurrent(diffs[idx]);
+        }
+        if (inputHandler.isKeyJustPressed(Input.Keys.P)) {
+            SaveManager.cycleProfile();
+            mainMenu.setHasSave(SaveManager.hasSave());
         }
 
         int result = mainMenu.update(inputHandler, delta);
@@ -402,6 +462,15 @@ public class GameScreen extends ScreenAdapter {
             state = GameState.MINIMAP_VIEW;
             return;
         }
+        if (inputHandler.isKeyJustPressed(Input.Keys.R) && !inventoryUI.isVisible()) {
+            craftingUI.toggle();
+            state = GameState.CRAFTING;
+            return;
+        }
+        if (inputHandler.isKeyJustPressed(Input.Keys.J) && !inventoryUI.isVisible()) {
+            questLogUI.toggle();
+            return;
+        }
         if (inputHandler.isKeyJustPressed(Input.Keys.C) && !inventoryUI.isVisible()) {
             if (companion != null) {
                 state = GameState.COMPANION_CARE;
@@ -429,10 +498,12 @@ public class GameScreen extends ScreenAdapter {
                 skillTree.closeViewer();
                 return;
             }
-            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal,
-                    bossKilledThisFloor, skillTree.getUnlockedSkills());
+            if (questLogUI.isVisible()) {
+                questLogUI.toggle();
+                return;
+            }
+            saveCurrentGame();
             state = GameState.MENU;
-            mainMenu.setHasSave(true);
             return;
         }
 
@@ -448,8 +519,20 @@ public class GameScreen extends ScreenAdapter {
             skillTree.update(inputHandler);
             return;
         }
+        if (questLogUI.isVisible()) {
+            questLogUI.update(inputHandler);
+            return;
+        }
 
         inventoryUI.update(delta);
+        questManager.updateFetch(player);
+        int claimed = questManager.claimReady(player);
+        if (claimed > 0) {
+            statsScreen.questsCompleted += claimed;
+            if (statsScreen.questsCompleted >= 3)
+                achievements.tryUnlock(AchievementManager.Achievement.QUEST_HELPER);
+            saveCurrentGame();
+        }
 
         if (inventoryUI.isVisible()) {
             String action = inventoryUI.handleInput(inputHandler, player.getInventory());
@@ -470,6 +553,7 @@ public class GameScreen extends ScreenAdapter {
         } else {
             // Player movement
             int prevX = player.getGridX(), prevY = player.getGridY();
+            player.setMovementSpeedBonus(skillTree.getMovementSpeedBonus());
             player.handleInput(inputHandler, gameMap, delta);
 
             // Track steps
@@ -482,15 +566,19 @@ public class GameScreen extends ScreenAdapter {
             // Interactions
             if (inputHandler.isKeyJustPressed(Input.Keys.F) || inputHandler.isKeyJustPressed(Input.Keys.ENTER)) {
                 if (levelManager.isNearShopkeeper(player)) {
+                    questManager.acceptAvailableQuest();
                     state = GameState.NPC_DIALOGUE;
-                    npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor());
+                    npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor())
+                            + "\n\n" + questManager.getLastMessage();
                     return;
                 }
                 boolean lucky = skillTree.hasSkill(SkillTree.Skill.LUCKY);
-                if (combatManager.tryOpenChest(player, levelManager.getCurrentFloor(), lucky)) {
+                if (combatManager.tryOpenChest(player, levelManager.getCurrentFloor(), lucky, currentBiome)) {
                     statsScreen.chestsOpened++;
+                    SoundManager.getInstance().playChestOpen();
                 } else if (levelManager.tryUnlockDoor(player)) {
                     statsScreen.doorsUnlocked++;
+                    SoundManager.getInstance().playDoorUnlock();
                 } else if (levelManager.isOnStairs(player)) {
                     transitionToNextFloor();
                     return;
@@ -515,8 +603,21 @@ public class GameScreen extends ScreenAdapter {
                 trapMessage = "Trap! -" + trapDmg + " HP!";
                 trapMessageTimer = 2.0f;
                 statsScreen.trapsTriggered++;
+                SoundManager.getInstance().playTrapTrigger();
                 particles.emitImpact(player.getPixelX() + 16, player.getPixelY() + 16,
                         new com.badlogic.gdx.graphics.Color(0.9f, 0.3f, 0.1f, 1f));
+            }
+            terrainHazardCooldown -= delta;
+            if (terrainHazardCooldown <= 0f) {
+                int hazardDmg = levelManager.checkHazards(player);
+                if (hazardDmg > 0) {
+                    trapMessage = gameMap.getTile(player.getGridX(), player.getGridY()).getDescription()
+                            + "! -" + hazardDmg + " HP";
+                    trapMessageTimer = 2.0f;
+                    terrainHazardCooldown = 1.4f;
+                } else {
+                    terrainHazardCooldown = 0.2f;
+                }
             }
         }
 
@@ -554,8 +655,10 @@ public class GameScreen extends ScreenAdapter {
         // Level-up detection (skill tree)
         if (player.getLevel() > lastPlayerLevel) {
             lastPlayerLevel = player.getLevel();
+            skillTree.grantSkillPoint();
             skillTree.showPicker();
             state = GameState.SKILL_PICK;
+            SoundManager.getInstance().playLevelUp();
             particles.emitLevelUp(player.getPixelX() + 16, player.getPixelY() + 16);
             return;
         }
@@ -567,6 +670,10 @@ public class GameScreen extends ScreenAdapter {
             Enemy encountered = combatManager.checkBattleEncounter(player);
             if (encountered != null && !player.isMoving()) {
                 battleScreen.startBattle(player, encountered, levelManager.getCurrentFloor(), skillTree, companion);
+                if (encountered.getType().isBoss())
+                    SoundManager.getInstance().playBossTheme(encountered.getType());
+                else
+                    SoundManager.getInstance().playBattleStart();
                 bestiary.discover(encountered.getType());
                 state = GameState.BATTLE;
                 statsScreen.battlesFought++;
@@ -586,6 +693,12 @@ public class GameScreen extends ScreenAdapter {
         // Achievements
         achievements.checkConditions(enemiesKilledTotal, levelManager.getCurrentFloor(),
                 player.getLevel(), player.getHealth(), player.getInventory().getSize(), bossKilledThisFloor);
+
+        autosaveTimer += delta;
+        if (autosaveTimer >= 45f) {
+            autosaveTimer = 0f;
+            saveCurrentGame();
+        }
 
         // Shopkeeper update
         Shopkeeper shop = levelManager.getShopkeeper();
@@ -647,8 +760,10 @@ public class GameScreen extends ScreenAdapter {
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
         // HUD
-        hud.render(player, combatManager.getEnemyCount(), levelManager.getCurrentFloor(), levelManager.getMaxFloors());
+        hud.render(player, combatManager.getEnemyCount(), levelManager.getCurrentFloor(), levelManager.getMaxFloors(),
+                questManager.getTrackerText());
         inventoryUI.render(player.getInventory(), player);
+        questLogUI.render(questManager);
         minimap.render(gameMap, player, combatManager.getEnemies());
         bestiary.render();
         statsScreen.render(player, enemiesKilledTotal, levelManager.getCurrentFloor());
@@ -728,6 +843,7 @@ public class GameScreen extends ScreenAdapter {
         if (!eventManager.isActive()) {
             state = GameState.PLAYING;
             statsScreen.eventsCompleted++;
+            questManager.offerQuestForBiome(currentBiome, levelManager.getCurrentFloor());
             if (eventManager.getLastEffect() == RandomEventManager.EventEffect.SPAWN_COMPANION
                     && companion == null) {
                 companion = new Companion(player.getGridX(), player.getGridY(),
@@ -744,8 +860,7 @@ public class GameScreen extends ScreenAdapter {
 
         companion.update(delta);
         if (companionCareUI.update(inputHandler, companion, delta)) {
-            SaveManager.saveGame(player, companion, levelManager.getCurrentFloor(), enemiesKilledTotal,
-                    bossKilledThisFloor, skillTree.getUnlockedSkills());
+            saveCurrentGame();
             state = GameState.PLAYING;
         }
     }
@@ -774,18 +889,25 @@ public class GameScreen extends ScreenAdapter {
             if (battleScreen.getResult()) {
                 combatManager.removeEnemy(battleScreen.getEnemy());
                 enemiesKilledTotal++;
+                questManager.recordKill(battleScreen.getEnemy().getType());
                 bestiary.recordKill(battleScreen.getEnemy().getType());
                 if (battleScreen.wasBossKilled()) {
                     bossKilledThisFloor = true;
+                    statsScreen.bossesKilled++;
                     if (levelManager.isFinalFloor()) {
                         levelManager.unlockFinalBossExit();
                     }
                     achievements.tryUnlock(AchievementManager.Achievement.BOSS_SLAYER);
+                    if (battleScreen.getEnemy().getType() == Enemy.EnemyType.BOSS_WYRM)
+                        achievements.tryUnlock(AchievementManager.Achievement.WYRM_SLAYER);
                 }
+                SoundManager.getInstance().playVictory();
             } else if (battleScreen.getEnemy().isAlive()) {
                 combatManager.relocateEnemy(battleScreen.getEnemy(), player);
                 statsScreen.timesFled++;
             }
+            SoundManager.getInstance().playAmbient(currentBiome);
+            saveCurrentGame();
             state = GameState.PLAYING;
             battleEncounterCooldown = 1.5f;
             transition.fadeIn(0.3f);
@@ -831,6 +953,22 @@ public class GameScreen extends ScreenAdapter {
                     }
                 }
             }
+            if (oldInv.getEquippedAccessory() != null) {
+                for (int i = 0; i < player.getInventory().getSize(); i++) {
+                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedAccessory().getType()) {
+                        player.getInventory().equipItem(i);
+                        break;
+                    }
+                }
+            }
+            if (oldInv.getEquippedBoots() != null) {
+                for (int i = 0; i < player.getInventory().getSize(); i++) {
+                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedBoots().getType()) {
+                        player.getInventory().equipItem(i);
+                        break;
+                    }
+                }
+            }
             while (player.getLevel() < oldLevel)
                 player.addXP(player.getXPToNextLevel());
             lastPlayerLevel = player.getLevel();
@@ -838,6 +976,7 @@ public class GameScreen extends ScreenAdapter {
             player.addTorchDuration(oldTorch - player.getTorchDuration());
             if (oldPoisoned)
                 player.applyPoison(3f);
+            saveCurrentGame();
         }
     }
 
@@ -882,6 +1021,23 @@ public class GameScreen extends ScreenAdapter {
     private void drawMinimapView() {
         drawPlaying();
         minimap.renderFullscreen(gameMap, player, combatManager.getEnemies());
+    }
+
+    private void updateCrafting(float delta) {
+        boolean crafted = craftingUI.update(inputHandler, player.getInventory(), delta);
+        if (crafted) {
+            statsScreen.itemsCrafted++;
+            achievements.tryUnlock(AchievementManager.Achievement.CRAFTER);
+            SoundManager.getInstance().playSfx("craft");
+            saveCurrentGame();
+        }
+        if (!craftingUI.isVisible())
+            state = GameState.PLAYING;
+    }
+
+    private void drawCrafting() {
+        drawPlaying();
+        craftingUI.render(player.getInventory());
     }
 
     // --- Game Over ---
