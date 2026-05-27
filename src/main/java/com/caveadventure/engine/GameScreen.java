@@ -428,6 +428,7 @@ public class GameScreen extends ScreenAdapter {
     // --- Settings ---
     private void updateSettings(float delta) {
         if (settingsMenu.update(inputHandler, delta)) {
+            mainMenu.setHasSave(SaveManager.hasSave());
             state = GameState.MENU;
         }
     }
