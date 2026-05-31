@@ -1,5 +1,8 @@
 package com.caveadventure.engine;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Preferences;
+
 /**
  * Difficulty settings affecting enemy stats, trap frequency, and loot quality.
  *
@@ -58,6 +61,28 @@ public enum Difficulty {
 
     private static Difficulty current = NORMAL;
 
-    public static void setCurrent(Difficulty d) { current = d; }
+    public static void setCurrent(Difficulty d) {
+        current = d == null ? NORMAL : d;
+        saveCurrent();
+    }
     public static Difficulty getCurrent()       { return current; }
+
+    public static void loadCurrent() {
+        if (Gdx.app == null)
+            return;
+        Preferences prefs = Gdx.app.getPreferences("CaveAdventureSettings");
+        try {
+            current = Difficulty.valueOf(prefs.getString("difficulty", NORMAL.name()));
+        } catch (IllegalArgumentException ex) {
+            current = NORMAL;
+        }
+    }
+
+    private static void saveCurrent() {
+        if (Gdx.app == null)
+            return;
+        Preferences prefs = Gdx.app.getPreferences("CaveAdventureSettings");
+        prefs.putString("difficulty", current.name());
+        prefs.flush();
+    }
 }

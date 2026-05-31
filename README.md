@@ -10,6 +10,8 @@ Welcome to CaveAdventure. Explore a shifting dungeon, survive traps and hunger, 
 | Arrow Keys | Move |
 | F or Enter | Interact with chests, doors, stairs, NPCs, and prompts |
 | Tab or I | Open or close Inventory |
+| R | Open or close Crafting |
+| J | Open or close Quest Log |
 | M | Open or close the fullscreen Minimap and pause the game |
 | B | Open or close the Bestiary |
 | P | Open or close the Stats screen |
@@ -47,13 +49,25 @@ Hunger also matters. Moving and fighting slowly drain your reserves. Keep food o
 
 Random events can trigger while you are exploring. These are not always combat encounters; sometimes they are choices, rewards, or hazards. When the dungeon gets quiet, stay alert.
 
+## Biomes, Quests, And Crafting
+
+The cave now stretches to floor 14 and includes two late-game biomes: Frost Vaults and Toxic Mire. Frost Vaults add slick ice that slows movement, while Toxic Mire adds poisonous mist that damages and can poison you. Chests can now drop biome materials such as Frost Ore, Toxin Sacs, Crystal Shards, Ember Cores, and Shadow Essence.
+
+Talk to shopkeepers and resolve random events to surface biome quests. Press J to track accepted quests. Objectives include fetch, kill, and reach goals, and completed quests grant XP plus item rewards.
+
+Press R to craft equipment and tools from gathered materials. Crafted gear includes Crystal Blade, Fire Axe, Shadow Charm, Froststep Boots, and Toxin Kit. Accessories and boots are equipment slots, so check Inventory tooltips to see their stat effects.
+
 ## Combat And Progression
 
 Walking into an enemy starts a battle. Combat is turn-based, and the battle screen handles attacking, defending, using items, or fleeing.
 
 Defeating enemies gives XP. When you level up, you choose from a random set of skills in the Skill Tree. These upgrades permanently improve your character and can shape a run around offense, defense, or utility.
 
+The skill tree now uses points and prerequisite branches. Leveling grants a skill point, K opens the full tree, and Enter unlocks a selected available node. Swift Steps changes movement speed immediately once unlocked.
+
 Weapons and enemies can inflict status effects such as poison, burn, or stun. Good gear and the right skills make a big difference in longer runs.
+
+Bosses now have phase logic. The Stone Golem and Mire Wyrm use different phase attacks, unique music hooks, and unique loot drops.
 
 ## Inventory, Gear, And Shops
 
@@ -68,6 +82,12 @@ You may meet a companion during a run. Companions can follow you and help in bat
 ## Tracking Progress
 
 Use the Bestiary to see the enemies you have discovered and your kill record. Use the Stats screen to track how far you have gone, what you have found, and how your run is developing. These screens are useful when you want to compare attempts or learn what you are still missing.
+
+Achievements and stats persist with the active save profile. Settings now include profile selection, difficulty, controls preset, SFX volume, and music volume. Saves are versioned, autosaved during play, and stored per profile.
+
+## Data And Assets
+
+Example data files live under `src/main/resources/data/` for recipes, quests, and loot table shape. Audio placeholder documentation lives under `src/main/resources/assets/audio/README.md`. Add matching wav, ogg, or mp3 files and wire them in `SoundManager` when production assets are ready.
 
 ## Practical Tips
 

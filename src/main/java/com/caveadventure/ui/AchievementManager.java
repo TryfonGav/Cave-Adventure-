@@ -27,6 +27,9 @@ public class AchievementManager {
         LEVEL_5("Seasoned", "Reach level 5", new Color(0.3f, 0.8f, 0.3f, 1f)),
         LEVEL_10("Veteran", "Reach level 10", new Color(0.2f, 0.9f, 0.2f, 1f)),
         BOSS_SLAYER("Boss Slayer", "Defeat a boss", new Color(0.9f, 0.7f, 0.1f, 1f)),
+        WYRM_SLAYER("Wyrm Slayer", "Defeat the Mire Wyrm", new Color(0.45f, 0.95f, 0.25f, 1f)),
+        QUEST_HELPER("Quest Helper", "Complete 3 quests", new Color(0.45f, 0.75f, 1f, 1f)),
+        CRAFTER("Crafter", "Craft your first item", new Color(0.75f, 0.55f, 0.28f, 1f)),
         SHOPAHOLIC("Shopaholic", "Buy an item from a shop", new Color(0.8f, 0.6f, 0.2f, 1f)),
         SURVIVOR("Survivor", "Survive below 10 HP", new Color(0.7f, 0.15f, 0.15f, 1f)),
         COLLECTOR("Collector", "Have 15 items at once", new Color(0.6f, 0.4f, 0.8f, 1f)),
@@ -68,6 +71,7 @@ public class AchievementManager {
             return false;
         unlocked.add(achievement);
         popupQueue.add(achievement);
+        com.caveadventure.engine.SoundManager.getInstance().playAchievement();
         return true;
     }
 
@@ -191,5 +195,17 @@ public class AchievementManager {
 
     public int getTotalCount() {
         return Achievement.values().length;
+    }
+
+    public Set<Achievement> getUnlocked() {
+        return new HashSet<>(unlocked);
+    }
+
+    public void restoreUnlocked(Collection<Achievement> achievements) {
+        unlocked.clear();
+        if (achievements != null)
+            unlocked.addAll(achievements);
+        popupQueue.clear();
+        currentPopup = null;
     }
 }

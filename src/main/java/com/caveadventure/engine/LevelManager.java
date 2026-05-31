@@ -2,10 +2,12 @@ package com.caveadventure.engine;
 
 import com.caveadventure.entity.Player;
 import com.caveadventure.entity.Shopkeeper;
+import com.caveadventure.entity.Enemy;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.item.Item;
 import com.caveadventure.world.CaveGenerator;
 import com.caveadventure.world.GameMap;
+import com.caveadventure.world.Biome;
 import com.caveadventure.world.Tile;
 
 import java.util.*;
@@ -20,6 +22,7 @@ public class LevelManager {
     private GameMap currentMap;
     private CombatManager combatManager;
     private Shopkeeper shopkeeper;
+    private Biome currentBiome;
     private int finalExitX = -1;
     private int finalExitY = -1;
 
@@ -43,7 +46,14 @@ public class LevelManager {
      * Generate a new floor. Returns the spawn position {x, y}.
      */
     public int[] generateFloor(int floor) {
+        return generateFloor(floor, Biome.forFloor(floor), Difficulty.getCurrent());
+    }
+
+    public int[] generateFloor(int floor, Biome biome, Difficulty difficulty) {
         this.currentFloor = floor;
+        this.currentBiome = biome == null ? Biome.forFloor(floor) : biome;
+        if (difficulty != null)
+            Difficulty.setCurrent(difficulty);
 
         if (floor == 10 || floor == MAX_FLOORS) {
             return generateFinalBossFloor();
@@ -53,20 +63,21 @@ public class LevelManager {
         int height = 60 + (floor - 1) * 3;
         float wallDensity = 0.43f + floor * 0.005f;
 
-        CaveGenerator generator = new CaveGenerator(width, height, wallDensity, 5);
+        CaveGenerator generator = new CaveGenerator(width, height, wallDensity, 5, currentBiome);
         Tile[][] tiles = generator.generate();
         this.currentMap = new GameMap(tiles, width, height);
 
         // Setup combat
         this.combatManager = new CombatManager(currentMap);
         int enemyCount = BASE_ENEMIES + (floor - 1) * ENEMIES_PER_FLOOR;
-        combatManager.spawnEnemies(enemyCount, floor);
+        combatManager.spawnEnemies(enemyCount, floor, currentBiome);
 
         // Spawn boss on every 5th floor
         if (floor % 5 == 0) {
             int[] bossPos = findDistantFloorTile(tiles, width, height);
             if (bossPos != null) {
-                combatManager.spawnBoss(bossPos[0], bossPos[1]);
+                combatManager.spawnBoss(bossPos[0], bossPos[1], floor >= 10
+                        ? Enemy.EnemyType.BOSS_WYRM : Enemy.EnemyType.BOSS_GOLEM);
             }
         }
 
@@ -144,7 +155,8 @@ public class LevelManager {
 
         this.currentMap = new GameMap(tiles, width, height);
         this.combatManager = new CombatManager(currentMap);
-        this.combatManager.spawnBoss(centerX, bossY);
+        this.currentBiome = Biome.TOXIC_MIRE;
+        this.combatManager.spawnBoss(centerX, bossY, Enemy.EnemyType.BOSS_WYRM);
         this.shopkeeper = null;
 
         return new int[] { centerX, spawnY };
@@ -240,6 +252,20 @@ public class LevelManager {
             return dmg;
         }
         return 0;
+    }
+
+    public int checkHazards(Player player) {
+        int px = player.getGridX();
+        int py = player.getGridY();
+        Tile tile = currentMap.getTile(px, py);
+        int damage = tile.getHazardDamage();
+        if (damage <= 0)
+            return 0;
+        int scaled = scaleTrapDamage(damage);
+        player.takeDamage(scaled);
+        if (tile == Tile.TOXIC_MIST)
+            player.applyPoison(2.5f);
+        return scaled;
     }
 
     /**
@@ -349,5 +375,9 @@ public class LevelManager {
 
     public Shopkeeper getShopkeeper() {
         return shopkeeper;
+    }
+
+    public Biome getCurrentBiome() {
+        return currentBiome;
     }
 }

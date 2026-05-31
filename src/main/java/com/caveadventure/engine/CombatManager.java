@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.entity.*;
 import com.caveadventure.item.*;
 import com.caveadventure.world.GameMap;
+import com.caveadventure.world.Biome;
 import com.caveadventure.world.Tile;
 
 import java.util.*;
@@ -29,6 +30,10 @@ public class CombatManager {
     }
 
     public void spawnEnemies(int count, int floor) {
+        spawnEnemies(count, floor, Biome.forFloor(floor));
+    }
+
+    public void spawnEnemies(int count, int floor, Biome biome) {
         Tile[][] tiles = gameMap.getTiles();
         List<int[]> floorTiles = new ArrayList<>();
 
@@ -44,17 +49,39 @@ public class CombatManager {
 
         for (int i = 0; i < Math.min(count, floorTiles.size()); i++) {
             int[] pos = floorTiles.get(i);
-            Enemy.EnemyType type = pickEnemyType(floor);
+            Enemy.EnemyType type = pickEnemyType(floor, biome);
             enemies.add(new Enemy(pos[0], pos[1], type));
         }
     }
 
     public void spawnBoss(int x, int y) {
-        enemies.add(new Enemy(x, y, Enemy.EnemyType.BOSS_GOLEM));
+        spawnBoss(x, y, Enemy.EnemyType.BOSS_GOLEM);
+    }
+
+    public void spawnBoss(int x, int y, Enemy.EnemyType bossType) {
+        enemies.add(new Enemy(x, y, bossType == null ? Enemy.EnemyType.BOSS_GOLEM : bossType));
     }
 
     private Enemy.EnemyType pickEnemyType(int floor) {
+        return pickEnemyType(floor, Biome.forFloor(floor));
+    }
+
+    private Enemy.EnemyType pickEnemyType(int floor, Biome biome) {
         float roll = random.nextFloat();
+        if (biome == Biome.FROST_VAULTS) {
+            if (roll < 0.45f)
+                return Enemy.EnemyType.ICE_DRAKE;
+            if (roll < 0.75f)
+                return Enemy.EnemyType.SKELETON;
+            return Enemy.EnemyType.SHADOW;
+        }
+        if (biome == Biome.TOXIC_MIRE) {
+            if (roll < 0.35f)
+                return Enemy.EnemyType.CAVE_SPIDER;
+            if (roll < 0.68f)
+                return Enemy.EnemyType.NECROMANCER;
+            return Enemy.EnemyType.SHADOW;
+        }
         if (floor > 5) {
             // After floor 5: rare early enemies, common late enemies
             if (roll < 0.10f)
@@ -141,12 +168,16 @@ public class CombatManager {
     }
 
     public boolean tryOpenChest(Player player, int floor, boolean lucky) {
+        return tryOpenChest(player, floor, lucky, Biome.forFloor(floor));
+    }
+
+    public boolean tryOpenChest(Player player, int floor, boolean lucky, Biome biome) {
         int px = player.getGridX();
         int py = player.getGridY();
         Tile tile = gameMap.getTile(px, py);
 
         if (tile == Tile.CHEST) {
-            List<Item> loot = LootTable.getChestLoot(floor, lucky);
+            List<Item> loot = LootTable.getChestLoot(floor, lucky, biome);
             for (Item item : loot) {
                 player.getInventory().addItem(item);
             }

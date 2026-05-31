@@ -9,7 +9,11 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
+import com.caveadventure.engine.ControlSettings;
+import com.caveadventure.engine.Difficulty;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.engine.SaveManager;
+import com.caveadventure.engine.SoundManager;
 
 /**
  * Settings menu screen for display options.
@@ -34,7 +38,7 @@ public class SettingsMenu {
     private boolean isFullscreen = false;
     private boolean isVsync = true;
 
-    private final String[] options = new String[5];
+    private final String[] options = new String[10];
 
     private final float[] particleX = new float[30];
     private final float[] particleY = new float[30];
@@ -49,6 +53,8 @@ public class SettingsMenu {
 
         this.prefs = Gdx.app.getPreferences("CaveAdventureSettings");
         loadSettings();
+        Difficulty.loadCurrent();
+        ControlSettings.load();
         updateOptionsText();
 
         for (int i = 0; i < particleX.length; i++)
@@ -83,9 +89,14 @@ public class SettingsMenu {
         String fpsString = fpsCaps[currentFpsIndex] == 0 ? "Uncapped" : String.valueOf(fpsCaps[currentFpsIndex]);
         options[0] = "Resolution: < " + resolutionsX[currentResolutionIndex] + "x" + resolutionsY[currentResolutionIndex] + " >";
         options[1] = "FPS Cap: < " + fpsString + " >";
-        options[2] = "Fullscreen: " + (isFullscreen ? "ON" : "OFF");
-        options[3] = "V-Sync: " + (isVsync ? "ON" : "OFF");
-        options[4] = "Back";
+        options[2] = "Difficulty: < " + Difficulty.getCurrent().name + " >";
+        options[3] = "Controls: < " + ControlSettings.getCurrentPreset().label + " >";
+        options[4] = "Profile: < " + SaveManager.getActiveProfile() + " >";
+        options[5] = "SFX Volume: < " + Math.round(SoundManager.getInstance().getVolume() * 100) + "% >";
+        options[6] = "Music Volume: < " + Math.round(SoundManager.getInstance().getMusicVolume() * 100) + "% >";
+        options[7] = "Fullscreen: " + (isFullscreen ? "ON" : "OFF");
+        options[8] = "V-Sync: " + (isVsync ? "ON" : "OFF");
+        options[9] = "Back";
     }
 
     private void applySettings() {
@@ -146,21 +157,52 @@ public class SettingsMenu {
                 currentFpsIndex = (currentFpsIndex + 1) % fpsCaps.length;
                 applySettings();
             }
+        } else if (selectedOption == 2) {
+            if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A)
+                    || input.isKeyJustPressed(Input.Keys.RIGHT) || input.isKeyJustPressed(Input.Keys.D)) {
+                cycleDifficulty(input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A) ? -1 : 1);
+            }
+        } else if (selectedOption == 5 || selectedOption == 6) {
+            int dir = 0;
+            if (input.isKeyJustPressed(Input.Keys.LEFT) || input.isKeyJustPressed(Input.Keys.A))
+                dir = -1;
+            if (input.isKeyJustPressed(Input.Keys.RIGHT) || input.isKeyJustPressed(Input.Keys.D))
+                dir = 1;
+            if (dir != 0) {
+                if (selectedOption == 5)
+                    SoundManager.getInstance().setVolume(SoundManager.getInstance().getVolume() + dir * 0.1f);
+                else
+                    SoundManager.getInstance().setMusicVolume(SoundManager.getInstance().getMusicVolume() + dir * 0.1f);
+                updateOptionsText();
+            }
         }
 
         if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
-            if (selectedOption == 2) {
+            if (selectedOption == 3) {
+                ControlSettings.cyclePreset();
+                updateOptionsText();
+            } else if (selectedOption == 4) {
+                SaveManager.cycleProfile();
+                updateOptionsText();
+            } else if (selectedOption == 7) {
                 isFullscreen = !isFullscreen;
                 applySettings();
-            } else if (selectedOption == 3) {
+            } else if (selectedOption == 8) {
                 isVsync = !isVsync;
                 applySettings();
-            } else if (selectedOption == 4) {
+            } else if (selectedOption == 9) {
                 return true;
             }
         }
 
         return input.isKeyJustPressed(Input.Keys.ESCAPE);
+    }
+
+    private void cycleDifficulty(int direction) {
+        Difficulty[] values = Difficulty.values();
+        int next = (Difficulty.getCurrent().ordinal() + direction + values.length) % values.length;
+        Difficulty.setCurrent(values[next]);
+        updateOptionsText();
     }
 
     public void render() {
@@ -181,15 +223,15 @@ public class SettingsMenu {
 
         float titleY = screenH * 0.80f;
         CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 240, titleY - 50, 480, 88, 0.94f);
-        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 235, screenH * 0.22f, 470, screenH * 0.45f, 0.92f);
+        CaveUIStyle.drawStonePanel(game.shapeRenderer, screenW / 2f - 250, screenH * 0.08f, 500, screenH * 0.64f, 0.92f);
         CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f - 292, screenH * 0.55f, 1.4f, 0.92f, animTimer);
         CaveUIStyle.drawTorch(game.shapeRenderer, screenW / 2f + 266, screenH * 0.55f, 1.4f, 0.92f, animTimer + 0.8f);
 
-        float menuStartY = screenH * 0.55f;
+        float menuStartY = screenH * 0.64f;
         for (int i = 0; i < options.length; i++) {
-            float optY = menuStartY - i * 55;
+            float optY = menuStartY - i * 38;
             if (i == selectedOption)
-                CaveUIStyle.drawSelection(game.shapeRenderer, screenW / 2f - 205, optY - 5, 410, 40, 1f);
+                CaveUIStyle.drawSelection(game.shapeRenderer, screenW / 2f - 220, optY - 5, 440, 32, 1f);
         }
         game.shapeRenderer.end();
 
@@ -205,7 +247,7 @@ public class SettingsMenu {
         largeFont.draw(game.batch, "SETTINGS", screenW / 2f - layout.width / 2f, titleY + 30);
 
         for (int i = 0; i < options.length; i++) {
-            float optY = menuStartY - i * 55;
+            float optY = menuStartY - i * 38;
             normalFont.setColor(i == selectedOption ? CaveUIStyle.GOLD : CaveUIStyle.TEXT);
             layout.setText(normalFont, options[i]);
             normalFont.draw(game.batch, options[i], screenW / 2f - layout.width / 2f, optY + 28);

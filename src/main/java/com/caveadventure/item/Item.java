@@ -33,6 +33,8 @@ public class Item {
                                 new Color(0.65f, 0.65f, 0.7f, 1f), 0, 15, 0),
                 CRYSTAL_ARMOR("Crystal Armor", Category.ARMOR, "Shimmers with protection",
                                 new Color(0.4f, 0.7f, 0.9f, 1f), 0, 22, 0),
+                FROST_MAIL("Frost Mail", Category.ARMOR, "Insulated armor for frozen vaults",
+                                new Color(0.55f, 0.82f, 1f, 1f), 0, 26, 0),
 
                 // Consumables
                 HEALTH_POTION("Health Potion", Category.CONSUMABLE, "Restores 30 HP",
@@ -92,7 +94,31 @@ public class Item {
                 SHADOW_RUNE("Shadow Rune", Category.SCROLL, "+20% crit chance for 3 turns",
                                 new Color(0.3f, 0.15f, 0.4f, 1f), 0, 0, 0),
                 FROST_RUNE("Frost Rune", Category.SCROLL, "Slows enemy — skip their next turn",
-                                new Color(0.6f, 0.85f, 1f, 1f), 0, 0, 0);
+                                new Color(0.6f, 0.85f, 1f, 1f), 0, 0, 0),
+
+                CRYSTAL_SHARD("Crystal Shard", Category.MATERIAL, "Crafting material from crystal caves",
+                                new Color(0.55f, 0.85f, 1f, 1f), 0, 0, 0),
+                GLOWCAP_SPORE("Glowcap Spore", Category.MATERIAL, "Softly glowing mushroom spores",
+                                new Color(0.45f, 1f, 0.35f, 1f), 0, 0, 0),
+                EMBER_CORE("Ember Core", Category.MATERIAL, "A coal-hot crafting core",
+                                new Color(1f, 0.35f, 0.08f, 1f), 0, 0, 0),
+                SHADOW_ESSENCE("Shadow Essence", Category.MATERIAL, "A vial of condensed gloom",
+                                new Color(0.18f, 0.12f, 0.26f, 1f), 0, 0, 0),
+                FROST_ORE("Frost Ore", Category.MATERIAL, "Blue-white ore that never warms",
+                                new Color(0.58f, 0.86f, 1f, 1f), 0, 0, 0),
+                TOXIN_SAC("Toxin Sac", Category.MATERIAL, "Mire toxin used by alchemists",
+                                new Color(0.36f, 0.95f, 0.22f, 1f), 0, 0, 0),
+                SHADOW_CHARM("Shadow Charm", Category.ACCESSORY, "+10% critical chance",
+                                new Color(0.45f, 0.28f, 0.62f, 1f), 0, 0, 0,
+                                EquipmentSlot.ACCESSORY, 0f, 0f, 0.10f),
+                LANTERN_CHARM("Lantern Charm", Category.ACCESSORY, "Adds light radius",
+                                new Color(1f, 0.76f, 0.26f, 1f), 0, 0, 0,
+                                EquipmentSlot.ACCESSORY, 0f, 1.4f, 0f),
+                FROSTSTEP_BOOTS("Froststep Boots", Category.BOOTS, "Faster movement on rough ground",
+                                new Color(0.62f, 0.88f, 1f, 1f), 0, 2, 0,
+                                EquipmentSlot.BOOTS, 0.16f, 0f, 0f),
+                TOXIN_KIT("Toxin Kit", Category.CONSUMABLE, "Cures poison and restores 20 HP",
+                                new Color(0.35f, 0.95f, 0.25f, 1f), 0, 0, 20);
 
                 public final String displayName;
                 public final Category category;
@@ -101,9 +127,20 @@ public class Item {
                 public final int attackBonus;
                 public final int defenseBonus;
                 public final int restoreAmount;
+                public final EquipmentSlot equipmentSlot;
+                public final float speedBonus;
+                public final float lightBonus;
+                public final float critBonus;
 
                 ItemType(String displayName, Category category, String description, Color color,
                                 int attackBonus, int defenseBonus, int restoreAmount) {
+                        this(displayName, category, description, color, attackBonus, defenseBonus, restoreAmount,
+                                        null, 0f, 0f, 0f);
+                }
+
+                ItemType(String displayName, Category category, String description, Color color,
+                                int attackBonus, int defenseBonus, int restoreAmount,
+                                EquipmentSlot equipmentSlot, float speedBonus, float lightBonus, float critBonus) {
                         this.displayName = displayName;
                         this.category = category;
                         this.description = description;
@@ -111,11 +148,15 @@ public class Item {
                         this.attackBonus = attackBonus;
                         this.defenseBonus = defenseBonus;
                         this.restoreAmount = restoreAmount;
+                        this.equipmentSlot = equipmentSlot != null ? equipmentSlot : defaultSlotFor(category);
+                        this.speedBonus = speedBonus;
+                        this.lightBonus = lightBonus;
+                        this.critBonus = critBonus;
                 }
         }
 
         public enum Category {
-                WEAPON, ARMOR, CONSUMABLE, KEY, TREASURE, SCROLL
+                WEAPON, ARMOR, ACCESSORY, BOOTS, CONSUMABLE, KEY, TREASURE, SCROLL, MATERIAL
         }
 
         private final ItemType type;
@@ -154,11 +195,12 @@ public class Item {
                 return type.category == Category.CONSUMABLE ||
                                 type.category == Category.KEY ||
                                 type.category == Category.TREASURE ||
-                                type.category == Category.SCROLL;
+                                type.category == Category.SCROLL ||
+                                type.category == Category.MATERIAL;
         }
 
         public boolean isEquippable() {
-                return type.category == Category.WEAPON || type.category == Category.ARMOR;
+                return type.equipmentSlot != EquipmentSlot.NONE;
         }
 
         public boolean isUsable() {
@@ -170,5 +212,17 @@ public class Item {
                 return type == ItemType.POISON_VIAL || type == ItemType.ICE_SHARD
                         || type == ItemType.FIRE_RUNE || type == ItemType.SHADOW_RUNE
                         || type == ItemType.FROST_RUNE || type == ItemType.SMOKE_BOMB;
+        }
+
+        private static EquipmentSlot defaultSlotFor(Category category) {
+                if (category == Category.WEAPON)
+                        return EquipmentSlot.WEAPON;
+                if (category == Category.ARMOR)
+                        return EquipmentSlot.ARMOR;
+                if (category == Category.ACCESSORY)
+                        return EquipmentSlot.ACCESSORY;
+                if (category == Category.BOOTS)
+                        return EquipmentSlot.BOOTS;
+                return EquipmentSlot.NONE;
         }
 }

@@ -26,11 +26,13 @@ public class Player extends Entity {
     // Movement
     private boolean isMoving;
     private float moveProgress;
+    private float currentMoveDuration;
     private int targetGridX;
     private int targetGridY;
     private float startPixelX;
     private float startPixelY;
     private static final float MOVE_DURATION = 0.15f;
+    private float movementSpeedBonus;
 
     // Animation
     private float animTimer;
@@ -85,6 +87,7 @@ public class Player extends Entity {
         this.stamina = maxStamina;
         this.targetGridX = gridX;
         this.targetGridY = gridY;
+        this.currentMoveDuration = MOVE_DURATION;
         this.inventory = new Inventory();
         this.torchDuration = 30f;
         this.appearance = CharacterAppearance.defaultAppearance();
@@ -97,10 +100,10 @@ public class Player extends Entity {
         if (isMoving)
             return;
 
-        boolean up = input.isKeyDown(Input.Keys.UP) || input.isKeyDown(Input.Keys.W);
-        boolean down = input.isKeyDown(Input.Keys.DOWN) || input.isKeyDown(Input.Keys.S);
-        boolean left = input.isKeyDown(Input.Keys.LEFT) || input.isKeyDown(Input.Keys.A);
-        boolean right = input.isKeyDown(Input.Keys.RIGHT) || input.isKeyDown(Input.Keys.D);
+        boolean up = input.isKeyDown(com.caveadventure.engine.ControlSettings.upKey()) || input.isKeyDown(Input.Keys.UP);
+        boolean down = input.isKeyDown(com.caveadventure.engine.ControlSettings.downKey()) || input.isKeyDown(Input.Keys.DOWN);
+        boolean left = input.isKeyDown(com.caveadventure.engine.ControlSettings.leftKey()) || input.isKeyDown(Input.Keys.LEFT);
+        boolean right = input.isKeyDown(com.caveadventure.engine.ControlSettings.rightKey()) || input.isKeyDown(Input.Keys.RIGHT);
 
         // Cancel opposite directions
         if (up && down) {
@@ -145,21 +148,23 @@ public class Player extends Entity {
                 boolean horizPassable = map.isPassable(getGridX() + moveDir.dx, getGridY());
                 boolean vertPassable = map.isPassable(getGridX(), getGridY() + moveDir.dy);
                 if (map.isPassable(newX, newY) && horizPassable && vertPassable) {
-                    startMoveTo(newX, newY);
+                    startMoveTo(newX, newY, map.getTile(newX, newY).getMovementMultiplier());
                 }
             } else {
                 if (map.isPassable(newX, newY)) {
-                    startMoveTo(newX, newY);
+                    startMoveTo(newX, newY, map.getTile(newX, newY).getMovementMultiplier());
                 }
             }
         }
     }
 
-    private void startMoveTo(int newGridX, int newGridY) {
+    private void startMoveTo(int newGridX, int newGridY, float terrainMultiplier) {
         isMoving = true;
         moveProgress = 0;
         targetGridX = newGridX;
         targetGridY = newGridY;
+        float speedMultiplier = Math.max(0.35f, 1f - inventory.getTotalSpeedBonus() - movementSpeedBonus);
+        currentMoveDuration = MOVE_DURATION * Math.max(0.55f, terrainMultiplier) * speedMultiplier;
         startPixelX = pixelX;
         startPixelY = pixelY;
     }
@@ -167,7 +172,7 @@ public class Player extends Entity {
     @Override
     public void update(float delta) {
         if (isMoving) {
-            moveProgress += delta / MOVE_DURATION;
+            moveProgress += delta / currentMoveDuration;
             if (moveProgress >= 1.0f) {
                 moveProgress = 1.0f;
                 x = targetGridX;
@@ -404,6 +409,7 @@ public class Player extends Entity {
         float radius = baseLightRadius;
         if (torchDuration > 0)
             radius += torchLightBonus;
+        radius += inventory.getTotalLightBonus();
         if (hunger < 20)
             radius -= 1.0f;
         return Math.max(2f, radius);
@@ -513,6 +519,14 @@ public class Player extends Entity {
 
     public int getTotalAttack() {
         return 10 + inventory.getTotalAttackBonus();
+    }
+
+    public float getCritBonusFromEquipment() {
+        return inventory.getTotalCritBonus();
+    }
+
+    public void setMovementSpeedBonus(float movementSpeedBonus) {
+        this.movementSpeedBonus = Math.max(0f, Math.min(0.45f, movementSpeedBonus));
     }
 
     // --- Mana Crystal ---

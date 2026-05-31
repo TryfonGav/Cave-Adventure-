@@ -1,5 +1,8 @@
 package com.caveadventure.engine;
 
+import com.caveadventure.entity.Enemy;
+import com.caveadventure.world.Biome;
+
 /**
  * Sound manager framework — stub for future audio.
  * LibGDX requires wav/ogg/mp3 files. When audio files are added to
@@ -11,10 +14,14 @@ public class SoundManager {
     private static SoundManager instance;
     private boolean enabled;
     private float volume;
+    private float musicVolume;
+    private String currentMusic;
+    private String currentAmbient;
 
     private SoundManager() {
         this.enabled = true;
         this.volume = 0.7f;
+        this.musicVolume = 0.55f;
     }
 
     public static SoundManager getInstance() {
@@ -71,6 +78,26 @@ public class SoundManager {
     public void playAmbient() {
         /* ambientLoop.play(volume * 0.4f); */ }
 
+    public void playAmbient(Biome biome) {
+        if (!enabled || biome == null)
+            return;
+        currentAmbient = biome.ambientTrack;
+        currentMusic = currentAmbient;
+    }
+
+    public void playBossTheme(Enemy.EnemyType bossType) {
+        if (!enabled || bossType == null)
+            return;
+        currentMusic = bossType == Enemy.EnemyType.BOSS_WYRM
+                ? "audio/music/boss_mire_wyrm.ogg"
+                : "audio/music/boss_stone_golem.ogg";
+    }
+
+    public void playSfx(String id) {
+        if (!enabled || id == null)
+            return;
+    }
+
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
@@ -85,6 +112,22 @@ public class SoundManager {
 
     public float getVolume() {
         return volume;
+    }
+
+    public void setMusicVolume(float v) {
+        this.musicVolume = Math.max(0, Math.min(1, v));
+    }
+
+    public float getMusicVolume() {
+        return musicVolume;
+    }
+
+    public String getCurrentMusic() {
+        return currentMusic;
+    }
+
+    public String getCurrentAmbient() {
+        return currentAmbient;
     }
 
     public void dispose() {

@@ -45,6 +45,10 @@ public class HUD {
     }
 
     public void render(Player player, int enemyCount, int floor, int maxFloors) {
+        render(player, enemyCount, floor, maxFloors, null);
+    }
+
+    public void render(Player player, int enemyCount, int floor, int maxFloors, String questText) {
         hudCamera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         hudCamera.update();
 
@@ -86,7 +90,7 @@ public class HUD {
 
         // --- Right side info panel ---
         float infoW = 150;
-        float infoH = 70;
+        float infoH = questText == null ? 70 : 94;
         float infoX = screenW - infoW - PADDING;
         float infoY = screenH - infoH - PADDING;
 
@@ -150,6 +154,12 @@ public class HUD {
 
         game.font.setColor(CaveUIStyle.DANGER);
         game.font.draw(game.batch, "Enemies: " + enemyCount, infoX + 10, infoY + infoH - 38);
+        if (questText != null) {
+            com.badlogic.gdx.graphics.g2d.BitmapFont qf = game.fontSmall != null ? game.fontSmall : game.font;
+            qf.setColor(CaveUIStyle.MUTED_TEXT);
+            qf.draw(game.batch, "Quest: " + questText, infoX + 10, infoY + infoH - 62,
+                    infoW - 20, -1, true);
+        }
 
         // Poison text
         if (player.isPoisoned()) {
@@ -159,7 +169,7 @@ public class HUD {
 
         // Controls
         game.font.setColor(CaveUIStyle.MUTED_TEXT);
-        String controls = "WASD:Move  SPACE:Atk  TAB:Inv  C:Pet  K:Skills  F:Use  ESC:Menu";
+        String controls = "Move  F:Use  TAB:Inv  R:Craft  J:Quests  K:Skills  ESC:Menu";
         layout.setText(game.font, controls);
         game.font.draw(game.batch, controls, hintX + hintW / 2 - layout.width / 2,
                 PADDING + hintH / 2 + layout.height / 2);

@@ -18,17 +18,28 @@ public class CaveGenerator {
     private final float wallProbability;
     private final int smoothingPasses;
     private final Random random;
+    private final Biome biome;
 
     public CaveGenerator(int width, int height, float wallProbability, int smoothingPasses) {
+        this(width, height, wallProbability, smoothingPasses, Biome.CRYSTAL_CAVES);
+    }
+
+    public CaveGenerator(int width, int height, float wallProbability, int smoothingPasses, Biome biome) {
         this.width = width;
         this.height = height;
         this.wallProbability = wallProbability;
         this.smoothingPasses = smoothingPasses;
         this.random = new Random();
+        this.biome = biome == null ? Biome.CRYSTAL_CAVES : biome;
     }
 
     public CaveGenerator(int width, int height, float wallProbability, int smoothingPasses, long seed) {
-        this(width, height, wallProbability, smoothingPasses);
+        this(width, height, wallProbability, smoothingPasses, Biome.CRYSTAL_CAVES);
+        this.random.setSeed(seed);
+    }
+
+    public CaveGenerator(int width, int height, float wallProbability, int smoothingPasses, Biome biome, long seed) {
+        this(width, height, wallProbability, smoothingPasses, biome);
         this.random.setSeed(seed);
     }
 
@@ -297,19 +308,12 @@ public class CaveGenerator {
             }
         }
 
-        // Place 1 lava pool
-        if (featureIndex < floorTiles.size()) {
+        // Place biome hazard clusters.
+        int hazardPools = biome == Biome.FROST_VAULTS || biome == Biome.TOXIC_MIRE ? 3 : 1;
+        for (int p = 0; p < hazardPools && featureIndex < floorTiles.size(); p++) {
             int[] center = floorTiles.get(featureIndex++);
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    int lx = center[0] + dx;
-                    int ly = center[1] + dy;
-                    if (lx > 0 && lx < width - 1 && ly > 0 && ly < height - 1
-                            && map[lx][ly] == Tile.FLOOR && random.nextFloat() < 0.6f) {
-                        map[lx][ly] = Tile.LAVA;
-                    }
-                }
-            }
+            placeHazardCluster(map, center[0], center[1], biome.hazardTile,
+                    biome == Biome.TOXIC_MIRE ? 3 : 2);
         }
 
         // Place stairs at a distant floor tile
@@ -327,5 +331,23 @@ public class CaveGenerator {
                 openNeighbors++;
         }
         return openNeighbors <= 1;
+    }
+
+    private void placeHazardCluster(Tile[][] map, int centerX, int centerY, Tile hazard, int radius) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dy = -radius; dy <= radius; dy++) {
+                int hx = centerX + dx;
+                int hy = centerY + dy;
+                if (hx <= 0 || hx >= width - 1 || hy <= 0 || hy >= height - 1)
+                    continue;
+                if (map[hx][hy] != Tile.FLOOR)
+                    continue;
+                int dist = Math.abs(dx) + Math.abs(dy);
+                float chance = dist == 0 ? 1f : Math.max(0.15f, 0.78f - dist * 0.14f);
+                if (dist <= radius + 1 && random.nextFloat() < chance) {
+                    map[hx][hy] = hazard;
+                }
+            }
+        }
     }
 }

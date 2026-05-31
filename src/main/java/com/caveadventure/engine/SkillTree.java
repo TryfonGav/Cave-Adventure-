@@ -26,33 +26,42 @@ public class SkillTree {
     public enum Skill {
         // Offensive
         POWER_SURGE("Power Surge", SkillPath.OFFENSIVE, "+20% damage", new Color(0.9f, 0.3f, 0.2f, 1f)),
-        CRITICAL_MASTER("Critical Master", SkillPath.OFFENSIVE, "+15% crit chance", new Color(1f, 0.4f, 0.1f, 1f)),
-        FURY("Fury", SkillPath.OFFENSIVE, "Below 30% HP: +50% damage", new Color(1f, 0.2f, 0.1f, 1f)),
-        BERSERKER("Berserker", SkillPath.OFFENSIVE, "Each kill: +5% damage (resets)", new Color(0.9f, 0.1f, 0.1f, 1f)),
+        CRITICAL_MASTER("Critical Master", SkillPath.OFFENSIVE, "+15% crit chance", new Color(1f, 0.4f, 0.1f, 1f), POWER_SURGE, 1),
+        FURY("Fury", SkillPath.OFFENSIVE, "Below 30% HP: +50% damage", new Color(1f, 0.2f, 0.1f, 1f), CRITICAL_MASTER, 2),
+        BERSERKER("Berserker", SkillPath.OFFENSIVE, "Each kill: +5% damage (resets)", new Color(0.9f, 0.1f, 0.1f, 1f), FURY, 2),
 
         // Defensive
         IRON_SKIN("Iron Skin", SkillPath.DEFENSIVE, "-15% damage taken", new Color(0.4f, 0.6f, 0.8f, 1f)),
-        REGEN("Regeneration", SkillPath.DEFENSIVE, "Heal 2HP per turn in battle", new Color(0.3f, 0.8f, 0.4f, 1f)),
+        REGEN("Regeneration", SkillPath.DEFENSIVE, "Heal 2HP per turn in battle", new Color(0.3f, 0.8f, 0.4f, 1f), IRON_SKIN, 1),
         STATUS_RESIST("Status Resist", SkillPath.DEFENSIVE, "50% chance to resist status",
-                new Color(0.5f, 0.7f, 0.3f, 1f)),
-        LAST_STAND("Last Stand", SkillPath.DEFENSIVE, "Survive lethal hit once", new Color(0.3f, 0.5f, 0.9f, 1f)),
+                new Color(0.5f, 0.7f, 0.3f, 1f), REGEN, 2),
+        LAST_STAND("Last Stand", SkillPath.DEFENSIVE, "Survive lethal hit once", new Color(0.3f, 0.5f, 0.9f, 1f), STATUS_RESIST, 2),
 
         // Utility
         TREASURE_SENSE("Treasure Sense", SkillPath.UTILITY, "See chests on minimap", new Color(0.9f, 0.8f, 0.2f, 1f)),
-        TRAP_DETECT("Trap Detect", SkillPath.UTILITY, "See hidden traps", new Color(0.7f, 0.6f, 0.2f, 1f)),
-        LUCKY("Lucky", SkillPath.UTILITY, "+25% better loot", new Color(0.8f, 0.7f, 0.1f, 1f)),
-        HAGGLER("Haggler", SkillPath.UTILITY, "Shop prices -30%", new Color(0.6f, 0.8f, 0.3f, 1f));
+        TRAP_DETECT("Trap Detect", SkillPath.UTILITY, "See hidden traps", new Color(0.7f, 0.6f, 0.2f, 1f), TREASURE_SENSE, 1),
+        SWIFT_STEPS("Swift Steps", SkillPath.UTILITY, "+10% movement speed", new Color(0.35f, 0.85f, 0.9f, 1f), TRAP_DETECT, 1),
+        LUCKY("Lucky", SkillPath.UTILITY, "+25% better loot", new Color(0.8f, 0.7f, 0.1f, 1f), SWIFT_STEPS, 2),
+        HAGGLER("Haggler", SkillPath.UTILITY, "Shop prices -30%", new Color(0.6f, 0.8f, 0.3f, 1f), LUCKY, 1);
 
         public final String name;
         public final SkillPath path;
         public final String description;
         public final Color color;
+        public final Skill parent;
+        public final int cost;
 
         Skill(String name, SkillPath path, String desc, Color color) {
+            this(name, path, desc, color, null, 1);
+        }
+
+        Skill(String name, SkillPath path, String desc, Color color, Skill parent, int cost) {
             this.name = name;
             this.path = path;
             this.description = desc;
             this.color = color;
+            this.parent = parent;
+            this.cost = cost;
         }
     }
 
@@ -66,6 +75,7 @@ public class SkillTree {
     private Skill[] choices;
     private int selection;
     private int viewerSelection;
+    private int skillPoints;
 
     public SkillTree(CaveAdventure game) {
         this.game = game;
@@ -74,6 +84,7 @@ public class SkillTree {
         this.unlockedSkills = new HashSet<>();
         this.showingPicker = false;
         this.showingViewer = false;
+        this.skillPoints = 0;
     }
 
     public boolean hasSkill(Skill skill) {
@@ -104,6 +115,7 @@ public class SkillTree {
         showingPicker = false;
         showingViewer = false;
         choices = null;
+        skillPoints = 0;
     }
 
     public Set<Skill> getUnlockedSkills() {
@@ -116,16 +128,28 @@ public class SkillTree {
             unlockedSkills.addAll(skills);
     }
 
+    public void restoreSkillPoints(int points) {
+        skillPoints = Math.max(0, points);
+    }
+
+    public int getSkillPoints() {
+        return skillPoints;
+    }
+
+    public void grantSkillPoint() {
+        skillPoints++;
+    }
+
     /**
      * Show skill picker with 3 random choices (one from each path).
      */
     public void showPicker() {
         List<Skill> available = new ArrayList<>();
         for (Skill s : Skill.values()) {
-            if (!unlockedSkills.contains(s))
+            if (canUnlock(s))
                 available.add(s);
         }
-        if (available.isEmpty())
+        if (available.isEmpty() || skillPoints <= 0)
             return;
 
         // Try to pick one from each path
@@ -177,7 +201,7 @@ public class SkillTree {
                 selection = (selection + 1) % choices.length;
 
             if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
-                unlockedSkills.add(choices[selection]);
+                unlockSkill(choices[selection]);
                 showingPicker = false;
             }
             return;
@@ -198,7 +222,23 @@ public class SkillTree {
         if (input.isKeyJustPressed(Input.Keys.K) || input.isKeyJustPressed(Input.Keys.ESCAPE)
                 || input.isKeyJustPressed(Input.Keys.TAB)) {
             showingViewer = false;
+        } else if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
+            unlockSkill(Skill.values()[viewerSelection]);
         }
+    }
+
+    public boolean canUnlock(Skill skill) {
+        if (skill == null || unlockedSkills.contains(skill) || skillPoints < skill.cost)
+            return false;
+        return skill.parent == null || unlockedSkills.contains(skill.parent);
+    }
+
+    public boolean unlockSkill(Skill skill) {
+        if (!canUnlock(skill))
+            return false;
+        skillPoints -= skill.cost;
+        unlockedSkills.add(skill);
+        return true;
     }
 
     private int moveViewerHorizontal(int direction) {
@@ -303,8 +343,9 @@ public class SkillTree {
         lf.draw(game.batch, "LEVEL UP!", sw / 2 - layout.width / 2, cardY + cardH + 50);
 
         nf.setColor(CaveUIStyle.MUTED_TEXT);
-        layout.setText(nf, "Choose a skill:");
-        nf.draw(game.batch, "Choose a skill:", sw / 2 - layout.width / 2, cardY + cardH + 22);
+        String chooseText = "Choose a skill - Points: " + skillPoints;
+        layout.setText(nf, chooseText);
+        nf.draw(game.batch, chooseText, sw / 2 - layout.width / 2, cardY + cardH + 22);
 
         for (int i = 0; i < choices.length; i++) {
             float cx = startX + i * (cardW + 20);
@@ -321,6 +362,8 @@ public class SkillTree {
             // Description
             sf.setColor(CaveUIStyle.MUTED_TEXT);
             sf.draw(game.batch, choices[i].description, cx + 10, cardY + 45, cardW - 20, -1, true);
+            sf.setColor(CaveUIStyle.GOLD);
+            sf.draw(game.batch, "Cost " + choices[i].cost, cx + 10, cardY + 20);
         }
 
         // Hint
@@ -394,7 +437,7 @@ public class SkillTree {
         lf.setColor(CaveUIStyle.GOLD);
         lf.draw(game.batch, "SKILL TREE", panelX + 24, panelY + panelH - 18);
         sf.setColor(CaveUIStyle.MUTED_TEXT);
-        sf.draw(game.batch, "Unlocked skills stay with your character. Browse with WASD. K / ESC closes.",
+        sf.draw(game.batch, "Points: " + skillPoints + "   Enter unlocks available nodes. Browse with WASD. K / ESC closes.",
                 panelX + 26, panelY + panelH - 42);
 
         for (SkillPath path : SkillPath.values()) {
@@ -416,8 +459,10 @@ public class SkillTree {
                 nf.setColor(selected ? skill.color : unlocked ? CaveUIStyle.TEXT : CaveUIStyle.MUTED_TEXT);
                 nf.draw(game.batch, skill.name, cx + 10, cy + cardH - 16);
 
-                sf.setColor(unlocked ? new Color(0.36f, 0.95f, 0.45f, 1f) : new Color(0.85f, 0.4f, 0.4f, 1f));
-                sf.draw(game.batch, unlocked ? "UNLOCKED" : "LOCKED", cx + 10, cy + 22);
+                sf.setColor(unlocked ? new Color(0.36f, 0.95f, 0.45f, 1f)
+                        : canUnlock(skill) ? CaveUIStyle.GOLD : new Color(0.85f, 0.4f, 0.4f, 1f));
+                sf.draw(game.batch, unlocked ? "UNLOCKED" : canUnlock(skill) ? "READY" : "LOCKED",
+                        cx + 10, cy + 22);
             }
         }
 
@@ -433,7 +478,10 @@ public class SkillTree {
         sf.draw(game.batch, selectedSkill.description, detailX, detailY + 126, detailW, -1, true);
         sf.setColor(unlockedSkills.contains(selectedSkill) ? new Color(0.36f, 0.95f, 0.45f, 1f)
                 : new Color(0.85f, 0.4f, 0.4f, 1f));
-        sf.draw(game.batch, unlockedSkills.contains(selectedSkill) ? "Owned" : "Not unlocked yet", detailX,
+        sf.draw(game.batch, unlockedSkills.contains(selectedSkill) ? "Owned"
+                : canUnlock(selectedSkill) ? "Ready to unlock" : "Need " + selectedSkill.cost + " point(s)"
+                        + (selectedSkill.parent != null ? " and " + selectedSkill.parent.name : ""),
+                detailX,
                 detailY + 88);
         sf.setColor(CaveUIStyle.MUTED_TEXT);
         sf.draw(game.batch, "Unlocked: " + unlockedSkills.size() + " / " + Skill.values().length, detailX,
@@ -455,6 +503,10 @@ public class SkillTree {
 
     public float getCritBonus() {
         return hasSkill(Skill.CRITICAL_MASTER) ? 0.15f : 0f;
+    }
+
+    public float getMovementSpeedBonus() {
+        return hasSkill(Skill.SWIFT_STEPS) ? 0.10f : 0f;
     }
 
     public float getDamageReduction() {
