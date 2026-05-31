@@ -96,11 +96,11 @@ public class TestMain {
     }
 
     private static final class TestConfig {
-        private static final int floor = 2;
+        private static final int floor = 11;
         private static final int health = 1800;
         private static final int maxHealth = 1800;
         private static final int hunger = 100;
-        private static final int level = 10;
+        private static final int level = 1;
         private static final int xp = 0;
         private static final int xpNext = 745;
         private static final float stamina = 160f;

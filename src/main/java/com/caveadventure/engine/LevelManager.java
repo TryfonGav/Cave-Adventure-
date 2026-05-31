@@ -25,7 +25,7 @@ public class LevelManager {
 
     private static final int BASE_ENEMIES = 12;
     private static final int ENEMIES_PER_FLOOR = 4;
-    private static final int MAX_FLOORS = 10;
+    private static final int MAX_FLOORS = 14;
     // Trap damage tuning - base values and per-floor increments
     private static final int BASE_TRAP_SPIKES = 8;
     private static final int TRAP_SPIKES_PER_FLOOR = 3;
@@ -45,7 +45,7 @@ public class LevelManager {
     public int[] generateFloor(int floor) {
         this.currentFloor = floor;
 
-        if (floor == MAX_FLOORS) {
+        if (floor == 10 || floor == MAX_FLOORS) {
             return generateFinalBossFloor();
         }
 
@@ -151,7 +151,7 @@ public class LevelManager {
     }
 
     public void unlockFinalBossExit() {
-        if (currentFloor == MAX_FLOORS && finalExitX >= 0 && finalExitY >= 0) {
+        if ((currentFloor == 10 || currentFloor == MAX_FLOORS) && finalExitX >= 0 && finalExitY >= 0) {
             currentMap.setTile(finalExitX, finalExitY, Tile.STAIRS_DOWN);
         }
     }
@@ -328,7 +328,7 @@ public class LevelManager {
     }
 
     public boolean isFinalFloor() {
-        return currentFloor >= MAX_FLOORS;
+        return currentFloor == 10 || currentFloor >= MAX_FLOORS;
     }
 
     public int getCurrentFloor() {

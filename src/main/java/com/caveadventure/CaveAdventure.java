@@ -29,32 +29,35 @@ public class CaveAdventure extends Game {
 
         // Generate crisp fonts using FreeType
         try {
-            // Use system Consolas font (available on Windows)
+            // Use Arial font (available on Windows) for a cleaner UI look
             FreeTypeFontGenerator generator = new FreeTypeFontGenerator(
-                    Gdx.files.absolute("C:/Windows/Fonts/consola.ttf"));
+                    Gdx.files.absolute("C:/Windows/Fonts/arial.ttf"));
 
             FreeTypeFontParameter param = new FreeTypeFontParameter();
             param.color = Color.WHITE;
-            param.borderWidth = 0.5f;
+            param.borderWidth = 1f;
             param.borderColor = new Color(0, 0, 0, 0.6f);
-            param.shadowOffsetX = 1;
-            param.shadowOffsetY = 1;
+            param.shadowOffsetX = 2;
+            param.shadowOffsetY = 2;
             param.shadowColor = new Color(0, 0, 0, 0.35f);
             param.minFilter = Texture.TextureFilter.Linear;
             param.magFilter = Texture.TextureFilter.Linear;
 
-            // Normal font
-            param.size = 16;
+            // Normal font (generated at 2x size for high-res)
+            param.size = 32;
             font = generator.generateFont(param);
+            font.getData().setScale(0.5f);
 
             // Small font
-            param.size = 13;
+            param.size = 26;
             fontSmall = generator.generateFont(param);
+            fontSmall.getData().setScale(0.5f);
 
             // Large font
-            param.size = 26;
-            param.borderWidth = 1f;
+            param.size = 52;
+            param.borderWidth = 2f;
             fontLarge = generator.generateFont(param);
+            fontLarge.getData().setScale(0.5f);
 
             generator.dispose();
         } catch (Exception e) {

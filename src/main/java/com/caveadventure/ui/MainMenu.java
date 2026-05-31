@@ -40,8 +40,8 @@ public class MainMenu {
     }
 
     private void resetParticle(int i, boolean randomY) {
-        particleX[i] = (float) (Math.random() * 960);
-        particleY[i] = randomY ? (float) (Math.random() * 640) : 650;
+        particleX[i] = (float) (Math.random() * Gdx.graphics.getWidth());
+        particleY[i] = randomY ? (float) (Math.random() * Gdx.graphics.getHeight()) : Gdx.graphics.getHeight() + 10;
         particleSpeed[i] = 10 + (float) (Math.random() * 30);
         particleSize[i] = 1 + (float) (Math.random() * 3);
     }

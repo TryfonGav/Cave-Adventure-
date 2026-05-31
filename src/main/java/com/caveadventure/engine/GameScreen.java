@@ -217,9 +217,15 @@ public class GameScreen extends ScreenAdapter {
 
     private void transitionToNextFloor() {
         int nextFloor = levelManager.getCurrentFloor() + 1;
+        if (nextFloor == 11) {
+            achievements.tryUnlock(AchievementManager.Achievement.VICTORY);
+            gameOverScreen.setup(true, player.getLevel(), levelManager.getCurrentFloor(), enemiesKilledTotal, true);
+            state = GameState.GAME_OVER;
+            return;
+        }
         if (nextFloor > levelManager.getMaxFloors()) {
             achievements.tryUnlock(AchievementManager.Achievement.VICTORY);
-            gameOverScreen.setup(true, player.getLevel(), levelManager.getCurrentFloor(), enemiesKilledTotal);
+            gameOverScreen.setup(true, player.getLevel(), levelManager.getCurrentFloor(), enemiesKilledTotal, false);
             state = GameState.GAME_OVER;
             SaveManager.deleteSave();
             return;
@@ -577,7 +583,7 @@ public class GameScreen extends ScreenAdapter {
 
         // Death check
         if (!player.isAlive()) {
-            gameOverScreen.setup(false, player.getLevel(), levelManager.getCurrentFloor() - 1, enemiesKilledTotal);
+            gameOverScreen.setup(false, player.getLevel(), levelManager.getCurrentFloor() - 1, enemiesKilledTotal, false);
             state = GameState.GAME_OVER;
             SaveManager.deleteSave();
             return;
@@ -887,9 +893,18 @@ public class GameScreen extends ScreenAdapter {
     // --- Game Over ---
 
     private void updateGameOver(float delta) {
-        if (gameOverScreen.update(inputHandler, delta)) {
+        int result = gameOverScreen.update(inputHandler, delta);
+        if (result == 1) {
+            if (gameOverScreen.canContinue()) {
+                SaveManager.deleteSave();
+            }
             state = GameState.MENU;
             mainMenu.setHasSave(SaveManager.hasSave());
+        } else if (result == 2) {
+            transitionToFloor = levelManager.getCurrentFloor() + 1;
+            floorTransitionTimer = 0;
+            state = GameState.FLOOR_TRANSITION;
+            transition.fadeOut(3.5f);
         }
     }
 

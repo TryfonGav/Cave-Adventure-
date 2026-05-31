@@ -26,6 +26,7 @@ public class GameOverScreen {
     private int finalLevel;
     private int floorsCleared;
     private int enemiesKilled;
+    private boolean canContinue;
 
     public GameOverScreen(CaveAdventure game) {
         this.game = game;
@@ -33,21 +34,30 @@ public class GameOverScreen {
         this.layout = new GlyphLayout();
     }
 
-    public void setup(boolean victory, int level, int floors, int killed) {
+    public void setup(boolean victory, int level, int floors, int killed, boolean canContinue) {
         this.isVictory = victory;
         this.finalLevel = level;
         this.floorsCleared = floors;
         this.enemiesKilled = killed;
+        this.canContinue = canContinue;
         this.animTimer = 0;
     }
 
-    public boolean update(InputHandler input, float delta) {
+    public int update(InputHandler input, float delta) {
         animTimer += delta;
         if (animTimer > 1.0f) {
-            return input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE);
+            if (canContinue && input.isKeyJustPressed(Input.Keys.C)) {
+                return 2;
+            }
+            if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
+                return 1;
+            }
         }
-        return false;
+        return 0;
     }
+    
+    public boolean isVictory() { return isVictory; }
+    public boolean canContinue() { return canContinue; }
 
     public void render() {
         camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -115,9 +125,15 @@ public class GameOverScreen {
         if (animTimer > 1.0f) {
             float blink = (float) Math.sin(animTimer * 3) * 0.3f + 0.7f;
             smallFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, blink * fadeIn);
-            String hint = "Press ENTER to return to menu";
-            layout.setText(smallFont, hint);
-            smallFont.draw(game.batch, hint, screenW / 2 - layout.width / 2, panelY + 30);
+            if (canContinue) {
+                String hint = "Press ENTER to end run, or C to continue";
+                layout.setText(smallFont, hint);
+                smallFont.draw(game.batch, hint, screenW / 2 - layout.width / 2, panelY + 30);
+            } else {
+                String hint = "Press ENTER to return to menu";
+                layout.setText(smallFont, hint);
+                smallFont.draw(game.batch, hint, screenW / 2 - layout.width / 2, panelY + 30);
+            }
         }
 
         game.batch.end();
