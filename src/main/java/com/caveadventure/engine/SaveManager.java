@@ -185,182 +185,7 @@ public class SaveManager {
             if (!file.exists())
                 return null;
 
-            String content = file.readString();
-            String[] lines = content.split("\n");
-
-            SaveData data = new SaveData();
-            int declaredInventorySize = -1;
-
-            for (int lineNo = 0; lineNo < lines.length; lineNo++) {
-                String line = lines[lineNo];
-                line = line.trim();
-                if (line.isEmpty())
-                    continue;
-
-                String[] parts = line.split("=", 2);
-                if (parts.length < 2) {
-                    LOGGER.warning("Ignoring malformed save line " + (lineNo + 1) + ": " + line);
-                    continue;
-                }
-
-                String key = parts[0];
-                String value = parts[1];
-
-                switch (key) {
-                    case "floor":
-                        data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
-                        break;
-                    case "version":
-                        data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
-                        break;
-                    case "profile":
-                        data.profile = sanitizeProfile(value);
-                        break;
-                    case "difficulty":
-                        data.difficulty = parseDifficulty(value, data.difficulty);
-                        Difficulty.setCurrent(data.difficulty);
-                        break;
-                    case "biome":
-                        data.biome = parseBiome(value, data.biome);
-                        break;
-                    case "skillPoints":
-                        data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
-                        break;
-                    case "health":
-                        data.health = parseIntBounded("health", value, MIN_HEALTH, MAX_HEALTH, data.health);
-                        break;
-                    case "maxHealth":
-                        data.maxHealth = parseIntBounded("maxHealth", value, 1, MAX_HEALTH, data.maxHealth);
-                        break;
-                    case "hunger":
-                        data.hunger = parseIntBounded("hunger", value, MIN_HUNGER, MAX_HUNGER, data.hunger);
-                        break;
-                    case "level":
-                        data.level = parseIntBounded("level", value, MIN_LEVEL, MAX_LEVEL, data.level);
-                        break;
-                    case "xp":
-                        data.xp = parseIntBounded("xp", value, 0, Integer.MAX_VALUE, data.xp);
-                        break;
-                    case "xpNext":
-                        data.xpNext = parseIntBounded("xpNext", value, 1, Integer.MAX_VALUE, data.xpNext);
-                        break;
-                    case "stamina":
-                        data.stamina = parseFloatBounded("stamina", value, MIN_STAMINA, MAX_STAMINA, data.stamina);
-                        break;
-                    case "enemiesKilled":
-                        data.enemiesKilled = parseIntBounded("enemiesKilled", value, 0, Integer.MAX_VALUE,
-                                data.enemiesKilled);
-                        break;
-                    case "finalBossDefeated":
-                        data.finalBossDefeated = parseBoolean("finalBossDefeated", value, data.finalBossDefeated);
-                        break;
-                    case "poisonRemaining":
-                        data.poisonRemaining = parseFloatBounded("poisonRemaining", value, MIN_DURATION, MAX_DURATION,
-                                data.poisonRemaining);
-                        break;
-                    case "torch":
-                        data.torchDuration = parseFloatBounded("torch", value, MIN_DURATION, MAX_DURATION,
-                                data.torchDuration);
-                        break;
-                    case "inventorySize":
-                        declaredInventorySize = parseIntBounded("inventorySize", value, 0, MAX_INVENTORY_SLOTS,
-                                declaredInventorySize < 0 ? 0 : declaredInventorySize);
-                        break;
-                    case "characterName":
-                        data.characterAppearance.setName(sanitizeCharacterName(value));
-                        break;
-                    case "characterTunic":
-                        data.characterAppearance
-                                .setTunicColor(parseColor("characterTunic", value, data.characterAppearance.getTunicColor()));
-                        break;
-                    case "characterSkin":
-                        data.characterAppearance
-                                .setSkinColor(parseColor("characterSkin", value, data.characterAppearance.getSkinColor()));
-                        break;
-                    case "characterHair":
-                        data.characterAppearance
-                                .setHairColor(parseColor("characterHair", value, data.characterAppearance.getHairColor()));
-                        break;
-                    case "characterPants":
-                        data.characterAppearance
-                                .setPantsColor(parseColor("characterPants", value, data.characterAppearance.getPantsColor()));
-                        break;
-                    case "characterBoots":
-                        data.characterAppearance
-                                .setBootColor(parseColor("characterBoots", value, data.characterAppearance.getBootColor()));
-                        break;
-                    case "characterCape":
-                        data.characterAppearance
-                                .setCapeColor(parseColor("characterCape", value, data.characterAppearance.getCapeColor()));
-                        break;
-                    case "item":
-                        parseItemEntry(data, value);
-                        break;
-                    case "weapon":
-                        data.equippedWeapon = parseItemType("weapon", value, Item.Category.WEAPON);
-                        break;
-                    case "armor":
-                        data.equippedArmor = parseItemType("armor", value, Item.Category.ARMOR);
-                        break;
-                    case "accessory":
-                        data.equippedAccessory = parseItemType("accessory", value, Item.Category.ACCESSORY);
-                        break;
-                    case "boots":
-                        data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
-                        break;
-                    case "companionType":
-                        data.companionType = parseCompanionType("companionType", value, data.companionType);
-                        break;
-                    case "companionHealth":
-                        data.companionHealth = parseIntBounded("companionHealth", value,
-                                MIN_COMPANION_HEALTH, MAX_COMPANION_HEALTH, data.companionHealth);
-                        break;
-                    case "companionLove":
-                        data.companionLove = parseFloatBounded("companionLove", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionLove);
-                        break;
-                    case "companionHunger":
-                        data.companionHunger = parseFloatBounded("companionHunger", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHunger);
-                        break;
-                    case "companionHappiness":
-                        data.companionHappiness = parseFloatBounded("companionHappiness", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHappiness);
-                        break;
-                    case "companionFatigue":
-                        data.companionFatigue = parseFloatBounded("companionFatigue", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionFatigue);
-                        break;
-                    case "companionPetCooldown":
-                        data.companionPetCooldown = parseFloatBounded("companionPetCooldown", value,
-                                MIN_COOLDOWN, MAX_COOLDOWN, data.companionPetCooldown);
-                        break;
-                    case "skillUnlocked":
-                        parseSkillEntry(data, value);
-                        break;
-                    case "quest":
-                        data.questLines.add(value.trim());
-                        break;
-                    case "achievement":
-                        parseAchievementEntry(data, value);
-                        break;
-                    case "stat":
-                        parseStatEntry(data, value);
-                        break;
-                    default:
-                        LOGGER.fine("Ignoring unknown save key: " + key);
-                        break;
-                }
-            }
-
-            if (declaredInventorySize >= 0 && data.items.size() > declaredInventorySize) {
-                LOGGER.warning("Save inventory exceeds declared size. Trimming to declared capacity.");
-                while (data.items.size() > declaredInventorySize) {
-                    data.items.remove(data.items.size() - 1);
-                }
-            }
-
-            return sanitize(data);
+            return loadSaveData(file.readString());
         } catch (GdxRuntimeException | SecurityException ex) {
             LOGGER.log(Level.SEVERE, "Failed to load save from " + SAVE_FILE, ex);
             return null;
@@ -377,21 +202,28 @@ public class SaveManager {
         }
     }
 
-    public static SaveData parseSaveText(String content) {
+    public static SaveData loadSaveData(String content) {
         SaveData data = new SaveData();
         if (content == null || content.isBlank())
             return data;
         String[] lines = content.split("\n");
-        for (String rawLine : lines) {
+        int declaredInventorySize = -1;
+        for (int lineNo = 0; lineNo < lines.length; lineNo++) {
+            String rawLine = lines[lineNo];
             String line = rawLine.trim();
             if (line.isEmpty())
                 continue;
             String[] parts = line.split("=", 2);
-            if (parts.length < 2)
+            if (parts.length < 2) {
+                LOGGER.warning("Ignoring malformed save line " + (lineNo + 1) + ": " + line);
                 continue;
+            }
             String key = parts[0];
             String value = parts[1];
             switch (key) {
+                case "floor":
+                    data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                    break;
                 case "version":
                     data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
                     break;
@@ -407,8 +239,72 @@ public class SaveManager {
                 case "skillPoints":
                     data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
                     break;
-                case "floor":
-                    data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                case "health":
+                    data.health = parseIntBounded("health", value, MIN_HEALTH, MAX_HEALTH, data.health);
+                    break;
+                case "maxHealth":
+                    data.maxHealth = parseIntBounded("maxHealth", value, 1, MAX_HEALTH, data.maxHealth);
+                    break;
+                case "hunger":
+                    data.hunger = parseIntBounded("hunger", value, MIN_HUNGER, MAX_HUNGER, data.hunger);
+                    break;
+                case "level":
+                    data.level = parseIntBounded("level", value, MIN_LEVEL, MAX_LEVEL, data.level);
+                    break;
+                case "xp":
+                    data.xp = parseIntBounded("xp", value, 0, Integer.MAX_VALUE, data.xp);
+                    break;
+                case "xpNext":
+                    data.xpNext = parseIntBounded("xpNext", value, 1, Integer.MAX_VALUE, data.xpNext);
+                    break;
+                case "stamina":
+                    data.stamina = parseFloatBounded("stamina", value, MIN_STAMINA, MAX_STAMINA, data.stamina);
+                    break;
+                case "enemiesKilled":
+                    data.enemiesKilled = parseIntBounded("enemiesKilled", value, 0, Integer.MAX_VALUE,
+                            data.enemiesKilled);
+                    break;
+                case "finalBossDefeated":
+                    data.finalBossDefeated = parseBoolean("finalBossDefeated", value, data.finalBossDefeated);
+                    break;
+                case "poisonRemaining":
+                    data.poisonRemaining = parseFloatBounded("poisonRemaining", value, MIN_DURATION, MAX_DURATION,
+                            data.poisonRemaining);
+                    break;
+                case "torch":
+                    data.torchDuration = parseFloatBounded("torch", value, MIN_DURATION, MAX_DURATION,
+                            data.torchDuration);
+                    break;
+                case "inventorySize":
+                    declaredInventorySize = parseIntBounded("inventorySize", value, 0, MAX_INVENTORY_SLOTS,
+                            declaredInventorySize < 0 ? 0 : declaredInventorySize);
+                    break;
+                case "characterName":
+                    data.characterAppearance.setName(sanitizeCharacterName(value));
+                    break;
+                case "characterTunic":
+                    data.characterAppearance
+                            .setTunicColor(parseColor("characterTunic", value, data.characterAppearance.getTunicColor()));
+                    break;
+                case "characterSkin":
+                    data.characterAppearance
+                            .setSkinColor(parseColor("characterSkin", value, data.characterAppearance.getSkinColor()));
+                    break;
+                case "characterHair":
+                    data.characterAppearance
+                            .setHairColor(parseColor("characterHair", value, data.characterAppearance.getHairColor()));
+                    break;
+                case "characterPants":
+                    data.characterAppearance
+                            .setPantsColor(parseColor("characterPants", value, data.characterAppearance.getPantsColor()));
+                    break;
+                case "characterBoots":
+                    data.characterAppearance
+                            .setBootColor(parseColor("characterBoots", value, data.characterAppearance.getBootColor()));
+                    break;
+                case "characterCape":
+                    data.characterAppearance
+                            .setCapeColor(parseColor("characterCape", value, data.characterAppearance.getCapeColor()));
                     break;
                 case "item":
                     parseItemEntry(data, value);
@@ -425,6 +321,33 @@ public class SaveManager {
                 case "boots":
                     data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
                     break;
+                case "companionType":
+                    data.companionType = parseCompanionType("companionType", value, data.companionType);
+                    break;
+                case "companionHealth":
+                    data.companionHealth = parseIntBounded("companionHealth", value,
+                            MIN_COMPANION_HEALTH, MAX_COMPANION_HEALTH, data.companionHealth);
+                    break;
+                case "companionLove":
+                    data.companionLove = parseFloatBounded("companionLove", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionLove);
+                    break;
+                case "companionHunger":
+                    data.companionHunger = parseFloatBounded("companionHunger", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHunger);
+                    break;
+                case "companionHappiness":
+                    data.companionHappiness = parseFloatBounded("companionHappiness", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHappiness);
+                    break;
+                case "companionFatigue":
+                    data.companionFatigue = parseFloatBounded("companionFatigue", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionFatigue);
+                    break;
+                case "companionPetCooldown":
+                    data.companionPetCooldown = parseFloatBounded("companionPetCooldown", value,
+                            MIN_COOLDOWN, MAX_COOLDOWN, data.companionPetCooldown);
+                    break;
                 case "skillUnlocked":
                     parseSkillEntry(data, value);
                     break;
@@ -438,10 +361,21 @@ public class SaveManager {
                     parseStatEntry(data, value);
                     break;
                 default:
+                    LOGGER.fine("Ignoring unknown save key: " + key);
                     break;
             }
         }
+
+        if (declaredInventorySize >= 0 && data.items.size() > declaredInventorySize) {
+            LOGGER.warning("Save inventory exceeds declared size. Trimming to declared capacity.");
+            while (data.items.size() > declaredInventorySize)
+                data.items.remove(data.items.size() - 1);
+        }
         return sanitize(data);
+    }
+
+    public static SaveData parseSaveText(String content) {
+        return loadSaveData(content);
     }
 
     public static void deleteSave() {

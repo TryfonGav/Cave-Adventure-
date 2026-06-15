@@ -16,10 +16,15 @@ import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
 import com.caveadventure.entity.Shopkeeper;
 import com.caveadventure.item.CraftingManager;
+import com.caveadventure.item.Inventory;
+import com.caveadventure.item.Item;
 import com.caveadventure.ui.*;
 import com.caveadventure.quest.QuestManager;
 import com.caveadventure.world.Biome;
 import com.caveadventure.world.GameMap;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The primary game screen managing all game states and sub-systems.
@@ -161,10 +166,11 @@ public class GameScreen extends ScreenAdapter {
 
         selectedAppearance = data.characterAppearance.copy();
         Difficulty.setCurrent(data.difficulty);
-        setupFloor(data.floor);
+        setupFloor(data.floor, data.biome, data.difficulty, false);
         skillTree.restoreUnlockedSkills(data.unlockedSkills);
         skillTree.restoreSkillPoints(data.skillPoints);
         questManager.restore(data.questLines);
+        questManager.recordReach(data.floor, currentBiome);
         achievements.restoreUnlocked(data.unlockedAchievements);
         statsScreen.restore(data.stats);
         player.restoreProgressFromSave(data.level, data.xp, data.xpNext, data.maxHealth, data.health);
@@ -228,7 +234,15 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void setupFloor(int floor) {
-        int[] spawn = levelManager.generateFloor(floor);
+        setupFloor(floor, Biome.forFloor(floor), Difficulty.getCurrent(), true);
+    }
+
+    private void setupFloor(int floor, boolean saveAfterSetup) {
+        setupFloor(floor, Biome.forFloor(floor), Difficulty.getCurrent(), saveAfterSetup);
+    }
+
+    private void setupFloor(int floor, Biome biome, Difficulty difficulty, boolean saveAfterSetup) {
+        int[] spawn = levelManager.generateFloor(floor, biome, difficulty);
         this.gameMap = levelManager.getCurrentMap();
         this.combatManager = levelManager.getCombatManager();
         this.player = new Player(spawn[0], spawn[1]);
@@ -254,7 +268,8 @@ public class GameScreen extends ScreenAdapter {
         terrainHazardCooldown = 0.5f;
         autosaveTimer = 0f;
         transition.fadeIn(0.8f);
-        saveCurrentGame();
+        if (saveAfterSetup)
+            saveCurrentGame();
     }
 
     private void saveCurrentGame() {
@@ -265,6 +280,16 @@ public class GameScreen extends ScreenAdapter {
                 SaveManager.extrasFrom(questManager, achievements, statsScreen, currentBiome,
                         skillTree.getSkillPoints()));
         mainMenu.setHasSave(true);
+    }
+
+    private void handleQuestClaims(int claimed) {
+        if (claimed <= 0)
+            return;
+        statsScreen.questsCompleted += claimed;
+        if (statsScreen.questsCompleted >= 3)
+            achievements.tryUnlock(AchievementManager.Achievement.QUEST_HELPER);
+        SoundManager.getInstance().playSfx("quest_complete");
+        saveCurrentGame();
     }
 
     private void transitionToNextFloor() {
@@ -521,19 +546,15 @@ public class GameScreen extends ScreenAdapter {
             return;
         }
         if (questLogUI.isVisible()) {
-            questLogUI.update(inputHandler);
+            int claimed = questLogUI.update(inputHandler, questManager, player);
+            handleQuestClaims(claimed);
             return;
         }
 
         inventoryUI.update(delta);
         questManager.updateFetch(player);
-        int claimed = questManager.claimReady(player);
-        if (claimed > 0) {
-            statsScreen.questsCompleted += claimed;
-            if (statsScreen.questsCompleted >= 3)
-                achievements.tryUnlock(AchievementManager.Achievement.QUEST_HELPER);
-            saveCurrentGame();
-        }
+        int prevX = player.getGridX();
+        int prevY = player.getGridY();
 
         if (inventoryUI.isVisible()) {
             String action = inventoryUI.handleInput(inputHandler, player.getInventory());
@@ -553,24 +574,20 @@ public class GameScreen extends ScreenAdapter {
             return;
         } else {
             // Player movement
-            int prevX = player.getGridX(), prevY = player.getGridY();
             player.setMovementSpeedBonus(skillTree.getMovementSpeedBonus());
             player.handleInput(inputHandler, gameMap, delta);
-
-            // Track steps
-            if (player.getGridX() != prevX || player.getGridY() != prevY) {
-                statsScreen.stepsTaken++;
-                // Footstep dust
-                particles.emitDust(player.getPixelX() + 16, player.getPixelY());
-            }
 
             // Interactions
             if (inputHandler.isKeyJustPressed(Input.Keys.F) || inputHandler.isKeyJustPressed(Input.Keys.ENTER)) {
                 if (levelManager.isNearShopkeeper(player)) {
-                    questManager.acceptAvailableQuest();
+                    boolean accepted = questManager.acceptAvailableQuest();
+                    int claimed = questManager.claimReady(player);
+                    handleQuestClaims(claimed);
                     state = GameState.NPC_DIALOGUE;
                     npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor())
                             + "\n\n" + questManager.getLastMessage();
+                    if (!accepted && claimed == 0)
+                        npcDialogueMessage += "\n\nNo quest rewards are ready yet.";
                     return;
                 }
                 boolean lucky = skillTree.hasSkill(SkillTree.Skill.LUCKY);
@@ -588,6 +605,11 @@ public class GameScreen extends ScreenAdapter {
         }
 
         player.update(delta);
+        if (player.getGridX() != prevX || player.getGridY() != prevY) {
+            statsScreen.stepsTaken++;
+            SoundManager.getInstance().playFootstep();
+            particles.emitDust(player.getPixelX() + 16, player.getPixelY());
+        }
         player.tickPassiveRegen(skillTree, delta); // REGEN skill: passive heal outside battle
         combatManager.update(player, delta);
 
@@ -926,57 +948,13 @@ public class GameScreen extends ScreenAdapter {
     private void updateTransition(float delta) {
         floorTransitionTimer += delta;
         if (floorTransitionTimer >= 2.0f) {
-            com.caveadventure.item.Inventory oldInv = player.getInventory();
-            selectedAppearance = player.getAppearance().copy();
-            int oldHunger = player.getHunger();
-            int oldLevel = player.getLevel();
-            boolean oldPoisoned = player.isPoisoned();
-            float oldTorch = player.getTorchDuration();
-
-            setupFloor(transitionToFloor);
-
-            for (int i = 0; i < oldInv.getSize(); i++) {
-                player.getInventory().addItem(oldInv.getItem(i));
-            }
-            if (oldInv.getEquippedWeapon() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedWeapon().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedArmor() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedArmor().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedAccessory() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedAccessory().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedBoots() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedBoots().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            while (player.getLevel() < oldLevel)
-                player.addXP(player.getXPToNextLevel());
+            PlayerSnapshot snapshot = PlayerSnapshot.capture(player);
+            selectedAppearance = snapshot.appearance().copy();
+            setupFloor(transitionToFloor, false);
+            snapshot.restore(player);
             lastPlayerLevel = player.getLevel();
-            player.modifyHunger(oldHunger - player.getHunger());
-            player.addTorchDuration(oldTorch - player.getTorchDuration());
-            if (oldPoisoned)
-                player.applyPoison(3f);
+            if (companion != null)
+                companion.setPosition(player.getGridX(), player.getGridY());
             saveCurrentGame();
         }
     }
@@ -1121,6 +1099,92 @@ public class GameScreen extends ScreenAdapter {
         game.font.draw(game.batch, trapMessage, Gdx.graphics.getWidth() / 2f - layout.width / 2, 110);
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    private record PlayerSnapshot(
+            CharacterAppearance appearance,
+            int level,
+            int xp,
+            int xpToNext,
+            int maxHealth,
+            int health,
+            int hunger,
+            float stamina,
+            float poisonRemaining,
+            float torchDuration,
+            InventorySnapshot inventory) {
+
+        static PlayerSnapshot capture(Player player) {
+            return new PlayerSnapshot(
+                    player.getAppearance().copy(),
+                    player.getLevel(),
+                    player.getXP(),
+                    player.getXPToNextLevel(),
+                    player.getMaxHealth(),
+                    player.getHealth(),
+                    player.getHunger(),
+                    player.getStamina(),
+                    player.getPoisonRemaining(),
+                    player.getTorchDuration(),
+                    InventorySnapshot.capture(player.getInventory()));
+        }
+
+        void restore(Player player) {
+            player.setAppearance(appearance);
+            player.restoreProgressFromSave(level, xp, xpToNext, maxHealth, health);
+            player.modifyHunger(hunger - player.getHunger());
+            player.addTorchDuration(torchDuration - player.getTorchDuration());
+            player.setStamina(stamina);
+            if (poisonRemaining > 0f)
+                player.applyPoison(poisonRemaining);
+            else
+                player.clearPoison();
+            inventory.restore(player.getInventory());
+        }
+    }
+
+    private record InventorySnapshot(
+            List<Item> items,
+            Item.ItemType weapon,
+            Item.ItemType armor,
+            Item.ItemType accessory,
+            Item.ItemType boots) {
+
+        static InventorySnapshot capture(Inventory inventory) {
+            List<Item> copied = new ArrayList<>();
+            for (int i = 0; i < inventory.getSize(); i++) {
+                Item item = inventory.getItem(i);
+                if (item != null)
+                    copied.add(new Item(item.getType(), item.getQuantity()));
+            }
+            return new InventorySnapshot(
+                    copied,
+                    inventory.getEquippedWeapon() == null ? null : inventory.getEquippedWeapon().getType(),
+                    inventory.getEquippedArmor() == null ? null : inventory.getEquippedArmor().getType(),
+                    inventory.getEquippedAccessory() == null ? null : inventory.getEquippedAccessory().getType(),
+                    inventory.getEquippedBoots() == null ? null : inventory.getEquippedBoots().getType());
+        }
+
+        void restore(Inventory inventory) {
+            for (Item item : items)
+                inventory.addItem(new Item(item.getType(), item.getQuantity()));
+            equip(inventory, weapon);
+            equip(inventory, armor);
+            equip(inventory, accessory);
+            equip(inventory, boots);
+        }
+
+        private void equip(Inventory inventory, Item.ItemType type) {
+            if (type == null)
+                return;
+            for (int i = 0; i < inventory.getSize(); i++) {
+                Item item = inventory.getItem(i);
+                if (item != null && item.getType() == type) {
+                    inventory.equipItem(i);
+                    return;
+                }
+            }
+        }
     }
 
     @Override

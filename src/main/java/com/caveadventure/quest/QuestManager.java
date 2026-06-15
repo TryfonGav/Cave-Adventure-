@@ -10,8 +10,11 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class QuestManager {
+    private static final Logger LOGGER = Logger.getLogger(QuestManager.class.getName());
+
     private final Map<String, Quest> quests = new LinkedHashMap<>();
     private String availableQuestId;
     private String lastMessage;
@@ -107,7 +110,8 @@ public class QuestManager {
             }
             try {
                 quests.put(parts[0], new Quest(definition, QuestState.valueOf(parts[1]), Integer.parseInt(parts[2])));
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException ex) {
+                LOGGER.warning("Ignoring invalid quest save entry: " + raw);
             }
         }
     }
@@ -134,7 +138,10 @@ public class QuestManager {
 
     public String getTrackerText() {
         for (Quest quest : quests.values()) {
-            if (quest.getState() == QuestState.READY_TO_CLAIM || quest.getState() == QuestState.ACTIVE) {
+            if (quest.getState() == QuestState.READY_TO_CLAIM) {
+                return quest.getDefinition().title() + ": ready to claim";
+            }
+            if (quest.getState() == QuestState.ACTIVE) {
                 return quest.trackerText();
             }
         }

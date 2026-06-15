@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SaveManagerTest {
     @Test
-    void parseSaveTextRestoresExpansionFields() {
+    void loadSaveDataRestoresExpansionFieldsWithoutMutatingDifficulty() {
         String save = String.join("\n",
                 "version=2",
                 "profile=profile2",
@@ -24,7 +24,9 @@ class SaveManagerTest {
                 "achievement=CRAFTER",
                 "stat=itemsCrafted,4");
 
-        SaveManager.SaveData data = SaveManager.parseSaveText(save);
+        Difficulty before = Difficulty.getCurrent();
+        SaveManager.SaveData data = SaveManager.loadSaveData(save);
+        assertEquals(before, Difficulty.getCurrent());
 
         assertEquals(2, data.version);
         assertEquals("profile2", data.profile);

@@ -82,7 +82,7 @@ public class Quest {
 
     public String trackerText() {
         if (state == QuestState.READY_TO_CLAIM) {
-            return definition.title() + ": claim reward";
+            return definition.title() + ": return or open Quest Log";
         }
         return definition.title() + ": " + progress + "/" + definition.requiredAmount();
     }

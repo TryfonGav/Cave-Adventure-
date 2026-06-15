@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.entity.Player;
 import com.caveadventure.quest.Quest;
 import com.caveadventure.quest.QuestManager;
 
@@ -30,9 +31,19 @@ public class QuestLogUI {
     }
 
     public void update(InputHandler input) {
+        update(input, null, null);
+    }
+
+    public int update(InputHandler input, QuestManager questManager, Player player) {
         if (input.isKeyJustPressed(Input.Keys.J) || input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             visible = false;
+            return 0;
         }
+        if (questManager != null && player != null
+                && (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE))) {
+            return questManager.claimReady(player);
+        }
+        return 0;
     }
 
     public void render(QuestManager questManager) {
@@ -64,7 +75,8 @@ public class QuestLogUI {
         nf.setColor(CaveUIStyle.GOLD);
         nf.draw(game.batch, "QUEST LOG", px + 18, py + panelH - 12);
         sf.setColor(CaveUIStyle.MUTED_TEXT);
-        sf.draw(game.batch, "Talk to NPCs for new quests. J / Esc closes.", px + 18, py + panelH - 36);
+        sf.draw(game.batch, "Talk to NPCs for new quests. Enter claims ready rewards. J / Esc closes.",
+                px + 18, py + panelH - 36);
 
         float y = py + panelH - 72;
         if (questManager.getVisibleQuests().isEmpty()) {
