@@ -200,7 +200,7 @@ public class InventoryUI {
 
         if (items.isEmpty()) {
             game.font.setColor(DIM_TEXT.r, DIM_TEXT.g, DIM_TEXT.b, alpha);
-            drawCentered("Empty", gridX, gridY + gridHeight / 2f + 8, gridWidth);
+            drawCentered("No items", gridX, gridY + gridHeight / 2f + 8, gridWidth);
         }
 
         drawActionHints(selected, panelX, panelY, alpha);

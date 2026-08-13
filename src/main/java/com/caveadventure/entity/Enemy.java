@@ -2,6 +2,7 @@ package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
 import com.caveadventure.engine.Difficulty;
 import com.caveadventure.world.GameMap;
 
@@ -413,6 +414,66 @@ public class Enemy extends Entity {
             renderer.setColor(0.9f, 0.15f, 0.15f, 1f);
             renderer.rect(barX, barY, barWidth * healthPercent, barHeight);
         }
+    }
+
+    public void renderPreview(ShapeRenderer renderer, float previewX, float previewY) {
+        renderPreview(renderer, previewX, previewY, GameMap.TILE_SIZE);
+    }
+
+    public void renderPreview(ShapeRenderer renderer, float previewX, float previewY, int size) {
+        if (!alive) {
+            return;
+        }
+
+        boolean flash = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;
+        Color bodyColor = flash ? Color.WHITE : type.color;
+        Color darkColor = CharacterAppearance.scaledColorInto(bodyColor, 0.7f, 1f, tmpDarkColor);
+
+        float baseSize = GameMap.TILE_SIZE;
+        float scale = Math.max(0.25f, size / baseSize);
+        Matrix4 originalTransform = new Matrix4(renderer.getTransformMatrix());
+        Matrix4 scaledTransform = new Matrix4(originalTransform)
+                .translate(previewX, previewY, 0f)
+                .scale(scale, scale, 1f);
+        renderer.setTransformMatrix(scaledTransform);
+
+        renderer.setColor(0, 0, 0, 0.25f);
+        renderer.ellipse(4, -1, baseSize - 8, 6);
+
+        switch (type) {
+            case BAT:
+                renderBat(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case SLIME:
+                renderSlime(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case SKELETON:
+                renderSkeleton(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case GOBLIN:
+                renderGoblin(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case CAVE_SPIDER:
+                renderSpider(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case NECROMANCER:
+                renderNecromancer(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case SHADOW:
+                renderShadow(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case ICE_DRAKE:
+                renderIceDrake(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case BOSS_GOLEM:
+                renderGolem(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+            case BOSS_WYRM:
+                renderIceDrake(renderer, 0, 0, GameMap.TILE_SIZE, bodyColor, darkColor);
+                break;
+        }
+
+        renderer.setTransformMatrix(originalTransform);
     }
 
     private void renderBat(ShapeRenderer r, float px, float py, int s, Color body, Color dark) {

@@ -135,11 +135,11 @@ public class QuestManager {
     public String getTrackerText() {
         for (Quest quest : quests.values()) {
             if (quest.getState() == QuestState.READY_TO_CLAIM || quest.getState() == QuestState.ACTIVE) {
-                return quest.trackerText();
+                return quest.getDefinition().title() + ":\n" + quest.getDefinition().description();
             }
         }
         Quest available = quests.get(availableQuestId);
-        return available != null ? "Talk to NPC: " + available.getDefinition().title() : "No active quest";
+        return available != null ? available.getDefinition().title() + ":\nTalk to NPC" : "No active quest";
     }
 
     public String getLastMessage() {

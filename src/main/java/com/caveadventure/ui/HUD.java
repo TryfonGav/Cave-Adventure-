@@ -4,10 +4,14 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.Player;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Heads-Up Display — health, hunger, XP, floor, enemy count, and controls.
@@ -22,6 +26,7 @@ public class HUD {
     private static final float BAR_HEIGHT = 18;
     private static final float PADDING = 12;
     private static final float BAR_GAP = 8;
+    private static final float TOP_CLEARANCE = 24;
 
     private static final Color HEALTH_COLOR = new Color(0.8f, 0.15f, 0.15f, 1f);
     private static final Color HEALTH_BG = new Color(0.3f, 0.05f, 0.05f, 0.8f);
@@ -64,7 +69,7 @@ public class HUD {
         float panelWidth = BAR_WIDTH + PADDING * 3 + 50;
         float panelHeight = (BAR_HEIGHT + BAR_GAP) * 4 + PADDING * 2 + 20;
         float panelX = PADDING;
-        float panelY = screenH - panelHeight - PADDING;
+        float panelY = screenH - panelHeight - PADDING - TOP_CLEARANCE;
 
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
@@ -90,11 +95,20 @@ public class HUD {
 
         // --- Right side info panel ---
         float infoW = 150;
-        float infoH = questText == null ? 70 : 94;
+        float infoH = 70;
         float infoX = screenW - infoW - PADDING;
         float infoY = screenH - infoH - PADDING;
 
         CaveUIStyle.drawStonePanel(game.shapeRenderer, infoX, infoY, infoW, infoH, 0.82f);
+
+        // --- Left side quest tracker ---
+        float questPanelW = 220;
+        float questPanelH = questText == null ? 0f : 70f;
+        float questPanelX = PADDING;
+        float questPanelY = panelY - 82f;
+        if (questText != null) {
+            CaveUIStyle.drawStonePanel(game.shapeRenderer, questPanelX, questPanelY, questPanelW, questPanelH, 0.72f);
+        }
 
         // --- Controls hint ---
         float hintW = Math.min(screenW - PADDING * 2, 560);
@@ -116,63 +130,57 @@ public class HUD {
         game.batch.begin();
 
         // Level
-        game.font.setColor(TEXT_COLOR);
-        game.font.draw(game.batch, "Lv." + player.getLevel(), panelX + PADDING, panelY + panelHeight - PADDING);
+        drawTextWithShadow(game.font, "Lv." + player.getLevel(), panelX + PADDING, panelY + panelHeight - PADDING, TEXT_COLOR);
 
         // HP
-        game.font.setColor(LABEL_COLOR);
-        game.font.draw(game.batch, "HP", barX + BAR_WIDTH + 6, barY + BAR_HEIGHT - 2);
-        game.font.setColor(TEXT_COLOR);
+        drawTextWithShadow(game.font, "HP", barX + BAR_WIDTH + 6, barY + BAR_HEIGHT - 2, LABEL_COLOR);
         String hp = player.getHealth() + "/" + player.getMaxHealth();
         layout.setText(game.font, hp);
-        game.font.draw(game.batch, hp, barX + BAR_WIDTH / 2 - layout.width / 2, barY + BAR_HEIGHT - 3);
+        drawTextWithShadow(game.font, hp, barX + BAR_WIDTH / 2 - layout.width / 2, barY + BAR_HEIGHT - 3, TEXT_COLOR);
 
         // Hunger
-        game.font.setColor(LABEL_COLOR);
-        game.font.draw(game.batch, "HNG", barX + BAR_WIDTH + 6, hungerY + BAR_HEIGHT - 2);
-        game.font.setColor(TEXT_COLOR);
+        drawTextWithShadow(game.font, "HNG", barX + BAR_WIDTH + 6, hungerY + BAR_HEIGHT - 2, LABEL_COLOR);
         String hng = player.getHunger() + "/" + player.getMaxHunger();
         layout.setText(game.font, hng);
-        game.font.draw(game.batch, hng, barX + BAR_WIDTH / 2 - layout.width / 2, hungerY + BAR_HEIGHT - 3);
+        drawTextWithShadow(game.font, hng, barX + BAR_WIDTH / 2 - layout.width / 2, hungerY + BAR_HEIGHT - 3, TEXT_COLOR);
 
         // Stamina
-        game.font.setColor(LABEL_COLOR);
-        game.font.draw(game.batch, "STM", barX + BAR_WIDTH + 6, staminaY + BAR_HEIGHT - 2);
-        game.font.setColor(TEXT_COLOR);
+        drawTextWithShadow(game.font, "STM", barX + BAR_WIDTH + 6, staminaY + BAR_HEIGHT - 2, LABEL_COLOR);
         String stm = (int) player.getStamina() + "/" + (int) player.getMaxStamina();
         layout.setText(game.font, stm);
-        game.font.draw(game.batch, stm, barX + BAR_WIDTH / 2 - layout.width / 2, staminaY + BAR_HEIGHT - 3);
+        drawTextWithShadow(game.font, stm, barX + BAR_WIDTH / 2 - layout.width / 2, staminaY + BAR_HEIGHT - 3, TEXT_COLOR);
 
         // XP
-        game.font.setColor(LABEL_COLOR);
-        game.font.draw(game.batch, "XP " + player.getXP() + "/" + player.getXPToNextLevel(),
-                barX + 4, xpY + BAR_HEIGHT * 0.7f - 2);
+        drawTextWithShadow(game.font, "XP " + player.getXP() + "/" + player.getXPToNextLevel(),
+                barX + 4, xpY + BAR_HEIGHT * 0.7f - 2, LABEL_COLOR);
 
         // Floor + Enemy count (right panel)
-        game.font.setColor(CaveUIStyle.GOLD);
-        game.font.draw(game.batch, "Floor " + floor + "/" + maxFloors, infoX + 10, infoY + infoH - 12);
+        drawTextWithShadow(game.font, "Floor " + floor + "/" + maxFloors, infoX + 10, infoY + infoH - 12, CaveUIStyle.GOLD);
+        drawTextWithShadow(game.font, "Enemies: " + enemyCount, infoX + 10, infoY + infoH - 38, CaveUIStyle.DANGER);
 
-        game.font.setColor(CaveUIStyle.DANGER);
-        game.font.draw(game.batch, "Enemies: " + enemyCount, infoX + 10, infoY + infoH - 38);
-        if (questText != null) {
-            com.badlogic.gdx.graphics.g2d.BitmapFont qf = game.fontSmall != null ? game.fontSmall : game.font;
-            qf.setColor(CaveUIStyle.MUTED_TEXT);
-            qf.draw(game.batch, "Quest: " + questText, infoX + 10, infoY + infoH - 62,
-                    infoW - 20, -1, true);
+        // Quest tracker on the left side as one bullet per quest
+        if (questText != null && !questText.equals("No active quest")) {
+            String[] questLines = questText.split("\\n", 2);
+            String title = questLines[0].trim();
+            String description = questLines.length > 1 ? questLines[1].trim() : "";
+            float titleY = questPanelY + questPanelH - 18f;
+            drawTextWithShadow(game.font, "• " + title, questPanelX + 10f, titleY, CaveUIStyle.MUTED_TEXT);
+            if (!description.isEmpty()) {
+                BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
+                drawTextWithShadow(smallFont, description, questPanelX + 22f, titleY - 18f, CaveUIStyle.MUTED_TEXT);
+            }
         }
 
         // Poison text
         if (player.isPoisoned()) {
-            game.font.setColor(0.4f, 1f, 0.3f, 1f);
-            game.font.draw(game.batch, "POISON", panelX + panelWidth + 14, panelY + panelHeight - 8);
+            drawTextWithShadow(game.font, "POISON", panelX + panelWidth + 14, panelY + panelHeight - 8, new Color(0.4f, 1f, 0.3f, 1f));
         }
 
         // Controls
-        game.font.setColor(CaveUIStyle.MUTED_TEXT);
         String controls = "Move  F:Use  TAB:Inv  R:Craft  J:Quests  K:Skills  ESC:Menu";
         layout.setText(game.font, controls);
-        game.font.draw(game.batch, controls, hintX + hintW / 2 - layout.width / 2,
-                PADDING + hintH / 2 + layout.height / 2);
+        drawTextWithShadow(game.font, controls, hintX + hintW / 2 - layout.width / 2,
+                PADDING + hintH / 2 + layout.height / 2, CaveUIStyle.MUTED_TEXT);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -181,6 +189,52 @@ public class HUD {
     private void drawBorder(ShapeRenderer r, float x, float y, float w, float h) {
         r.setColor(CaveUIStyle.STONE_EDGE);
         CaveUIStyle.drawFrame(r, x, y, w, h, 2);
+    }
+
+    private void drawTextWithShadow(BitmapFont font, String text, float x, float y, Color color) {
+        Color shadow = new Color(0f, 0f, 0f, 0.7f);
+        font.setColor(shadow);
+        font.draw(game.batch, text, x - 1f, y - 1f);
+        font.draw(game.batch, text, x + 1f, y - 1f);
+        font.draw(game.batch, text, x - 1f, y + 1f);
+        font.draw(game.batch, text, x + 1f, y + 1f);
+        font.setColor(color);
+        font.draw(game.batch, text, x, y);
+    }
+
+    private String[] wrapQuestText(String text, int maxCharsPerLine) {
+        String trimmed = text == null ? "" : text.trim();
+        if (trimmed.isEmpty()) {
+            return new String[] { "" };
+        }
+
+        String[] words = trimmed.split("\\s+");
+        List<String> lines = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (String word : words) {
+            String candidate = current.length() == 0 ? word : current + " " + word;
+            if (candidate.length() <= maxCharsPerLine) {
+                current = new StringBuilder(candidate);
+            } else {
+                if (current.length() > 0) {
+                    lines.add(current.toString());
+                    current = new StringBuilder(word);
+                } else {
+                    lines.add(word.length() > maxCharsPerLine ? word.substring(0, maxCharsPerLine - 1) + "…" : word);
+                }
+            }
+        }
+
+        if (current.length() > 0) {
+            lines.add(current.toString());
+        }
+
+        if (lines.isEmpty()) {
+            lines.add(trimmed);
+        }
+
+        return lines.toArray(new String[0]);
     }
 
     private void drawBar(ShapeRenderer r, float x, float y, float w, float h,

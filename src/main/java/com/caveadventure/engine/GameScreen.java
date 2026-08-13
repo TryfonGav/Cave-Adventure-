@@ -789,9 +789,13 @@ public class GameScreen extends ScreenAdapter {
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
         com.badlogic.gdx.graphics.g2d.BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
+        float previousScaleX = sf.getData().scaleX;
+        float previousScaleY = sf.getData().scaleY;
+        sf.getData().setScale(1.1f, 1.1f);
         sf.setColor(currentBiome.accentColor.r, currentBiome.accentColor.g, currentBiome.accentColor.b, 0.5f);
         sf.draw(game.batch, currentBiome.name + " - Floor " + levelManager.getCurrentFloor(), 10,
                 Gdx.graphics.getHeight() - 10);
+        sf.getData().setScale(previousScaleX, previousScaleY);
         game.batch.end();
     }
 

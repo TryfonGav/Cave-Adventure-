@@ -5,14 +5,17 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.engine.InputHandler;
 import com.caveadventure.item.CraftingManager;
 import com.caveadventure.item.Inventory;
+import com.caveadventure.item.Item;
 import com.caveadventure.item.Recipe;
 
 import java.util.List;
+import java.util.Map;
 
 public class CraftingUI {
     private final CaveAdventure game;
@@ -22,11 +25,13 @@ public class CraftingUI {
     private int selection;
     private String message;
     private float messageTimer;
+    private final GlyphLayout ingredientLayout;
 
     public CraftingUI(CaveAdventure game, CraftingManager craftingManager) {
         this.game = game;
         this.camera = new OrthographicCamera();
         this.craftingManager = craftingManager;
+        this.ingredientLayout = new GlyphLayout();
     }
 
     public void toggle() {
@@ -102,8 +107,31 @@ public class CraftingUI {
             boolean canCraft = recipe.canCraft(inventory);
             nf.setColor(i == selection ? CaveUIStyle.GOLD : canCraft ? CaveUIStyle.TEXT : CaveUIStyle.DISABLED_TEXT);
             nf.draw(game.batch, recipe.getName(), px + 28, y);
-            sf.setColor(canCraft ? CaveUIStyle.MUTED_TEXT : CaveUIStyle.DISABLED_TEXT);
-            sf.draw(game.batch, recipe.ingredientText(), px + 28, y - 20, panelW - 56, -1, true);
+            if (i == selection) {
+                float textX = px + 28;
+                for (Map.Entry<Item.ItemType, Integer> ingredient : recipe.getIngredients().entrySet()) {
+                    if (textX > px + panelW - 36) {
+                        break;
+                    }
+                    if (textX > px + 28) {
+                        String separator = ", ";
+                        sf.setColor(CaveUIStyle.MUTED_TEXT);
+                        sf.draw(game.batch, separator, textX, y - 20);
+                        ingredientLayout.setText(sf, separator);
+                        textX += ingredientLayout.width;
+                    }
+                    int required = ingredient.getValue();
+                    int owned = inventory != null ? inventory.count(ingredient.getKey()) : 0;
+                    String ingredientText = required + "x " + ingredient.getKey().displayName;
+                    sf.setColor(owned >= required ? CaveUIStyle.GOOD : CaveUIStyle.DANGER);
+                    sf.draw(game.batch, ingredientText, textX, y - 20);
+                    ingredientLayout.setText(sf, ingredientText);
+                    textX += ingredientLayout.width;
+                }
+            } else {
+                sf.setColor(canCraft ? CaveUIStyle.MUTED_TEXT : CaveUIStyle.DISABLED_TEXT);
+                sf.draw(game.batch, recipe.ingredientText(), px + 28, y - 20, panelW - 56, -1, true);
+            }
         }
         if (message != null && messageTimer > 0) {
             nf.setColor(CaveUIStyle.GOLD);

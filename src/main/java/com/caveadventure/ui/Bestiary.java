@@ -35,6 +35,7 @@ public class Bestiary {
     private final OrthographicCamera camera;
     private final GlyphLayout layout;
     private final Map<Enemy.EnemyType, EnemyEntry> entries;
+    private final Map<Enemy.EnemyType, Enemy> previewEnemies;
 
     private boolean visible;
     private int selectedIndex;
@@ -45,10 +46,12 @@ public class Bestiary {
         this.camera = new OrthographicCamera();
         this.layout = new GlyphLayout();
         this.entries = new LinkedHashMap<>();
+        this.previewEnemies = new EnumMap<>(Enemy.EnemyType.class);
         this.orderedTypes = new ArrayList<>();
 
         for (Enemy.EnemyType type : Enemy.EnemyType.values()) {
             entries.put(type, new EnemyEntry(type));
+            previewEnemies.put(type, new Enemy(0, 0, type));
             orderedTypes.add(type);
         }
     }
@@ -129,12 +132,10 @@ public class Bestiary {
         if (selectedIndex < orderedTypes.size()) {
             EnemyEntry sel = entries.get(orderedTypes.get(selectedIndex));
             if (sel.discovered) {
-                // Enemy color preview
-                game.shapeRenderer.setColor(sel.type.color);
-                game.shapeRenderer.rect(px + listW + 30, py + panelH - 130, 50, 50);
-                game.shapeRenderer.setColor(sel.type.color.r * 0.7f, sel.type.color.g * 0.7f, sel.type.color.b * 0.7f,
-                        1f);
-                game.shapeRenderer.rect(px + listW + 35, py + panelH - 140, 40, 15);
+                Enemy previewEnemy = previewEnemies.get(sel.type);
+                if (previewEnemy != null) {
+                    previewEnemy.renderPreview(game.shapeRenderer, px + listW + 28, py + panelH - 146, 96);
+                }
             }
         }
 
