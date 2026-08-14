@@ -87,7 +87,7 @@ public class GameOverScreen {
         game.shapeRenderer.setColor(isVictory ? CaveUIStyle.GOOD.r : CaveUIStyle.DANGER.r,
                 isVictory ? CaveUIStyle.GOOD.g : CaveUIStyle.DANGER.g,
                 isVictory ? CaveUIStyle.GOOD.b : CaveUIStyle.DANGER.b, fadeIn);
-        game.shapeRenderer.rect(panelX + 14, panelY + panelH - 42, panelW - 28, 4);
+        game.shapeRenderer.rect(panelX + 14, panelY + panelH - 58, panelW - 28, 4);
 
         game.shapeRenderer.end();
 

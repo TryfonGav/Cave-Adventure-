@@ -22,10 +22,10 @@ public class HUD {
     private final OrthographicCamera hudCamera;
     private final GlyphLayout layout;
 
-    private static final float BAR_WIDTH = 200;
-    private static final float BAR_HEIGHT = 18;
+    private static final float BAR_WIDTH = 220;
+    private static final float BAR_HEIGHT = 22;
     private static final float PADDING = 12;
-    private static final float BAR_GAP = 8;
+    private static final float BAR_GAP = 10;
     private static final float TOP_CLEARANCE = 24;
 
     private static final Color HEALTH_COLOR = new Color(0.8f, 0.15f, 0.15f, 1f);
@@ -101,19 +101,46 @@ public class HUD {
 
         CaveUIStyle.drawStonePanel(game.shapeRenderer, infoX, infoY, infoW, infoH, 0.82f);
 
-        // --- Left side quest tracker ---
-        float questPanelW = 220;
-        float questPanelH = questText == null ? 0f : 70f;
-        float questPanelX = PADDING;
-        float questPanelY = panelY - 82f;
-        if (questText != null) {
-            CaveUIStyle.drawStonePanel(game.shapeRenderer, questPanelX, questPanelY, questPanelW, questPanelH, 0.72f);
-        }
-
         // --- Controls hint ---
         float hintW = Math.min(screenW - PADDING * 2, 560);
         float hintH = 25;
         float hintX = screenW / 2 - hintW / 2;
+
+        // --- Left side quest tracker (auto-sizing) ---
+        boolean hasQuestTracker = questText != null && !"No active quest".equals(questText);
+        String questTitle = "";
+        String[] questDescriptionLines = new String[0];
+        float questPanelX = PADDING;
+        float questPanelY = 0f;
+        float questPanelW = 0f;
+        float questPanelH = 0f;
+        if (hasQuestTracker) {
+            String[] questLines = questText.split("\\n", 2);
+            questTitle = questLines[0].trim();
+            String description = questLines.length > 1 ? questLines[1].trim() : "";
+            BitmapFont titleFont = game.font;
+            BitmapFont questFont = game.fontSmall != null ? game.fontSmall : game.font;
+            float titleLineHeight = titleFont.getLineHeight();
+            float descLineHeight = questFont.getLineHeight();
+            float maxQuestTextWidth = Math.min(360f, screenW - PADDING * 2 - 36f);
+            questDescriptionLines = wrapQuestText(questFont, description, maxQuestTextWidth);
+
+            float widestLine = 0f;
+            layout.setText(titleFont, "• " + questTitle);
+            widestLine = Math.max(widestLine, layout.width);
+            for (String line : questDescriptionLines) {
+                layout.setText(questFont, line);
+                widestLine = Math.max(widestLine, layout.width + 12f);
+            }
+
+            float maxPanelW = Math.min(420f, screenW - PADDING * 2);
+            questPanelW = Math.max(220f, Math.min(maxPanelW, widestLine + 26f));
+            questPanelH = 16f + titleLineHeight + 6f + questDescriptionLines.length * descLineHeight + 6f;
+            float minQuestY = PADDING + hintH + 14f;
+            questPanelY = Math.max(minQuestY, panelY - questPanelH - 10f);
+
+            CaveUIStyle.drawStonePanel(game.shapeRenderer, questPanelX, questPanelY, questPanelW, questPanelH, 0.72f);
+        }
 
         CaveUIStyle.drawInsetPanel(game.shapeRenderer, hintX, PADDING, hintW, hintH, 0.65f);
 
@@ -159,15 +186,14 @@ public class HUD {
         drawTextWithShadow(game.font, "Enemies: " + enemyCount, infoX + 10, infoY + infoH - 38, CaveUIStyle.DANGER);
 
         // Quest tracker on the left side as one bullet per quest
-        if (questText != null && !questText.equals("No active quest")) {
-            String[] questLines = questText.split("\\n", 2);
-            String title = questLines[0].trim();
-            String description = questLines.length > 1 ? questLines[1].trim() : "";
-            float titleY = questPanelY + questPanelH - 18f;
-            drawTextWithShadow(game.font, "• " + title, questPanelX + 10f, titleY, CaveUIStyle.MUTED_TEXT);
-            if (!description.isEmpty()) {
-                BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
-                drawTextWithShadow(smallFont, description, questPanelX + 22f, titleY - 18f, CaveUIStyle.MUTED_TEXT);
+        if (hasQuestTracker) {
+            float titleY = questPanelY + questPanelH - 10f;
+            drawTextWithShadow(game.font, "• " + questTitle, questPanelX + 10f, titleY, CaveUIStyle.MUTED_TEXT);
+            BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
+            float descriptionY = titleY - game.font.getLineHeight() - 2f;
+            for (int i = 0; i < questDescriptionLines.length; i++) {
+                drawTextWithShadow(smallFont, questDescriptionLines[i], questPanelX + 22f,
+                        descriptionY - i * smallFont.getLineHeight(), CaveUIStyle.MUTED_TEXT);
             }
         }
 
@@ -202,7 +228,7 @@ public class HUD {
         font.draw(game.batch, text, x, y);
     }
 
-    private String[] wrapQuestText(String text, int maxCharsPerLine) {
+    private String[] wrapQuestText(BitmapFont font, String text, float maxWidth) {
         String trimmed = text == null ? "" : text.trim();
         if (trimmed.isEmpty()) {
             return new String[] { "" };
@@ -214,14 +240,15 @@ public class HUD {
 
         for (String word : words) {
             String candidate = current.length() == 0 ? word : current + " " + word;
-            if (candidate.length() <= maxCharsPerLine) {
+            layout.setText(font, candidate);
+            if (layout.width <= maxWidth) {
                 current = new StringBuilder(candidate);
             } else {
                 if (current.length() > 0) {
                     lines.add(current.toString());
                     current = new StringBuilder(word);
                 } else {
-                    lines.add(word.length() > maxCharsPerLine ? word.substring(0, maxCharsPerLine - 1) + "…" : word);
+                    lines.add(fitWordToWidth(font, word, maxWidth));
                 }
             }
         }
@@ -235,6 +262,19 @@ public class HUD {
         }
 
         return lines.toArray(new String[0]);
+    }
+
+    private String fitWordToWidth(BitmapFont font, String word, float maxWidth) {
+        if (word == null || word.isEmpty()) {
+            return "";
+        }
+        String candidate = word;
+        layout.setText(font, candidate);
+        while (layout.width > maxWidth && candidate.length() > 1) {
+            candidate = candidate.substring(0, candidate.length() - 1);
+            layout.setText(font, candidate + "…");
+        }
+        return candidate.length() < word.length() ? candidate + "…" : candidate;
     }
 
     private void drawBar(ShapeRenderer r, float x, float y, float w, float h,

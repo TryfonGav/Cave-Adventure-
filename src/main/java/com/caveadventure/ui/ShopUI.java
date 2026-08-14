@@ -275,10 +275,12 @@ public class ShopUI {
         float screenH = Gdx.graphics.getHeight();
 
         float panelW = 380;
-        float panelH = 300;
+        float panelH = 340;
         float panelX = screenW / 2 - panelW / 2;
         float panelY = screenH / 2 - panelH / 2;
         float alpha = animProgress;
+        float rowStep = 46f;
+        float rowSelectionH = 40f;
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -304,9 +306,9 @@ public class ShopUI {
         // Slots
         if (shopMode == ShopMode.BUY) {
             for (int i = 0; i < shopItems.length; i++) {
-                float slotY = panelY + panelH - 55 - i * 40;
+                float slotY = panelY + panelH - 55 - i * rowStep;
                 if (i == selectedIndex) {
-                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, 35, alpha);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, rowSelectionH, alpha);
                 }
                 game.shapeRenderer.setColor(shopItems[i].type.color.r, shopItems[i].type.color.g,
                         shopItems[i].type.color.b, alpha);
@@ -314,9 +316,9 @@ public class ShopUI {
             }
         } else {
             for (int i = 0; i < sellableItems.size(); i++) {
-                float slotY = panelY + panelH - 55 - i * 40;
+                float slotY = panelY + panelH - 55 - i * rowStep;
                 if (i == selectedIndex) {
-                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, 35, alpha);
+                    CaveUIStyle.drawSelection(game.shapeRenderer, panelX + 8, slotY, panelW - 16, rowSelectionH, alpha);
                 }
                 game.shapeRenderer.setColor(sellableItems.get(i).getType().color.r,
                         sellableItems.get(i).getType().color.g,
@@ -358,17 +360,17 @@ public class ShopUI {
         if (shopMode == ShopMode.BUY) {
             for (int i = 0; i < shopItems.length; i++) {
                 ShopItem item = shopItems[i];
-                float slotY = panelY + panelH - 55 - i * 40;
+                float slotY = panelY + panelH - 55 - i * rowStep;
 
                 if (i == selectedIndex)
                     normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
                 else
                     normalFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, alpha);
 
-                normalFont.draw(game.batch, item.type.displayName, panelX + 30, slotY + 30);
+                normalFont.draw(game.batch, item.type.displayName, panelX + 30, slotY + 33);
 
                 smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
-                smallFont.draw(game.batch, item.description, panelX + 30, slotY + 12);
+                smallFont.draw(game.batch, item.description, panelX + 30, slotY + 15);
 
                 normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
                 String priceStr;
@@ -379,7 +381,7 @@ public class ShopUI {
                     priceStr = item.price + "g";
                 }
                 layout.setText(normalFont, priceStr);
-                normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
+                normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 28);
             }
         } else {
             if (sellableItems.isEmpty()) {
@@ -388,7 +390,7 @@ public class ShopUI {
             } else {
                 for (int i = 0; i < sellableItems.size(); i++) {
                     Item treasure = sellableItems.get(i);
-                    float slotY = panelY + panelH - 55 - i * 40;
+                    float slotY = panelY + panelH - 55 - i * rowStep;
 
                     if (i == selectedIndex)
                         normalFont.setColor(CaveUIStyle.GOLD.r, CaveUIStyle.GOLD.g, CaveUIStyle.GOLD.b, alpha);
@@ -397,15 +399,15 @@ public class ShopUI {
 
                     normalFont.draw(game.batch,
                             treasure.getType().displayName + " x" + treasure.getQuantity(),
-                            panelX + 30, slotY + 30);
+                            panelX + 30, slotY + 33);
 
                     smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
-                    smallFont.draw(game.batch, treasure.getType().description, panelX + 30, slotY + 12);
+                        smallFont.draw(game.batch, treasure.getType().description, panelX + 30, slotY + 15);
 
                     normalFont.setColor(CaveUIStyle.GOOD.r, CaveUIStyle.GOOD.g, CaveUIStyle.GOOD.b, alpha);
                     String priceStr = sellPrice(treasure.getType()) + "g ea";
                     layout.setText(normalFont, priceStr);
-                    normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 25);
+                    normalFont.draw(game.batch, priceStr, panelX + panelW - 25 - layout.width, slotY + 28);
                 }
             }
         }

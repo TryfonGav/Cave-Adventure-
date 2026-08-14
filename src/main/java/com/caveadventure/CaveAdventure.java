@@ -43,21 +43,20 @@ public class CaveAdventure extends Game {
             param.minFilter = Texture.TextureFilter.Linear;
             param.magFilter = Texture.TextureFilter.Linear;
 
-            // Normal font (generated at 2x size for high-res)
-            param.size = 32;
+            float uiScale = Math.max(1.0f, Math.min(1.20f, Gdx.graphics.getHeight() / 1080f));
+
+            // Resolution-aware fonts to keep text readable in fullscreen while remaining crisp.
+            param.size = Math.round(20f * uiScale);
             font = generator.generateFont(param);
-            font.getData().setScale(0.5f);
 
             // Small font
-            param.size = 26;
+            param.size = Math.round(16f * uiScale);
             fontSmall = generator.generateFont(param);
-            fontSmall.getData().setScale(0.5f);
 
             // Large font
-            param.size = 52;
-            param.borderWidth = 2f;
+            param.size = Math.round(34f * uiScale);
+            param.borderWidth = Math.max(1f, 1.25f * uiScale);
             fontLarge = generator.generateFont(param);
-            fontLarge.getData().setScale(0.5f);
 
             generator.dispose();
         } catch (Exception e) {

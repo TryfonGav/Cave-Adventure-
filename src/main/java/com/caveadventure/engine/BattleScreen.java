@@ -1019,17 +1019,24 @@ public class BattleScreen {
         }
 
         // Player HP box
-        float phpX = sw * 0.05f, phpY = sh * 0.35f - 80, phpW = sw * 0.38f, phpH = 80;
+        float phpX = sw * 0.05f, phpY = sh * 0.35f - 104, phpW = sw * 0.42f, phpH = 104;
         CaveUIStyle.drawStonePanel(game.shapeRenderer, phpX, phpY, phpW, phpH, 0.92f);
+
+        float hpBarY = phpY + 40;
+        float hpBarH = 14;
+        float stmBarY = phpY + 24;
+        float stmBarH = 10;
+        float xpBarY = phpY + 11;
+        float xpBarH = 8;
 
         float pHp = (float) player.getHealth() / player.getMaxHealth();
         Color pC = pHp > 0.5f ? BAR_HP_GREEN : pHp > 0.2f ? BAR_HP_YELLOW : BAR_HP_RED;
-        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 42, phpW - 20, 12,
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, hpBarY, phpW - 20, hpBarH,
             Math.max(0, pHp), pC, BAR_BG);
 
         // Stamina bar
         float stmPct = player.getStamina() / player.getMaxStamina();
-        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 29, phpW - 20, 8,
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, stmBarY, phpW - 20, stmBarH,
             Math.max(0, stmPct), STAMINA_FG, STAMINA_BG);
 
         // Player status
@@ -1043,7 +1050,7 @@ public class BattleScreen {
 
         // XP bar
         float xpPct = (float) player.getXP() / player.getXPToNextLevel();
-        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, phpY + 16, phpW - 20, 8,
+        CaveUIStyle.drawBar(game.shapeRenderer, phpX + 10, xpBarY, phpW - 20, xpBarH,
             xpPct, XP_FG, XP_BG);
 
         // Message/Action box
@@ -1111,9 +1118,9 @@ public class BattleScreen {
         nf.setColor(1f, 1f, 1f, 1f);
         nf.draw(game.batch, "You  Lv." + player.getLevel(), phpX + 10, phpY + phpH - 8);
         sf.setColor(0.7f, 0.7f, 0.65f, 1f);
-        sf.draw(game.batch, "HP " + player.getHealth() + "/" + player.getMaxHealth(), phpX + 10, phpY + phpH - 26);
+        sf.draw(game.batch, "HP " + player.getHealth() + "/" + player.getMaxHealth(), phpX + 10, phpY + phpH - 30);
         sf.draw(game.batch, "STM " + (int) player.getStamina() + "/" + (int) player.getMaxStamina(), phpX + 10,
-            phpY + phpH - 40);
+            phpY + phpH - 48);
 
         if (playerStatus == StatusEffect.POISON) {
             sf.setColor(0.3f, 1f, 0.3f, 1f);

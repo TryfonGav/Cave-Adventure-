@@ -138,8 +138,11 @@ public class AchievementManager {
         float slide = Math.min(slideIn, Math.max(0, slideOut));
         float alpha = slide;
 
-        float boxW = 300;
-        float boxH = 55;
+        BitmapFont normalFont = game.font;
+        BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
+
+        float boxW = 320;
+        float boxH = Math.max(82f, smallFont.getLineHeight() * 2f + normalFont.getLineHeight() + 20f);
         float boxX = screenW / 2 - boxW / 2;
         float boxY = screenH - 20 - boxH * slide;
 
@@ -159,9 +162,10 @@ public class AchievementManager {
         // Trophy icon (simple)
         game.shapeRenderer.setColor(currentPopup.color.r, currentPopup.color.g,
                 currentPopup.color.b, 0.8f * alpha);
-        game.shapeRenderer.rect(boxX + 15, boxY + 18, 18, 20);
-        game.shapeRenderer.rect(boxX + 12, boxY + 32, 24, 6);
-        game.shapeRenderer.rect(boxX + 19, boxY + 12, 10, 6);
+        float iconY = boxY + boxH / 2f - 10f;
+        game.shapeRenderer.rect(boxX + 15, iconY, 18, 20);
+        game.shapeRenderer.rect(boxX + 12, iconY + 14, 24, 6);
+        game.shapeRenderer.rect(boxX + 19, iconY - 6, 10, 6);
 
         game.shapeRenderer.end();
 
@@ -169,21 +173,23 @@ public class AchievementManager {
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
 
-        BitmapFont normalFont = game.font;
-        BitmapFont smallFont = game.fontSmall != null ? game.fontSmall : game.font;
-
         // "Achievement Unlocked"
+        float textX = boxX + 45f;
+        float headerY = boxY + boxH - 10f;
         smallFont.setColor(CaveUIStyle.MUTED_TEXT.r, CaveUIStyle.MUTED_TEXT.g, CaveUIStyle.MUTED_TEXT.b, alpha);
-        smallFont.draw(game.batch, "Achievement Unlocked!", boxX + 45, boxY + boxH - 8);
+        smallFont.draw(game.batch, "Achievement Unlocked!", textX, headerY);
 
         // Achievement title
+        float titleY = headerY - smallFont.getLineHeight() - 2f;
         normalFont.setColor(currentPopup.color.r, currentPopup.color.g,
                 currentPopup.color.b, alpha);
-        normalFont.draw(game.batch, currentPopup.title, boxX + 45, boxY + boxH - 26);
+        normalFont.draw(game.batch, currentPopup.title, textX, titleY);
 
         // Description
+        float descriptionY = titleY - normalFont.getLineHeight() - 2f;
+        String description = fitText(smallFont, currentPopup.description, boxW - 56f);
         smallFont.setColor(CaveUIStyle.TEXT.r, CaveUIStyle.TEXT.g, CaveUIStyle.TEXT.b, alpha * 0.8f);
-        smallFont.draw(game.batch, currentPopup.description, boxX + 45, boxY + 14);
+        smallFont.draw(game.batch, description, textX, descriptionY);
 
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
@@ -207,5 +213,20 @@ public class AchievementManager {
             unlocked.addAll(achievements);
         popupQueue.clear();
         currentPopup = null;
+    }
+
+    private String fitText(BitmapFont font, String text, float maxWidth) {
+        if (text == null)
+            return "";
+        String candidate = text;
+        layout.setText(font, candidate);
+        while (layout.width > maxWidth && candidate.length() > 3) {
+            candidate = candidate.substring(0, candidate.length() - 1).trim();
+            layout.setText(font, candidate + "...");
+        }
+        if (!candidate.equals(text)) {
+            candidate += "...";
+        }
+        return candidate;
     }
 }

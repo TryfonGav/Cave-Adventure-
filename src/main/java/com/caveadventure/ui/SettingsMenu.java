@@ -62,11 +62,11 @@ public class SettingsMenu {
     }
 
     private void loadSettings() {
-        isFullscreen = prefs.getBoolean("fullscreen", false);
+        isFullscreen = prefs.getBoolean("fullscreen", true);
         isVsync = prefs.getBoolean("vsync", true);
 
-        int resX = prefs.getInteger("resX", 960);
-        int resY = prefs.getInteger("resY", 640);
+        int resX = prefs.getInteger("resX", Gdx.graphics.getDisplayMode().width);
+        int resY = prefs.getInteger("resY", Gdx.graphics.getDisplayMode().height);
         currentResolutionIndex = 0;
         for (int i = 0; i < resolutionsX.length; i++) {
             if (resolutionsX[i] == resX && resolutionsY[i] == resY) {

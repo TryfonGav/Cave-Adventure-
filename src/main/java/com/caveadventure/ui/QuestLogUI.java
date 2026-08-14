@@ -5,7 +5,9 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.utils.Align;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.engine.InputHandler;
 import com.caveadventure.quest.Quest;
@@ -59,6 +61,7 @@ public class QuestLogUI {
 
         game.batch.setProjectionMatrix(camera.combined);
         game.batch.begin();
+        GlyphLayout layout = new GlyphLayout();
         BitmapFont nf = game.font;
         BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
         nf.setColor(CaveUIStyle.GOLD);
@@ -74,10 +77,14 @@ public class QuestLogUI {
         for (Quest quest : questManager.getVisibleQuests()) {
             nf.setColor(quest.getState().name().contains("COMPLETED") ? CaveUIStyle.DISABLED_TEXT : CaveUIStyle.TEXT);
             nf.draw(game.batch, quest.getDefinition().title(), px + 24, y);
+
+            String detailText = quest.trackerText() + "  [" + quest.getState().name() + "]";
+            layout.setText(sf, detailText, CaveUIStyle.MUTED_TEXT, panelW - 48, Align.left, true);
             sf.setColor(CaveUIStyle.MUTED_TEXT);
-            sf.draw(game.batch, quest.trackerText() + "  [" + quest.getState().name() + "]",
-                    px + 24, y - 20, panelW - 48, -1, true);
-            y -= 58;
+            sf.draw(game.batch, detailText, px + 24, y - 20, panelW - 48, Align.left, true);
+
+            float rowHeight = Math.max(58f, 24f + layout.height + 10f);
+            y -= rowHeight;
         }
         if (questManager.getLastMessage() != null) {
             sf.setColor(CaveUIStyle.GOLD);

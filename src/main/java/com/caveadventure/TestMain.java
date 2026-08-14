@@ -96,7 +96,7 @@ public class TestMain {
     }
 
     private static final class TestConfig {
-        private static final int floor = 11;
+        private static final int floor = 10;
         private static final int health = 1800;
         private static final int maxHealth = 1800;
         private static final int hunger = 100;
