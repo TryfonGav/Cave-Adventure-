@@ -2,6 +2,7 @@ package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.engine.PixelScale;
 import com.caveadventure.world.GameMap;
 
 import java.util.Random;
@@ -36,8 +37,9 @@ public class Shopkeeper extends Entity {
         if (!active)
             return;
 
-        float px = pixelX;
-        float py = pixelY;
+        // Draw on whole art pixels (P5-T1); the logic position stays smooth.
+        float px = PixelScale.snap(pixelX);
+        float py = PixelScale.snap(pixelY);
         int size = GameMap.TILE_SIZE;
 
         // Shadow

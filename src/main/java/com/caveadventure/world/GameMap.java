@@ -97,83 +97,43 @@ public class GameMap {
                 if (trapDetect && tile == Tile.TRAP_HIDDEN) {
                     tile = Tile.TRAP_SPIKES;
                 }
-                Color c = resolveTileColor(tile, biome);
-
-                // Add slight variation to walls for a natural look
-                if (tile == Tile.WALL || tile == Tile.WALL_DARK) {
-                    float variation = ((x * 31 + y * 17) % 10) / 100f;
-                    renderer.setColor(c.r + variation, c.g + variation, c.b + variation, 1f);
-                } else if (tile == Tile.LAVA) {
-                    // Animated lava glow
-                    float pulse = (float) Math.sin(System.currentTimeMillis() / 300.0 + x + y) * 0.1f;
-                    renderer.setColor(c.r + pulse, c.g + pulse * 0.5f, c.b, 1f);
-                } else if (tile == Tile.WATER) {
-                    // Subtle water shimmer
-                    float shimmer = (float) Math.sin(System.currentTimeMillis() / 500.0 + x * 0.5 + y * 0.3) * 0.05f;
-                    renderer.setColor(c.r, c.g + shimmer, c.b + shimmer, 1f);
-                } else {
-                    renderer.setColor(c);
-                }
-
+                renderer.setColor(resolveTileColor(tile, biome, x, y));
                 renderer.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
 
-                // Draw wall edge shadows for depth
+                // Wall edge shadow for depth: two art pixels under a wall
                 if (tile == Tile.FLOOR && y + 1 < height && tiles[x][y + 1].isSolid()) {
-                    renderer.setColor(0, 0, 0, 0.2f);
+                    renderer.setColor(WALL_SHADOW);
                     renderer.rect(x * TILE_SIZE, (y + 1) * TILE_SIZE - 4, TILE_SIZE, 4);
                 }
             }
         }
-
-        // Draw grid lines for visual clarity (subtle)
-        renderer.setColor(0, 0, 0, 0.08f);
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                if (!tiles[x][y].isSolid()) {
-                    renderer.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, 1);
-                    renderer.rect(x * TILE_SIZE, y * TILE_SIZE, 1, TILE_SIZE);
-                }
-            }
-        }
     }
 
-    private Color resolveTileColor(Tile tile, Biome biome) {
-        if (biome == null) {
-            return tile.getColor();
-        }
+    private static final Color WALL_SHADOW = Palette.alpha(Palette.INK, 0.25f);
 
+    /**
+     * Palette colour for one map cell. Walls mix the biome's two wall colours by a stable
+     * coordinate hash; lava and water step between two palette entries over time (placeholder
+     * frames until the P5-T6 tileset animates them).
+     */
+    private Color resolveTileColor(Tile tile, Biome biome, int x, int y) {
+        long frame = System.currentTimeMillis() / 400;
         switch (tile) {
             case FLOOR:
             case TRAP_HIDDEN:
-                return biome.floorColor;
+                return biome != null ? biome.floorColor : tile.getColor();
             case WALL:
             case WALL_DARK:
-                return biome.wallColor;
-            case SHOP_FLOOR:
-                return lerpColor(biome.floorColor, biome.accentColor, 0.18f);
-            case DOOR_LOCKED:
-            case DOOR_OPEN:
-                return lerpColor(biome.wallColor, biome.accentColor, 0.35f);
-            case CHEST:
-                return lerpColor(new Color(0.85f, 0.7f, 0.1f, 1f), biome.accentColor, 0.25f);
-            case STAIRS_DOWN:
-                return lerpColor(new Color(0.6f, 0.5f, 0.8f, 1f), biome.accentColor, 0.45f);
-            case ICE:
-            case TOXIC_MIST:
-            case CRYSTAL_SPIKES:
+                if (biome == null)
+                    return tile.getColor();
+                return ((x * 31 + y * 17) % 5 == 0) ? biome.wallShadeColor : biome.wallColor;
             case LAVA:
-                return lerpColor(tile.getColor(), biome.accentColor, 0.18f);
+                return ((frame + x + y) % 3 == 0) ? Palette.FLAME : tile.getColor();
+            case WATER:
+                return ((frame + x * 2 + y) % 4 == 0) ? Palette.SEA_DARK : tile.getColor();
             default:
                 return tile.getColor();
         }
-    }
-
-    private Color lerpColor(Color a, Color b, float t) {
-        return new Color(
-                a.r + (b.r - a.r) * t,
-                a.g + (b.g - a.g) * t,
-                a.b + (b.b - a.b) * t,
-                1f);
     }
 
     public int getWidth() {

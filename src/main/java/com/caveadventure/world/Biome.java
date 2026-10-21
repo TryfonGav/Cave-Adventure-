@@ -5,67 +5,77 @@ import com.badlogic.gdx.graphics.Color;
 /**
  * Biome themes for different floor groups. Each biome defines unique tile
  * colors,
- * ambient effects, and hazard types.
+ * ambient effects, and hazard types. All colours are {@link Palette} entries.
  */
 public enum Biome {
     CRYSTAL_CAVES("Crystal Caves", 1, 3,
-            new Color(0.2f, 0.22f, 0.28f, 1f), // floor
-            new Color(0.3f, 0.35f, 0.45f, 1f), // wall
-            new Color(0.5f, 0.6f, 0.8f, 1f), // accent
-            new Color(0.15f, 0.4f, 0.6f, 0.3f)), // ambient glow
+            Palette.SLATE, // floor
+            Palette.SEA_DARK, // wall
+            Palette.SLATE_LIGHT, // wall shade
+            Palette.SKY, // accent
+            Palette.alpha(Palette.SEA, 0.3f)), // ambient glow
 
     MUSHROOM_GROTTO("Mushroom Grotto", 4, 5,
-            new Color(0.2f, 0.25f, 0.18f, 1f),
-            new Color(0.3f, 0.28f, 0.22f, 1f),
-            new Color(0.4f, 0.8f, 0.3f, 1f),
-            new Color(0.2f, 0.5f, 0.15f, 0.2f)),
+            Palette.STONE_DARK,
+            Palette.MOSS,
+            Palette.MOSS_DARK,
+            Palette.GREEN_BRIGHT,
+            Palette.alpha(Palette.FOREST, 0.2f)),
 
     LAVA_CAVERNS("Lava Caverns", 6, 8,
-            new Color(0.28f, 0.18f, 0.14f, 1f),
-            new Color(0.4f, 0.25f, 0.18f, 1f),
-            new Color(0.9f, 0.4f, 0.1f, 1f),
-            new Color(0.6f, 0.15f, 0.05f, 0.15f), Tile.LAVA, "audio/ambient/lava_caverns.ogg"),
+            Palette.UMBER,
+            Palette.STONE,
+            Palette.WINE,
+            Palette.FLAME,
+            Palette.alpha(Palette.BLOOD, 0.15f), Tile.LAVA, "audio/ambient/lava_caverns.ogg"),
 
     SHADOW_ABYSS("Shadow Abyss", 9, 10,
-            new Color(0.12f, 0.1f, 0.15f, 1f),
-            new Color(0.2f, 0.18f, 0.25f, 1f),
-            new Color(0.5f, 0.2f, 0.8f, 1f),
-            new Color(0.3f, 0.1f, 0.5f, 0.2f), Tile.CRYSTAL_SPIKES, "audio/ambient/shadow_abyss.ogg"),
+            Palette.INDIGO,
+            Palette.SLATE_LIGHT,
+            Palette.SLATE_DARK,
+            Palette.VIOLET,
+            Palette.alpha(Palette.PLUM, 0.2f), Tile.CRYSTAL_SPIKES, "audio/ambient/shadow_abyss.ogg"),
 
     FROST_VAULTS("Frost Vaults", 11, 12,
-            new Color(0.15f, 0.23f, 0.28f, 1f),
-            new Color(0.25f, 0.35f, 0.42f, 1f),
-            new Color(0.58f, 0.86f, 1f, 1f),
-            new Color(0.2f, 0.45f, 0.65f, 0.18f), Tile.ICE, "audio/ambient/frost_vaults.ogg"),
+            Palette.TEAL_DARK,
+            Palette.SEA,
+            Palette.SEA_DARK,
+            Palette.ICE,
+            Palette.alpha(Palette.SEA, 0.18f), Tile.ICE, "audio/ambient/frost_vaults.ogg"),
 
     TOXIC_MIRE("Toxic Mire", 13, 14,
-            new Color(0.14f, 0.22f, 0.13f, 1f),
-            new Color(0.20f, 0.28f, 0.18f, 1f),
-            new Color(0.46f, 0.95f, 0.22f, 1f),
-            new Color(0.20f, 0.7f, 0.15f, 0.18f), Tile.TOXIC_MIST, "audio/ambient/toxic_mire.ogg");
+            Palette.ASH,
+            Palette.MOSS_DARK,
+            Palette.FOREST,
+            Palette.LIME,
+            Palette.alpha(Palette.GREEN, 0.18f), Tile.TOXIC_MIST, "audio/ambient/toxic_mire.ogg");
 
     public final String name;
     public final int startFloor;
     public final int endFloor;
     public final Color floorColor;
     public final Color wallColor;
+    /** Second wall colour, mixed in by a stable per-tile hash so walls aren't one flat colour. */
+    public final Color wallShadeColor;
     public final Color accentColor;
     public final Color ambientColor;
     public final Tile hazardTile;
     public final String ambientTrack;
 
-    Biome(String name, int startFloor, int endFloor, Color floor, Color wall, Color accent, Color ambient) {
-        this(name, startFloor, endFloor, floor, wall, accent, ambient, Tile.WATER,
+    Biome(String name, int startFloor, int endFloor, Color floor, Color wall, Color wallShade, Color accent,
+            Color ambient) {
+        this(name, startFloor, endFloor, floor, wall, wallShade, accent, ambient, Tile.WATER,
                 "audio/ambient/" + name.toLowerCase().replace(' ', '_') + ".ogg");
     }
 
-    Biome(String name, int startFloor, int endFloor, Color floor, Color wall, Color accent, Color ambient,
-            Tile hazardTile, String ambientTrack) {
+    Biome(String name, int startFloor, int endFloor, Color floor, Color wall, Color wallShade, Color accent,
+            Color ambient, Tile hazardTile, String ambientTrack) {
         this.name = name;
         this.startFloor = startFloor;
         this.endFloor = endFloor;
         this.floorColor = floor;
         this.wallColor = wall;
+        this.wallShadeColor = wallShade;
         this.accentColor = accent;
         this.ambientColor = ambient;
         this.hazardTile = hazardTile;

@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
 import com.caveadventure.engine.Balance;
 import com.caveadventure.engine.Difficulty;
+import com.caveadventure.engine.PixelScale;
 import com.caveadventure.world.GameMap;
 
 import java.util.*;
@@ -370,13 +371,15 @@ public class Enemy extends Entity {
             if (deathTimer < 0.5f) {
                 float alpha = 1f - deathTimer / 0.5f;
                 renderer.setColor(type.color.r, type.color.g, type.color.b, alpha);
-                renderer.rect(pixelX + 8, pixelY + 4, GameMap.TILE_SIZE - 16, GameMap.TILE_SIZE - 8);
+                renderer.rect(PixelScale.snap(pixelX) + 8, PixelScale.snap(pixelY) + 4, GameMap.TILE_SIZE - 16,
+                        GameMap.TILE_SIZE - 8);
             }
             return;
         }
 
-        float px = pixelX;
-        float py = pixelY;
+        // Draw on whole art pixels (P5-T1); the logic position stays smooth.
+        float px = PixelScale.snap(pixelX);
+        float py = PixelScale.snap(pixelY);
         int size = GameMap.TILE_SIZE;
 
         boolean flash = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;

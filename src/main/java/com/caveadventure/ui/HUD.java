@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.Player;
+import com.caveadventure.world.Palette;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,18 +29,21 @@ public class HUD {
     private static final float BAR_GAP = 10;
     private static final float TOP_CLEARANCE = 24;
 
-    private static final Color HEALTH_COLOR = new Color(0.8f, 0.15f, 0.15f, 1f);
-    private static final Color HEALTH_BG = new Color(0.3f, 0.05f, 0.05f, 0.8f);
-    private static final Color HUNGER_COLOR = new Color(0.85f, 0.6f, 0.1f, 1f);
-    private static final Color HUNGER_BG = new Color(0.3f, 0.2f, 0.05f, 0.8f);
-    private static final Color STAMINA_COLOR = new Color(0.35f, 0.62f, 0.95f, 1f);
-    private static final Color STAMINA_BG = new Color(0.07f, 0.10f, 0.17f, 0.85f);
-    private static final Color XP_COLOR = new Color(0.25f, 0.68f, 0.30f, 1f);
-    private static final Color XP_BG = new Color(0.04f, 0.16f, 0.08f, 0.85f);
+    private static final Color HEALTH_COLOR = new Color(Palette.RED);
+    private static final Color HEALTH_BG = new Color(Palette.BLOOD_DARK);
+    private static final Color HUNGER_COLOR = new Color(Palette.ORANGE);
+    private static final Color HUNGER_BG = new Color(Palette.UMBER);
+    private static final Color STAMINA_COLOR = new Color(Palette.SKY);
+    private static final Color STAMINA_BG = new Color(Palette.INDIGO);
+    private static final Color XP_COLOR = new Color(Palette.GREEN);
+    private static final Color XP_BG = new Color(Palette.CHARCOAL);
     private static final Color TEXT_COLOR = CaveUIStyle.TEXT;
     private static final Color LABEL_COLOR = CaveUIStyle.MUTED_TEXT;
-    private static final Color BUFF_ATTACK_COLOR = new Color(1f, 0.55f, 0.3f, 1f);
-    private static final Color BUFF_DEFENSE_COLOR = new Color(0.45f, 0.75f, 1f, 1f);
+    private static final Color BUFF_ATTACK_COLOR = new Color(Palette.ORANGE);
+    private static final Color BUFF_DEFENSE_COLOR = new Color(Palette.CYAN);
+    private static final Color POISON_COLOR = new Color(Palette.LIME);
+    private static final Color POISON_BG = Palette.alpha(Palette.FOREST, 0.6f);
+    private static final String CONTROLS = "Move  F:Use  TAB:Inv  R:Craft  J:Quests  K:Skills  ESC:Menu";
 
     public HUD(CaveAdventure game) {
         this.game = game;
@@ -103,9 +107,10 @@ public class HUD {
 
         CaveUIStyle.drawStonePanel(game.shapeRenderer, infoX, infoY, infoW, infoH, 0.82f);
 
-        // --- Controls hint ---
-        float hintW = Math.min(screenW - PADDING * 2, 560);
-        float hintH = 25;
+        // --- Controls hint (sized to its text) ---
+        layout.setText(game.font, CONTROLS);
+        float hintW = Math.min(screenW - PADDING * 2, layout.width + PADDING * 2);
+        float hintH = Math.max(25, game.font.getLineHeight() + 8);
         float hintX = screenW / 2 - hintW / 2;
 
         // --- Left side quest tracker (auto-sizing) ---
@@ -148,7 +153,7 @@ public class HUD {
 
         // Poison indicator
         if (player.isPoisoned()) {
-            game.shapeRenderer.setColor(0.2f, 0.5f, 0.1f, 0.6f);
+            game.shapeRenderer.setColor(POISON_BG);
             game.shapeRenderer.rect(panelX + panelWidth + 8, panelY + panelHeight - 25, 70, 22);
         }
 
@@ -201,7 +206,7 @@ public class HUD {
 
         // Poison text
         if (player.isPoisoned()) {
-            drawTextWithShadow(game.font, "POISON", panelX + panelWidth + 14, panelY + panelHeight - 8, new Color(0.4f, 1f, 0.3f, 1f));
+            drawTextWithShadow(game.font, "POISON", panelX + panelWidth + 14, panelY + panelHeight - 8, POISON_COLOR);
         }
 
         // Event buffs: battles left
@@ -215,9 +220,8 @@ public class HUD {
         }
 
         // Controls
-        String controls = "Move  F:Use  TAB:Inv  R:Craft  J:Quests  K:Skills  ESC:Menu";
-        layout.setText(game.font, controls);
-        drawTextWithShadow(game.font, controls, hintX + hintW / 2 - layout.width / 2,
+        layout.setText(game.font, CONTROLS);
+        drawTextWithShadow(game.font, CONTROLS, hintX + hintW / 2 - layout.width / 2,
                 PADDING + hintH / 2 + layout.height / 2, CaveUIStyle.MUTED_TEXT);
 
         game.batch.end();
@@ -229,15 +233,13 @@ public class HUD {
         CaveUIStyle.drawFrame(r, x, y, w, h, 2);
     }
 
+    /**
+     * Draws HUD text once on whole pixels. The pixel font carries its own 1 px palette
+     * shadow, so the old four-copy outline (P3-T8's blur source) is gone.
+     */
     private void drawTextWithShadow(BitmapFont font, String text, float x, float y, Color color) {
-        Color shadow = new Color(0f, 0f, 0f, 0.7f);
-        font.setColor(shadow);
-        font.draw(game.batch, text, x - 1f, y - 1f);
-        font.draw(game.batch, text, x + 1f, y - 1f);
-        font.draw(game.batch, text, x - 1f, y + 1f);
-        font.draw(game.batch, text, x + 1f, y + 1f);
         font.setColor(color);
-        font.draw(game.batch, text, x, y);
+        font.draw(game.batch, text, Math.round(x), Math.round(y));
     }
 
     private String[] wrapQuestText(BitmapFont font, String text, float maxWidth) {

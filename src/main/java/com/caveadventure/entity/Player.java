@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.caveadventure.engine.Balance;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.engine.PixelScale;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.world.GameMap;
 import com.badlogic.gdx.Input;
@@ -280,10 +281,11 @@ public class Player extends Entity {
 
     @Override
     public void render(ShapeRenderer renderer) {
-        float px = pixelX;
-        float py = pixelY;
-        float bobOffset = isMoving ? (float) Math.sin(moveProgress * Math.PI) * 3f : 0;
-        float step = isMoving ? (float) Math.sin(moveProgress * Math.PI * 2f) * 1.5f : 0;
+        // Draw on whole art pixels (P5-T1); the logic position stays smooth.
+        float px = PixelScale.snap(pixelX);
+        float py = PixelScale.snap(pixelY);
+        float bobOffset = isMoving ? PixelScale.snap((float) Math.sin(moveProgress * Math.PI) * 3f) : 0;
+        float step = isMoving ? PixelScale.snap((float) Math.sin(moveProgress * Math.PI * 2f) * 1.5f) : 0;
 
         boolean flashWhite = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;
 

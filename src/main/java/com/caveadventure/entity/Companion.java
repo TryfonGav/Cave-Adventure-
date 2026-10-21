@@ -2,6 +2,7 @@ package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.engine.PixelScale;
 import com.caveadventure.world.GameMap;
 
 import java.util.Random;
@@ -165,10 +166,11 @@ public class Companion extends Entity {
         if (!alive)
             return;
 
-        float px = pixelX;
-        float py = pixelY;
-        float bob = (float) Math.sin(animTimer * 4.5f) * 2f;
-        float twitch = (float) Math.sin(animTimer * 8f) * 1.5f;
+        // Draw on whole art pixels (P5-T1); the logic position stays smooth.
+        float px = PixelScale.snap(pixelX);
+        float py = PixelScale.snap(pixelY);
+        float bob = PixelScale.snap((float) Math.sin(animTimer * 4.5f) * 2f);
+        float twitch = PixelScale.snap((float) Math.sin(animTimer * 8f) * 1.5f);
 
         renderer.setColor(SHADOW_COLOR);
         renderer.ellipse(px + 2, py - 3, GameMap.TILE_SIZE - 8, 8);

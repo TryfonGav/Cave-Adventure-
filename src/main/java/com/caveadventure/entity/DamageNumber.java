@@ -5,9 +5,12 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Matrix4;
+import com.caveadventure.engine.PixelScale;
+import com.caveadventure.world.Palette;
 
 /**
- * Floating damage number that rises and fades out.
+ * Floating damage number that rises and fades out. Drawn in world space with one font
+ * pixel per art pixel, on whole art pixels, in palette colours.
  */
 public class DamageNumber {
 
@@ -21,13 +24,10 @@ public class DamageNumber {
     private static final float DURATION = 1.0f;
     private static final float RISE_SPEED = 40f;
 
-    private static final float CRIT_R = 1f;
-    private static final float CRIT_G = 0.9f;
-    private static final float CRIT_B = 0.1f;
-    private static final float NORMAL_R = 1f;
-    private static final float NORMAL_G = 0.3f;
-    private static final float NORMAL_B = 0.2f;
-    private static final float BASE_SCALE = 1.3f;
+    private static final Color CRIT_COLOR = Palette.GOLD;
+    private static final Color NORMAL_COLOR = Palette.RED;
+    /** Font pixels are doubled for the first {@link #POP_TIME} seconds. */
+    private static final float POP_TIME = 0.1f;
 
     private static final GlyphLayout SHARED_LAYOUT = new GlyphLayout();
     private static final Matrix4 ORIGINAL_TRANSFORM = new Matrix4();
@@ -37,15 +37,10 @@ public class DamageNumber {
         this.x = x;
         this.y = y;
         this.text = isCritical ? amount + "!" : String.valueOf(amount);
-        if (isCritical) {
-            this.colorR = CRIT_R;
-            this.colorG = CRIT_G;
-            this.colorB = CRIT_B;
-        } else {
-            this.colorR = NORMAL_R;
-            this.colorG = NORMAL_G;
-            this.colorB = NORMAL_B;
-        }
+        Color c = isCritical ? CRIT_COLOR : NORMAL_COLOR;
+        this.colorR = c.r;
+        this.colorG = c.g;
+        this.colorB = c.b;
         this.colorA = 1f;
         this.timer = 0;
     }
@@ -72,12 +67,13 @@ public class DamageNumber {
         if (alpha <= 0)
             return;
 
-        float popScale = timer < 0.1f ? 1f + (0.1f - timer) * 5f : 1f;
-        float drawScale = popScale * BASE_SCALE;
+        // The UI font is scaled by the UI scale; undo that so one font pixel is one art pixel.
+        float popScale = timer < POP_TIME ? 2f : 1f;
+        float drawScale = popScale * PixelScale.WORLD_PER_ART_PIXEL / font.getScaleX();
 
         SHARED_LAYOUT.setText(font, text);
-        float drawX = x - SHARED_LAYOUT.width * 0.5f * drawScale;
-        float drawY = y;
+        float drawX = PixelScale.snap(x - SHARED_LAYOUT.width * 0.5f * drawScale);
+        float drawY = PixelScale.snap(y);
 
         ORIGINAL_TRANSFORM.set(batch.getTransformMatrix());
         SCALED_TRANSFORM.set(ORIGINAL_TRANSFORM);
