@@ -9,7 +9,8 @@ class RecipeTest {
     void craftConsumesIngredientsAndAddsResult() {
         Inventory inventory = new Inventory();
         inventory.addItem(new Item(Item.ItemType.CRYSTAL_SHARD, 4));
-        inventory.addItem(new Item(Item.ItemType.IRON_SWORD));
+        inventory.addItem(new Item(Item.ItemType.FROST_ORE, 2));
+        inventory.addItem(new Item(Item.ItemType.STEEL_SWORD));
         Recipe recipe = CraftingManager.defaultRecipes().stream()
                 .filter(r -> r.getId().equals("crystal_blade"))
                 .findFirst()
@@ -18,6 +19,8 @@ class RecipeTest {
         assertTrue(recipe.canCraft(inventory));
         assertTrue(recipe.craft(inventory));
         assertEquals(0, inventory.count(Item.ItemType.CRYSTAL_SHARD));
+        assertEquals(0, inventory.count(Item.ItemType.FROST_ORE));
+        assertEquals(0, inventory.count(Item.ItemType.STEEL_SWORD));
         assertEquals(1, inventory.count(Item.ItemType.CRYSTAL_BLADE));
     }
 

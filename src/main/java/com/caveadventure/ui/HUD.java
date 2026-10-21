@@ -38,6 +38,8 @@ public class HUD {
     private static final Color XP_BG = new Color(0.04f, 0.16f, 0.08f, 0.85f);
     private static final Color TEXT_COLOR = CaveUIStyle.TEXT;
     private static final Color LABEL_COLOR = CaveUIStyle.MUTED_TEXT;
+    private static final Color BUFF_ATTACK_COLOR = new Color(1f, 0.55f, 0.3f, 1f);
+    private static final Color BUFF_DEFENSE_COLOR = new Color(0.45f, 0.75f, 1f, 1f);
 
     public HUD(CaveAdventure game) {
         this.game = game;
@@ -200,6 +202,16 @@ public class HUD {
         // Poison text
         if (player.isPoisoned()) {
             drawTextWithShadow(game.font, "POISON", panelX + panelWidth + 14, panelY + panelHeight - 8, new Color(0.4f, 1f, 0.3f, 1f));
+        }
+
+        // Event buffs: battles left
+        float buffY = panelY + panelHeight - 36;
+        if (player.getAttackBuffBattles() > 0) {
+            drawTextWithShadow(game.font, "ATK+ " + player.getAttackBuffBattles(), panelX + panelWidth + 14, buffY, BUFF_ATTACK_COLOR);
+            buffY -= 22;
+        }
+        if (player.getDefenseBuffBattles() > 0) {
+            drawTextWithShadow(game.font, "DEF+ " + player.getDefenseBuffBattles(), panelX + panelWidth + 14, buffY, BUFF_DEFENSE_COLOR);
         }
 
         // Controls

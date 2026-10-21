@@ -26,7 +26,6 @@ public enum Tile {
     CHEST(new Color(0.85f, 0.7f, 0.1f, 1f), false, false, "Treasure chest"),
 
     // Traps
-    TRAP_SPIKE(new Color(0.5f, 0.15f, 0.15f, 1f), false, true, "Spike trap"),
     TRAP_HIDDEN(new Color(0.25f, 0.22f, 0.2f, 1f), false, true, "Hidden trap"),
     TRAP_SPIKES(new Color(0.45f, 0.12f, 0.12f, 1f), false, false, "Visible spike trap"),
     TRAP_ARROW(new Color(0.35f, 0.2f, 0.1f, 1f), false, false, "Arrow trap"),

@@ -35,9 +35,14 @@ public class BattleScreen {
         NONE, POISON, BURN, STUN
     }
 
+    /** How a finished battle ended. */
+    public enum Outcome {
+        VICTORY, FLED, DEFEAT
+    }
+
     private final CaveAdventure game;
     private final OrthographicCamera camera;
-    private final Random random = new Random();
+    private final Random random;
 
     // Cached list of usable items to avoid allocations each frame
     private final List<Item> cachedUsables = new ArrayList<>();
@@ -61,6 +66,7 @@ public class BattleScreen {
     private final Color ITEM_DEFAULT = new Color(0.7f, 0.65f, 0.55f, 1f);
     private final Color LOOT_TITLE = new Color(0.9f, 0.8f, 0.3f, 1f);
     private final Color LOOT_TEXT = new Color(0.8f, 0.75f, 0.6f, 1f);
+    private final Color LOOT_LOST_TEXT = new Color(0.85f, 0.4f, 0.35f, 1f);
     private final Color DEFAULT_WEAPON_COLOR = new Color(0.76f, 0.80f, 0.86f, 1f);
     private final Color ATTACK_FLASH_COLOR = new Color(1f, 0.20f, 0.10f, 1f);
 
@@ -73,7 +79,7 @@ public class BattleScreen {
     private BattleState state;
     private float stateTimer;
     private boolean battleActive;
-    private boolean battleResult;
+    private Outcome outcome;
     private boolean bossKilled;
     private int bossPhase;
 
@@ -89,10 +95,16 @@ public class BattleScreen {
     // Combat
     private boolean playerDefending;
     private int turnCount;
-    private StatusEffect enemyStatus;
-    private float enemyStatusTimer;
-    private StatusEffect playerStatus;
-    private float playerStatusTimer;
+    private final BattleStatus enemyStatus = new BattleStatus();
+    private final BattleStatus playerStatus = new BattleStatus();
+
+    // Damage-over-time per round
+    private static final int PLAYER_POISON_TICK = 3;
+    private static final int PLAYER_BURN_TICK = 5;
+    private static final int ENEMY_POISON_TICK = 4;
+    private static final int ENEMY_BURN_TICK = 6;
+    /** Event blessings: +25% damage dealt (attack) or -25% damage taken (defense). */
+    private static final float EVENT_BUFF_FRACTION = 0.25f;
 
     // Animation
     private float attackFlashTimer;
@@ -109,6 +121,7 @@ public class BattleScreen {
 
     // Loot
     private List<Item> lootDrops;
+    private boolean[] lootLost; // per drop: true if it didn't fit in the inventory
     private int currentFloor;
 
     // Companion
@@ -118,9 +131,45 @@ public class BattleScreen {
     private int shadowRuneTurns = 0;
 
     public BattleScreen(CaveAdventure game) {
+        this(game, new Random());
+    }
+
+    /**
+     * Test seam: battle screen whose rolls come from the given {@link Random}.
+     */
+    BattleScreen(CaveAdventure game, Random random) {
         this.game = game;
+        this.random = random;
         this.camera = new OrthographicCamera();
         this.battleActive = false;
+    }
+
+    /**
+     * Current battle state (exposed for tests).
+     */
+    BattleState getState() {
+        return state;
+    }
+
+    /**
+     * Battle message currently shown (exposed for tests).
+     */
+    String getMessage() {
+        return currentMessage;
+    }
+
+    /**
+     * Player's battle status (exposed for tests).
+     */
+    BattleStatus getPlayerStatus() {
+        return playerStatus;
+    }
+
+    /**
+     * Enemy's battle status (exposed for tests).
+     */
+    BattleStatus getEnemyStatus() {
+        return enemyStatus;
     }
 
     public void startBattle(Player player, Enemy enemy, int floor) {
@@ -140,7 +189,7 @@ public class BattleScreen {
         this.state = BattleState.INTRO;
         this.stateTimer = 0;
         this.battleActive = true;
-        this.battleResult = false;
+        this.outcome = null;
         this.bossKilled = false;
         this.bossPhase = 1;
         this.menuSelection = 0;
@@ -151,12 +200,11 @@ public class BattleScreen {
         this.shakeTimer = 0;
         this.shakeTargetEnemy = 0;
         this.lootDrops = null;
-        this.enemyStatus = StatusEffect.NONE;
-        this.enemyStatusTimer = 0;
-        this.playerStatus = StatusEffect.NONE;
-        this.playerStatusTimer = 0;
+        this.lootLost = null;
+        this.enemyStatus.reset();
+        this.playerStatus.reset();
         this.currentMessage = "A wild " + enemy.getType().name + " appeared!";
-        enemy.scaleToPlayer(player.getLevel(), floor);
+        enemy.scaleForFloor(floor);
         updateSkills();
         this.usablesDirty = true;
     }
@@ -184,15 +232,28 @@ public class BattleScreen {
     }
 
     /**
-     * Apply damage to the player, accounting for IRON_SKIN reduction and
+     * Apply a hit to the player, accounting for armor, IRON_SKIN reduction and
      * LAST_STAND survival.
      */
     private void applyDamageToPlayer(int damage) {
+        applyDamageToPlayer(damage, false);
+    }
+
+    /**
+     * Apply damage to the player; {@code ignoreArmor} for poison and burn ticks.
+     * Skill, companion and blessing reductions apply either way.
+     */
+    private void applyDamageToPlayer(int damage, boolean ignoreArmor) {
         if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.IRON_SKIN))
             damage = Math.max(1, (int)(damage * 0.85f));
         if (canCompanionAssist() && companion.hasLoveStatBonus())
             damage = Math.max(1, Math.round(damage / companion.getBattleStatMultiplier()));
-        player.takeDamage(damage);
+        if (player.getDefenseBuffBattles() > 0)
+            damage = Math.max(1, Math.round(damage * (1f - EVENT_BUFF_FRACTION)));
+        if (ignoreArmor)
+            player.takeTrueDamage(damage);
+        else
+            player.takeDamage(damage);
         if (!player.isAlive() && lastStandAvailable) {
             player.setHealth(1);
             lastStandAvailable = false;
@@ -202,6 +263,8 @@ public class BattleScreen {
 
     /** Apply skill-tree offensive multipliers to a base damage value. */
     private int applyOffensiveSkills(int baseDmg) {
+        if (player.getAttackBuffBattles() > 0)
+            baseDmg = Math.round(baseDmg * (1f + EVENT_BUFF_FRACTION));
         if (skillTree == null) return baseDmg;
         if (skillTree.hasSkill(SkillTree.Skill.POWER_SURGE))
             baseDmg = (int)(baseDmg * 1.2f);
@@ -213,12 +276,23 @@ public class BattleScreen {
         return baseDmg;
     }
 
+    /**
+     * Deal a player attack or skill hit: scales it by the difficulty's
+     * playerDamageMultiplier (at least 1) and returns the damage dealt.
+     */
+    private int hitEnemy(int dmg) {
+        int scaled = Math.max(1, Math.round(dmg * Difficulty.getCurrent().playerDamageMultiplier));
+        enemy.takeDamage(scaled);
+        return scaled;
+    }
+
     public boolean isActive() {
         return battleActive;
     }
 
-    public boolean getResult() {
-        return battleResult;
+    /** How the last battle ended; null while it is still running. */
+    public Outcome getOutcome() {
+        return outcome;
     }
 
     public Enemy getEnemy() {
@@ -239,18 +313,6 @@ public class BattleScreen {
         if (shakeTimer > 0)
             shakeTimer -= delta;
 
-        // Status ticks
-        if (enemyStatus != StatusEffect.NONE) {
-            enemyStatusTimer -= delta;
-            if (enemyStatusTimer <= 0)
-                enemyStatus = StatusEffect.NONE;
-        }
-        if (playerStatus != StatusEffect.NONE) {
-            playerStatusTimer -= delta;
-            if (playerStatusTimer <= 0)
-                playerStatus = StatusEffect.NONE;
-        }
-
         switch (state) {
             case INTRO:
                 if (stateTimer > 1.5f) {
@@ -258,7 +320,9 @@ public class BattleScreen {
                         int compDmg = companion.rollDamage();
                         enemy.takeDamage(compDmg);
                         player.setCompanionAbilityUsed(true);
-                        showMessage("Cave Wolf attacks for " + compDmg + " dmg!", BattleState.PLAYER_TURN);
+                        String wolfMsg = "Cave Wolf attacks for " + compDmg + " dmg!";
+                        if (!checkBattleEnd(wolfMsg + " "))
+                            showMessage(wolfMsg, BattleState.PLAYER_TURN);
                     } else if (companion != null && companion.getPetType() == Companion.PetType.CAVE_WOLF
                             && !companion.canAssistInBattle()) {
                         player.setCompanionAbilityUsed(true);
@@ -272,11 +336,8 @@ public class BattleScreen {
                 break;
 
             case PLAYER_TURN:
-                if (playerStatus == StatusEffect.STUN) {
-                    currentMessage = "You are stunned and can't move!";
-                    playerStatus = StatusEffect.NONE;
-                    state = BattleState.ENEMY_TURN;
-                    stateTimer = 0;
+                if (playerStatus.consumeStun()) {
+                    showMessage("You are stunned and can't move!", BattleState.ENEMY_TURN);
                     break;
                 }
                 handleMainMenu(input);
@@ -292,20 +353,7 @@ public class BattleScreen {
 
             case PLAYER_ATTACK:
                 if (stateTimer > 0.8f) {
-                    if (!enemy.isAlive()) {
-                        int xpReward = enemy.getType().xpReward;
-                        player.addXP(xpReward);
-                        boolean lucky = skillTree != null && skillTree.hasSkill(SkillTree.Skill.LUCKY);
-                        lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor, lucky);
-                        for (Item item : lootDrops)
-                            player.getInventory().addItem(item);
-                        this.usablesDirty = true;
-                        if (enemy.getType().isBoss())
-                            bossKilled = true;
-                        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.BERSERKER))
-                            player.addBerserkerKill();
-                        showMessage(enemy.getType().name + " defeated! +" + xpReward + " XP", BattleState.VICTORY);
-                    } else {
+                    if (!checkBattleEnd("")) {
                         state = BattleState.ENEMY_TURN;
                         stateTimer = 0;
                     }
@@ -314,47 +362,23 @@ public class BattleScreen {
 
             case ENEMY_TURN:
                 if (stateTimer > 0.5f) {
-                    if (enemyStatus == StatusEffect.STUN) {
+                    String dotMsg = tickEnemyDamageOverTime();
+                    if (checkBattleEnd(dotMsg))
+                        break;
+                    if (enemyStatus.consumeStun()) {
                         currentMessage = enemy.getType().name + " is stunned!";
-                        enemyStatus = StatusEffect.NONE;
                         state = BattleState.ENEMY_ATTACK;
                         stateTimer = 0;
                         break;
                     }
-                    performEnemyAttack();
+                    performEnemyAttack(dotMsg);
                 }
                 break;
 
             case ENEMY_ATTACK:
                 if (stateTimer > 1.0f) {
-                    if (!player.isAlive()) {
-                        showMessage("You were defeated...", BattleState.DEFEAT);
-                    } else {
-                        // Poison/burn tick damage
-                        if (playerStatus == StatusEffect.POISON) {
-                            applyDamageToPlayer(3);
-                            currentMessage += " [Poison: -3 HP]";
-                        } else if (playerStatus == StatusEffect.BURN) {
-                            applyDamageToPlayer(5);
-                            currentMessage += " [Burn: -5 HP]";
-                        }
-                        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.REGEN) && player.isAlive())
-                            player.heal(5); // Buffed: 5 HP per turn (was 2)
-                        
-                        if (canCompanionAssist() && companion.getPetType() == Companion.PetType.FIRE_SPRITE && turnCount % 3 == 0 && player.isAlive()) {
-                            int heal = companion.scaleAssistValue(15);
-                            player.heal(heal);
-                            currentMessage += " [Sprite Heal: +" + heal + " HP]";
-                        }
-
-                        if (fireRuneTurns > 0) fireRuneTurns--;
-                        if (shadowRuneTurns > 0) shadowRuneTurns--;
-
-                        state = BattleState.PLAYER_TURN;
-                        stateTimer = 0;
-                        currentMessage = "What will you do?";
-                        turnCount++;
-                    }
+                    if (!checkBattleEnd(""))
+                        endRound();
                 }
                 break;
 
@@ -372,31 +396,141 @@ public class BattleScreen {
             case VICTORY:
                 if (stateTimer > 1.5f || input.isKeyJustPressed(Input.Keys.ENTER)) {
                     // Persistent poison: carry battle poison into exploration on Hard Mode
-                    if (Difficulty.getCurrent().poisonPersists && playerStatus == StatusEffect.POISON) {
+                    if (Difficulty.getCurrent().poisonPersists && playerStatus.current() == StatusEffect.POISON
+                            && playerStatus.turnsLeft() > 0) {
                         player.applyPoison(6f);
                     }
                     if (player.isManaCrystalActive()) {
                         player.consumeManaCrystal();
                     }
-                    battleActive = false;
-                    battleResult = true;
+                    endBattle(Outcome.VICTORY);
                 }
                 break;
 
             case DEFEAT:
                 if (stateTimer > 2.0f || input.isKeyJustPressed(Input.Keys.ENTER)) {
-                    battleActive = false;
-                    battleResult = false;
+                    endBattle(Outcome.DEFEAT);
                 }
                 break;
 
             case RUN_AWAY:
                 if (stateTimer > 1.0f) {
-                    battleActive = false;
-                    battleResult = false;
+                    endBattle(Outcome.FLED);
                 }
                 break;
         }
+    }
+
+    /** Closes the battle with the given outcome; every battle uses up one charge of the event buffs. */
+    private void endBattle(Outcome result) {
+        player.consumeBattleBuffs();
+        battleActive = false;
+        outcome = result;
+    }
+
+    /**
+     * Ends the battle if either side is down: victory if the enemy died, defeat if
+     * the player did. {@code prefix} is put in front of the result message (e.g. the
+     * damage tick that caused it). Returns true if the battle ended.
+     */
+    private boolean checkBattleEnd(String prefix) {
+        if (!enemy.isAlive()) {
+            handleEnemyDefeated(prefix);
+            return true;
+        }
+        if (!player.isAlive()) {
+            showMessage(prefix + "You were defeated...", BattleState.DEFEAT);
+            return true;
+        }
+        return false;
+    }
+
+    /** Rewards for a kill (XP, loot, boss flag, berserker stack), then VICTORY. */
+    private void handleEnemyDefeated(String prefix) {
+        int xpReward = enemy.getXpReward(currentFloor);
+        player.addXP(xpReward);
+        boolean lucky = skillTree != null && skillTree.hasSkill(SkillTree.Skill.LUCKY);
+        lootDrops = LootTable.getEnemyDrop(enemy.getType(), currentFloor, lucky);
+        lootLost = new boolean[lootDrops.size()];
+        for (int i = 0; i < lootDrops.size(); i++)
+            lootLost[i] = !player.getInventory().addItem(lootDrops.get(i));
+        this.usablesDirty = true;
+        if (enemy.getType().isBoss())
+            bossKilled = true;
+        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.BERSERKER))
+            player.addBerserkerKill();
+        showMessage(prefix + enemy.getType().name + " defeated! +" + xpReward + " XP", BattleState.VICTORY);
+    }
+
+    /** Poison/burn damage on the enemy at the start of its turn; returns the tick text or "". */
+    private String tickEnemyDamageOverTime() {
+        if (enemyStatus.current() == StatusEffect.POISON) {
+            enemy.takeDamage(ENEMY_POISON_TICK);
+            return "[Poison ticks -" + ENEMY_POISON_TICK + " HP on " + enemy.getType().name + "] ";
+        }
+        if (enemyStatus.current() == StatusEffect.BURN) {
+            enemy.takeDamage(ENEMY_BURN_TICK);
+            return "[Burn ticks -" + ENEMY_BURN_TICK + " HP on " + enemy.getType().name + "] ";
+        }
+        return "";
+    }
+
+    /**
+     * End of a full round: player damage over time, Regeneration and Fire Sprite
+     * heals, rune and status countdowns. Shows the summary of what happened, if
+     * anything did, before the player's next turn; ends the battle if a tick killed
+     * the player.
+     */
+    private void endRound() {
+        currentMessage = "";
+        if (playerStatus.current() == StatusEffect.POISON) {
+            int lost = damagePlayerTracked(PLAYER_POISON_TICK);
+            currentMessage += " [Poison: -" + lost + " HP]";
+        } else if (playerStatus.current() == StatusEffect.BURN) {
+            int lost = damagePlayerTracked(PLAYER_BURN_TICK);
+            currentMessage += " [Burn: -" + lost + " HP]";
+        }
+        if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.REGEN) && player.isAlive()) {
+            int healed = healPlayerTracked(player.getBattleRegenAmount());
+            if (healed > 0)
+                currentMessage += " [Regen: +" + healed + " HP]";
+        }
+        if (canCompanionAssist() && companion.getPetType() == Companion.PetType.FIRE_SPRITE && turnCount % 3 == 0 && player.isAlive()) {
+            int healed = healPlayerTracked(companion.scaleAssistValue(15));
+            if (healed > 0)
+                currentMessage += " [Sprite Heal: +" + healed + " HP]";
+        }
+
+        if (fireRuneTurns > 0) fireRuneTurns--;
+        if (shadowRuneTurns > 0) shadowRuneTurns--;
+        playerStatus.endRound();
+        enemyStatus.endRound();
+        turnCount++;
+
+        String summary = currentMessage.trim();
+        if (checkBattleEnd(summary.isEmpty() ? "" : summary + " "))
+            return;
+        if (!summary.isEmpty()) {
+            showMessage(summary, BattleState.PLAYER_TURN);
+        } else {
+            state = BattleState.PLAYER_TURN;
+            stateTimer = 0;
+            currentMessage = "What will you do?";
+        }
+    }
+
+    /** Damage-over-time tick on the player (ignores armor; skills and Last Stand apply); returns the HP actually lost. */
+    private int damagePlayerTracked(int damage) {
+        int before = player.getHealth();
+        applyDamageToPlayer(damage, true);
+        return before - player.getHealth();
+    }
+
+    /** Heal the player and return the HP actually restored. */
+    private int healPlayerTracked(int amount) {
+        int before = player.getHealth();
+        player.heal(amount);
+        return player.getHealth() - before;
     }
 
     // --- Menus ---
@@ -478,8 +612,7 @@ public class BattleScreen {
                 } else if (item.getType() == Item.ItemType.POISON_VIAL) {
                     player.getInventory().useKey(Item.ItemType.POISON_VIAL);
                     usablesDirty = true;
-                    enemyStatus = StatusEffect.POISON;
-                    enemyStatusTimer = 4f;
+                    enemyStatus.apply(StatusEffect.POISON, BattleStatus.POISON_TURNS);
                     currentMessage = "Threw Poison Vial! Enemy poisoned!";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
@@ -487,10 +620,11 @@ public class BattleScreen {
                     player.getInventory().useKey(Item.ItemType.ICE_SHARD);
                     usablesDirty = true;
                     enemy.takeDamage(20);
-                    enemyStatus = StatusEffect.STUN;
-                    enemyStatusTimer = 1f;
-                    currentMessage = "Threw Ice Shard! 20 dmg + Stunned!";
-                    state = BattleState.ENEMY_TURN;
+                    currentMessage = enemyStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS)
+                            ? "Threw Ice Shard! 20 dmg + Stunned!"
+                            : "Threw Ice Shard! 20 dmg (enemy shrugs off the stun)";
+                    // Through PLAYER_ATTACK so a kill is caught by the victory check
+                    state = BattleState.PLAYER_ATTACK;
                     stateTimer = 0;
                 } else if (item.getType() == Item.ItemType.FIRE_RUNE) {
                     player.getInventory().useKey(Item.ItemType.FIRE_RUNE);
@@ -509,14 +643,18 @@ public class BattleScreen {
                 } else if (item.getType() == Item.ItemType.FROST_RUNE) {
                     player.getInventory().useKey(Item.ItemType.FROST_RUNE);
                     usablesDirty = true;
-                    enemyStatus = StatusEffect.STUN;
-                    enemyStatusTimer = 1f;
-                    currentMessage = "Used Frost Rune! Enemy slowed (stunned)!";
+                    currentMessage = enemyStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS)
+                            ? "Used Frost Rune! Enemy slowed (stunned)!"
+                            : "Used Frost Rune! The enemy shrugs off the stun.";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
                 } else {
                     player.getInventory().useItem(idx, player);
                     usablesDirty = true;
+                    // Inventory only cures exploration poison; battle poison lives here
+                    if ((item.getType() == Item.ItemType.ANTIDOTE || item.getType() == Item.ItemType.TOXIN_KIT)
+                            && playerStatus.current() == StatusEffect.POISON)
+                        playerStatus.clear();
                     currentMessage = "Used " + item.getType().displayName + "!";
                     state = BattleState.ENEMY_TURN;
                     stateTimer = 0;
@@ -546,7 +684,7 @@ public class BattleScreen {
         if (crit)
             dmg = (int) (dmg * 1.8f);
 
-        enemy.takeDamage(dmg);
+        dmg = hitEnemy(dmg);
         triggerAttackAnim(true);
         currentMessage = crit ? "Critical hit! " + dmg + " damage!" : "You attack for " + dmg + " damage!";
         state = BattleState.PLAYER_ATTACK;
@@ -567,31 +705,30 @@ public class BattleScreen {
         switch (skill) {
             case "Power Hit":
                 dmg = (int) (baseDmg * 1.5f) + random.nextInt(8);
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 triggerAttackAnim(true);
                 currentMessage = "Power Hit! " + dmg + " damage!";
                 break;
 
             case "Heavy Slash":
                 dmg = (int) (baseDmg * 1.6f) + random.nextInt(10);
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 triggerAttackAnim(true);
                 currentMessage = "Heavy Slash! " + dmg + " damage!";
                 break;
 
             case "Cleave":
                 dmg = (int) (baseDmg * 1.4f) + random.nextInt(12);
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 triggerAttackAnim(true);
                 currentMessage = "Cleave! " + dmg + " damage!";
                 break;
 
             case "Venom Slice":
                 dmg = (int) (baseDmg * 1.2f) + random.nextInt(7);
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 if (random.nextFloat() < 0.45f) {
-                    enemyStatus = StatusEffect.POISON;
-                    enemyStatusTimer = 4f;
+                    enemyStatus.apply(StatusEffect.POISON, BattleStatus.POISON_TURNS);
                     currentMessage = "Venom Slice! " + dmg + " dmg + POISONED!";
                 } else {
                     currentMessage = "Venom Slice! " + dmg + " damage!";
@@ -600,27 +737,24 @@ public class BattleScreen {
                 break;
 
             case "Pierce":
-                dmg = baseDmg + 15 + random.nextInt(5); // ignores some defense
-                enemy.takeDamage(dmg);
+                dmg = baseDmg + 15 + random.nextInt(5); // flat +15 bonus
+                dmg = hitEnemy(dmg);
                 triggerAttackAnim(true);
-                currentMessage = "Pierce! " + dmg + " armor-piercing damage!";
+                currentMessage = "Pierce! " + dmg + " damage (+15 bonus)!";
                 break;
 
             case "Burn Strike":
                 dmg = baseDmg + random.nextInt(8);
-                enemy.takeDamage(dmg);
-                enemyStatus = StatusEffect.BURN;
-                enemyStatusTimer = 3f;
+                dmg = hitEnemy(dmg);
+                enemyStatus.apply(StatusEffect.BURN, BattleStatus.BURN_TURNS);
                 triggerAttackAnim(true);
                 currentMessage = "Burn Strike! " + dmg + " dmg + BURN applied!";
                 break;
 
             case "Stun Slash":
                 dmg = (int) (baseDmg * 0.8f) + random.nextInt(5);
-                enemy.takeDamage(dmg);
-                if (random.nextFloat() < 0.6f) {
-                    enemyStatus = StatusEffect.STUN;
-                    enemyStatusTimer = 1f;
+                dmg = hitEnemy(dmg);
+                if (random.nextFloat() < 0.6f && enemyStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS)) {
                     currentMessage = "Stun Slash! " + dmg + " dmg + STUNNED!";
                 } else {
                     currentMessage = "Stun Slash! " + dmg + " dmg (stun missed)";
@@ -630,26 +764,23 @@ public class BattleScreen {
 
             case "Guard Break":
                 dmg = baseDmg + 10;
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 triggerAttackAnim(true);
-                currentMessage = "Guard Break! " + dmg + " dmg + defense shattered!";
+                currentMessage = "Guard Break! " + dmg + " damage (+10 bonus)!";
                 break;
 
             case "Poison Jab":
                 dmg = (int) (baseDmg * 0.7f) + random.nextInt(4);
-                enemy.takeDamage(dmg);
-                enemyStatus = StatusEffect.POISON;
-                enemyStatusTimer = 4f;
+                dmg = hitEnemy(dmg);
+                enemyStatus.apply(StatusEffect.POISON, BattleStatus.POISON_TURNS);
                 triggerAttackAnim(true);
                 currentMessage = "Poison Jab! " + dmg + " dmg + POISONED!";
                 break;
 
             case "Umbral Cut":
                 dmg = (int) (baseDmg * 1.15f) + random.nextInt(8);
-                enemy.takeDamage(dmg);
-                if (random.nextFloat() < 0.45f) {
-                    enemyStatus = StatusEffect.STUN;
-                    enemyStatusTimer = 1f;
+                dmg = hitEnemy(dmg);
+                if (random.nextFloat() < 0.45f && enemyStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS)) {
                     currentMessage = "Umbral Cut! " + dmg + " dmg + STUNNED!";
                 } else {
                     currentMessage = "Umbral Cut! " + dmg + " damage!";
@@ -659,7 +790,7 @@ public class BattleScreen {
 
             case "Soul Rend":
                 dmg = (int) (baseDmg * 1.3f) + random.nextInt(6);
-                enemy.takeDamage(dmg);
+                dmg = hitEnemy(dmg);
                 int drain = Math.max(1, dmg / 3);
                 player.heal(drain);
                 triggerAttackAnim(true);
@@ -668,7 +799,7 @@ public class BattleScreen {
 
             case "Focus":
                 playerDefending = true;
-                currentMessage = "You focus your energy! Next attack +50% damage!";
+                currentMessage = "You brace yourself! Next hit deals 1/3 damage.";
                 state = BattleState.ENEMY_TURN;
                 stateTimer = 0;
                 return;
@@ -719,21 +850,16 @@ public class BattleScreen {
         return cost;
     }
 
-    private void performEnemyAttack() {
+    /**
+     * The enemy's attack for this round. {@code dotMsg} is the text of the enemy's
+     * own poison/burn tick this turn (already applied), shown first.
+     */
+    private void performEnemyAttack(String dotMsg) {
         int minDmg = enemy.getScaledMinDamage();
         int maxDmg = enemy.getScaledMaxDamage();
         int damage = minDmg + random.nextInt(maxDmg - minDmg + 1);
 
-        // Enemy status ticks
-        if (enemyStatus == StatusEffect.POISON) {
-            enemy.takeDamage(4);
-            currentMessage = "[Poison ticks -4 HP on " + enemy.getType().name + "] ";
-        } else if (enemyStatus == StatusEffect.BURN) {
-            enemy.takeDamage(6);
-            currentMessage = "[Burn ticks -6 HP on " + enemy.getType().name + "] ";
-        } else {
-            currentMessage = "";
-        }
+        currentMessage = dotMsg;
 
         // Boss special moves
         if (enemy.getType().isBoss()) {
@@ -747,8 +873,7 @@ public class BattleScreen {
                     && random.nextFloat() < 0.5f) {
                 currentMessage += enemy.getType().name + " bites! " + damage + " dmg (Resisted poison!)";
             } else {
-                playerStatus = StatusEffect.POISON;
-                playerStatusTimer = 3f;
+                playerStatus.apply(StatusEffect.POISON, BattleStatus.POISON_TURNS);
                 currentMessage += enemy.getType().name + " bites! " + damage + " dmg + POISON!";
             }
         // Necromancer burn
@@ -757,8 +882,7 @@ public class BattleScreen {
                     && random.nextFloat() < 0.5f) {
                 currentMessage += "Necromancer casts Curse! " + damage + " dmg (Resisted burn!)";
             } else {
-                playerStatus = StatusEffect.BURN;
-                playerStatusTimer = 2f;
+                playerStatus.apply(StatusEffect.BURN, BattleStatus.BURN_TURNS);
                 currentMessage += "Necromancer casts Curse Flame! " + damage + " dmg + BURN!";
             }
         // Ice Drake freeze
@@ -766,10 +890,10 @@ public class BattleScreen {
             if (skillTree != null && skillTree.hasSkill(SkillTree.Skill.STATUS_RESIST)
                     && random.nextFloat() < 0.5f) {
                 currentMessage += "Ice Drake breathes frost! " + damage + " dmg (Resisted stun!)";
-            } else {
-                playerStatus = StatusEffect.STUN;
-                playerStatusTimer = 1f;
+            } else if (playerStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS)) {
                 currentMessage += "Ice Drake uses Frost Breath! " + damage + " dmg + FROZEN (skip turn)!";
+            } else {
+                currentMessage += "Ice Drake uses Frost Breath! " + damage + " dmg (you shake off the frost)";
             }
         } else {
             currentMessage += enemy.getType().name + " attacks for " + damage + " damage!";
@@ -778,7 +902,7 @@ public class BattleScreen {
         if (playerDefending) {
             damage = damage / 3;
             playerDefending = false;
-            currentMessage = "You focused! Reduced to " + damage + " damage!";
+            currentMessage += " (Braced: reduced to " + damage + ")";
         }
 
         applyDamageToPlayer(damage);
@@ -830,9 +954,8 @@ public class BattleScreen {
                 playerDefending = false;
             }
             applyDamageToPlayer(dmg);
-            playerStatus = StatusEffect.STUN;
-            playerStatusTimer = 1f;
-            currentMessage += "Phase " + bossPhase + ": Stone Golem PETRIFY STRIKE! " + dmg + " dmg + STUNNED!";
+            currentMessage += "Phase " + bossPhase + ": Stone Golem PETRIFY STRIKE! " + dmg
+                    + (playerStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS) ? " dmg + STUNNED!" : " damage!");
         } else {
             // Normal attack
             int dmg = baseDamage;
@@ -853,13 +976,21 @@ public class BattleScreen {
         int phaseBonus = bossPhase * 4;
         if (roll < 0.25f) {
             int dmg = baseDamage + phaseBonus;
+            if (playerDefending) {
+                dmg /= 3;
+                playerDefending = false;
+            }
             applyDamageToPlayer(dmg);
-            playerStatus = StatusEffect.POISON;
-            playerStatusTimer = 4f;
+            playerStatus.apply(StatusEffect.POISON, BattleStatus.POISON_TURNS);
             currentMessage += "Phase " + bossPhase + ": Mire Wyrm sprays venom! " + dmg + " dmg + POISON!";
         } else if (roll < 0.50f) {
             int hit1 = Math.max(1, baseDamage / 2 + phaseBonus);
             int hit2 = Math.max(1, baseDamage / 2 + random.nextInt(8));
+            if (playerDefending) {
+                hit1 /= 3;
+                hit2 /= 3;
+                playerDefending = false;
+            }
             applyDamageToPlayer(hit1);
             applyDamageToPlayer(hit2);
             currentMessage += "Phase " + bossPhase + ": Mire Wyrm coils twice! " + hit1 + "+" + hit2 + " damage!";
@@ -869,12 +1000,19 @@ public class BattleScreen {
             currentMessage += "Phase " + bossPhase + ": Mire Wyrm drinks toxic mist and heals " + heal + " HP!";
         } else if (roll < 0.88f && bossPhase >= 3) {
             int dmg = (int) (baseDamage * 1.55f);
+            if (playerDefending) {
+                dmg /= 3;
+                playerDefending = false;
+            }
             applyDamageToPlayer(dmg);
-            playerStatus = StatusEffect.STUN;
-            playerStatusTimer = 1f;
-            currentMessage += "Phase 3: Mire Wyrm crushes the arena! " + dmg + " dmg + STUN!";
+            currentMessage += "Phase 3: Mire Wyrm crushes the arena! " + dmg
+                    + (playerStatus.apply(StatusEffect.STUN, BattleStatus.STUN_TURNS) ? " dmg + STUN!" : " damage!");
         } else {
             int dmg = baseDamage + phaseBonus;
+            if (playerDefending) {
+                dmg /= 3;
+                playerDefending = false;
+            }
             applyDamageToPlayer(dmg);
             currentMessage += "Phase " + bossPhase + ": Mire Wyrm strikes for " + dmg + " damage!";
         }
@@ -1007,13 +1145,13 @@ public class BattleScreen {
             Math.max(0, hpPct), hpC, BAR_BG);
 
         // Status icons on enemy
-        if (enemyStatus == StatusEffect.POISON) {
+        if (enemyStatus.current() == StatusEffect.POISON) {
             game.shapeRenderer.setColor(0.3f, 0.8f, 0.2f, 0.8f);
             game.shapeRenderer.rect(ehpX + ehpW - 35, ehpY + ehpH - 20, 25, 14);
-        } else if (enemyStatus == StatusEffect.BURN) {
+        } else if (enemyStatus.current() == StatusEffect.BURN) {
             game.shapeRenderer.setColor(0.9f, 0.4f, 0.1f, 0.8f);
             game.shapeRenderer.rect(ehpX + ehpW - 35, ehpY + ehpH - 20, 25, 14);
-        } else if (enemyStatus == StatusEffect.STUN) {
+        } else if (enemyStatus.current() == StatusEffect.STUN) {
             game.shapeRenderer.setColor(0.8f, 0.8f, 0.2f, 0.8f);
             game.shapeRenderer.rect(ehpX + ehpW - 35, ehpY + ehpH - 20, 25, 14);
         }
@@ -1040,10 +1178,13 @@ public class BattleScreen {
             Math.max(0, stmPct), STAMINA_FG, STAMINA_BG);
 
         // Player status
-        if (playerStatus == StatusEffect.POISON) {
+        if (playerStatus.current() == StatusEffect.POISON) {
             game.shapeRenderer.setColor(0.3f, 0.8f, 0.2f, 0.8f);
             game.shapeRenderer.rect(phpX + phpW - 35, phpY + phpH - 20, 25, 14);
-        } else if (playerStatus == StatusEffect.STUN) {
+        } else if (playerStatus.current() == StatusEffect.BURN) {
+            game.shapeRenderer.setColor(0.9f, 0.4f, 0.1f, 0.8f);
+            game.shapeRenderer.rect(phpX + phpW - 35, phpY + phpH - 20, 25, 14);
+        } else if (playerStatus.current() == StatusEffect.STUN) {
             game.shapeRenderer.setColor(0.8f, 0.8f, 0.2f, 0.8f);
             game.shapeRenderer.rect(phpX + phpW - 35, phpY + phpH - 20, 25, 14);
         }
@@ -1101,15 +1242,15 @@ public class BattleScreen {
         sf.draw(game.batch, "HP " + enemy.getHealth() + "/" + enemy.getMaxHealth(), ehpX + 10, ehpY + 30);
 
         // Status text
-        if (enemyStatus == StatusEffect.POISON) {
+        if (enemyStatus.current() == StatusEffect.POISON) {
             sf.setColor(0.3f, 1f, 0.3f, 1f);
             sf.draw(game.batch, "PSN", ehpX + ehpW - 32, ehpY + ehpH - 8);
         }
-        if (enemyStatus == StatusEffect.BURN) {
+        if (enemyStatus.current() == StatusEffect.BURN) {
             sf.setColor(1f, 0.5f, 0.2f, 1f);
             sf.draw(game.batch, "BRN", ehpX + ehpW - 32, ehpY + ehpH - 8);
         }
-        if (enemyStatus == StatusEffect.STUN) {
+        if (enemyStatus.current() == StatusEffect.STUN) {
             sf.setColor(1f, 1f, 0.3f, 1f);
             sf.draw(game.batch, "STN", ehpX + ehpW - 32, ehpY + ehpH - 8);
         }
@@ -1122,11 +1263,15 @@ public class BattleScreen {
         sf.draw(game.batch, "STM " + (int) player.getStamina() + "/" + (int) player.getMaxStamina(), phpX + 10,
             phpY + phpH - 48);
 
-        if (playerStatus == StatusEffect.POISON) {
+        if (playerStatus.current() == StatusEffect.POISON) {
             sf.setColor(0.3f, 1f, 0.3f, 1f);
             sf.draw(game.batch, "PSN", phpX + phpW - 32, phpY + phpH - 8);
         }
-        if (playerStatus == StatusEffect.STUN) {
+        if (playerStatus.current() == StatusEffect.BURN) {
+            sf.setColor(1f, 0.5f, 0.2f, 1f);
+            sf.draw(game.batch, "BRN", phpX + phpW - 32, phpY + phpH - 8);
+        }
+        if (playerStatus.current() == StatusEffect.STUN) {
             sf.setColor(1f, 1f, 0.3f, 1f);
             sf.draw(game.batch, "STN", phpX + phpW - 32, phpY + phpH - 8);
         }
@@ -1189,9 +1334,10 @@ public class BattleScreen {
             sf.setColor(LOOT_TITLE);
             sf.draw(game.batch, "Loot:", msgX + 20, msgY + msgH - 45);
             for (int i = 0; i < lootDrops.size(); i++) {
-                sf.setColor(LOOT_TEXT);
-                sf.draw(game.batch, "  " + lootDrops.get(i).getType().displayName, msgX + 20,
-                        msgY + msgH - 60 - 14 * i);
+                boolean lost = lootLost != null && i < lootLost.length && lootLost[i];
+                sf.setColor(lost ? LOOT_LOST_TEXT : LOOT_TEXT);
+                sf.draw(game.batch, "  " + lootDrops.get(i).getType().displayName + (lost ? " - inventory full" : ""),
+                        msgX + 20, msgY + msgH - 60 - 14 * i);
             }
         }
 
@@ -1488,12 +1634,12 @@ public class BattleScreen {
     }
 
     private void drawBattleStatusAura(ShapeRenderer r, float cx, float cy, float size) {
-        if (enemyStatus == StatusEffect.NONE)
+        if (enemyStatus.current() == StatusEffect.NONE)
             return;
 
-        if (enemyStatus == StatusEffect.POISON)
+        if (enemyStatus.current() == StatusEffect.POISON)
             r.setColor(0.25f, 0.95f, 0.20f, 0.16f);
-        else if (enemyStatus == StatusEffect.BURN)
+        else if (enemyStatus.current() == StatusEffect.BURN)
             r.setColor(1f, 0.35f, 0.05f, 0.18f);
         else
             r.setColor(1f, 0.95f, 0.20f, 0.14f);

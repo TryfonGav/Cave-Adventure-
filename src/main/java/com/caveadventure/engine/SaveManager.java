@@ -15,6 +15,11 @@ import com.caveadventure.ui.AchievementManager;
 import com.caveadventure.ui.StatsScreen;
 import com.caveadventure.world.Biome;
 
+import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -45,6 +50,7 @@ public class SaveManager {
     private static final int MIN_HUNGER = 0;
     private static final int MAX_HUNGER = 100;
     private static final int MAX_INVENTORY_SLOTS = 20;
+    private static final int MAX_BUFF_BATTLES = 99;
     private static final int MIN_ITEM_QUANTITY = 1;
     private static final int MAX_ITEM_QUANTITY = 999;
     private static final int MIN_COMPANION_STAT = 0;
@@ -58,6 +64,9 @@ public class SaveManager {
     private static final float MIN_COOLDOWN = 0f;
     private static final float MAX_COOLDOWN = 3600f;
     private static final int MAX_CHARACTER_NAME_LENGTH = 32;
+
+    /** Directory the save files live in; null means the game's local storage. Test seam. */
+    private static FileHandle saveDirOverride;
 
     /**
      * Save current game state.
@@ -94,6 +103,8 @@ public class SaveManager {
         sb.append("finalBossDefeated=").append(finalBossDefeated).append("\n");
         sb.append("poisonRemaining=").append(clampFloat(player.getPoisonRemaining(), MIN_DURATION, MAX_DURATION)).append("\n");
         sb.append("torch=").append(clampFloat(player.getTorchDuration(), MIN_DURATION, MAX_DURATION)).append("\n");
+        sb.append("attackBuff=").append(clampInt(player.getAttackBuffBattles(), 0, MAX_BUFF_BATTLES)).append("\n");
+        sb.append("defenseBuff=").append(clampInt(player.getDefenseBuffBattles(), 0, MAX_BUFF_BATTLES)).append("\n");
         appendAppearance(sb, player.getAppearance());
 
         // Inventory
@@ -166,232 +177,107 @@ public class SaveManager {
         }
 
         try {
-            FileHandle file = getActiveSaveFile();
-            file.parent().mkdirs();
-            file.writeString(sb.toString(), false);
-        } catch (GdxRuntimeException | SecurityException ex) {
+            writeAtomically(getActiveSaveFile(), sb.toString());
+        } catch (GdxRuntimeException | SecurityException | IOException ex) {
             LOGGER.log(Level.SEVERE, "Failed to save game.", ex);
         }
     }
 
     /**
-     * Load game state. Returns null if no save exists.
+     * Write {@code content} to {@code <name>.tmp}, then move it over {@code file}, so
+     * a crash mid-write never leaves a truncated save behind.
+     */
+    private static void writeAtomically(FileHandle file, String content) throws IOException {
+        file.parent().mkdirs();
+        FileHandle tmp = file.sibling(file.name() + ".tmp");
+        tmp.writeString(content, false);
+        Path from = tmp.file().toPath();
+        Path to = file.file().toPath();
+        try {
+            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ex) {
+            Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Load game state. Returns null if no save exists. A profile1 save still at the
+     * legacy path is moved to the profile path first.
      */
     public static SaveData loadGame() {
         try {
             FileHandle file = getActiveSaveFile();
-            if (!file.exists() && "profile1".equals(activeProfile))
-                file = Gdx.files.local(SAVE_FILE);
+            if (!file.exists() && "profile1".equals(activeProfile)) {
+                FileHandle legacy = localFile(SAVE_FILE);
+                if (legacy.exists() && !migrateLegacySave(legacy, file))
+                    file = legacy; // couldn't move it: read it in place
+            }
             if (!file.exists())
                 return null;
-
-            String content = file.readString();
-            String[] lines = content.split("\n");
-
-            SaveData data = new SaveData();
-            int declaredInventorySize = -1;
-
-            for (int lineNo = 0; lineNo < lines.length; lineNo++) {
-                String line = lines[lineNo];
-                line = line.trim();
-                if (line.isEmpty())
-                    continue;
-
-                String[] parts = line.split("=", 2);
-                if (parts.length < 2) {
-                    LOGGER.warning("Ignoring malformed save line " + (lineNo + 1) + ": " + line);
-                    continue;
-                }
-
-                String key = parts[0];
-                String value = parts[1];
-
-                switch (key) {
-                    case "floor":
-                        data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
-                        break;
-                    case "version":
-                        data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
-                        break;
-                    case "profile":
-                        data.profile = sanitizeProfile(value);
-                        break;
-                    case "difficulty":
-                        data.difficulty = parseDifficulty(value, data.difficulty);
-                        Difficulty.setCurrent(data.difficulty);
-                        break;
-                    case "biome":
-                        data.biome = parseBiome(value, data.biome);
-                        break;
-                    case "skillPoints":
-                        data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
-                        break;
-                    case "health":
-                        data.health = parseIntBounded("health", value, MIN_HEALTH, MAX_HEALTH, data.health);
-                        break;
-                    case "maxHealth":
-                        data.maxHealth = parseIntBounded("maxHealth", value, 1, MAX_HEALTH, data.maxHealth);
-                        break;
-                    case "hunger":
-                        data.hunger = parseIntBounded("hunger", value, MIN_HUNGER, MAX_HUNGER, data.hunger);
-                        break;
-                    case "level":
-                        data.level = parseIntBounded("level", value, MIN_LEVEL, MAX_LEVEL, data.level);
-                        break;
-                    case "xp":
-                        data.xp = parseIntBounded("xp", value, 0, Integer.MAX_VALUE, data.xp);
-                        break;
-                    case "xpNext":
-                        data.xpNext = parseIntBounded("xpNext", value, 1, Integer.MAX_VALUE, data.xpNext);
-                        break;
-                    case "stamina":
-                        data.stamina = parseFloatBounded("stamina", value, MIN_STAMINA, MAX_STAMINA, data.stamina);
-                        break;
-                    case "enemiesKilled":
-                        data.enemiesKilled = parseIntBounded("enemiesKilled", value, 0, Integer.MAX_VALUE,
-                                data.enemiesKilled);
-                        break;
-                    case "finalBossDefeated":
-                        data.finalBossDefeated = parseBoolean("finalBossDefeated", value, data.finalBossDefeated);
-                        break;
-                    case "poisonRemaining":
-                        data.poisonRemaining = parseFloatBounded("poisonRemaining", value, MIN_DURATION, MAX_DURATION,
-                                data.poisonRemaining);
-                        break;
-                    case "torch":
-                        data.torchDuration = parseFloatBounded("torch", value, MIN_DURATION, MAX_DURATION,
-                                data.torchDuration);
-                        break;
-                    case "inventorySize":
-                        declaredInventorySize = parseIntBounded("inventorySize", value, 0, MAX_INVENTORY_SLOTS,
-                                declaredInventorySize < 0 ? 0 : declaredInventorySize);
-                        break;
-                    case "characterName":
-                        data.characterAppearance.setName(sanitizeCharacterName(value));
-                        break;
-                    case "characterTunic":
-                        data.characterAppearance
-                                .setTunicColor(parseColor("characterTunic", value, data.characterAppearance.getTunicColor()));
-                        break;
-                    case "characterSkin":
-                        data.characterAppearance
-                                .setSkinColor(parseColor("characterSkin", value, data.characterAppearance.getSkinColor()));
-                        break;
-                    case "characterHair":
-                        data.characterAppearance
-                                .setHairColor(parseColor("characterHair", value, data.characterAppearance.getHairColor()));
-                        break;
-                    case "characterPants":
-                        data.characterAppearance
-                                .setPantsColor(parseColor("characterPants", value, data.characterAppearance.getPantsColor()));
-                        break;
-                    case "characterBoots":
-                        data.characterAppearance
-                                .setBootColor(parseColor("characterBoots", value, data.characterAppearance.getBootColor()));
-                        break;
-                    case "characterCape":
-                        data.characterAppearance
-                                .setCapeColor(parseColor("characterCape", value, data.characterAppearance.getCapeColor()));
-                        break;
-                    case "item":
-                        parseItemEntry(data, value);
-                        break;
-                    case "weapon":
-                        data.equippedWeapon = parseItemType("weapon", value, Item.Category.WEAPON);
-                        break;
-                    case "armor":
-                        data.equippedArmor = parseItemType("armor", value, Item.Category.ARMOR);
-                        break;
-                    case "accessory":
-                        data.equippedAccessory = parseItemType("accessory", value, Item.Category.ACCESSORY);
-                        break;
-                    case "boots":
-                        data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
-                        break;
-                    case "companionType":
-                        data.companionType = parseCompanionType("companionType", value, data.companionType);
-                        break;
-                    case "companionHealth":
-                        data.companionHealth = parseIntBounded("companionHealth", value,
-                                MIN_COMPANION_HEALTH, MAX_COMPANION_HEALTH, data.companionHealth);
-                        break;
-                    case "companionLove":
-                        data.companionLove = parseFloatBounded("companionLove", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionLove);
-                        break;
-                    case "companionHunger":
-                        data.companionHunger = parseFloatBounded("companionHunger", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHunger);
-                        break;
-                    case "companionHappiness":
-                        data.companionHappiness = parseFloatBounded("companionHappiness", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHappiness);
-                        break;
-                    case "companionFatigue":
-                        data.companionFatigue = parseFloatBounded("companionFatigue", value,
-                                MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionFatigue);
-                        break;
-                    case "companionPetCooldown":
-                        data.companionPetCooldown = parseFloatBounded("companionPetCooldown", value,
-                                MIN_COOLDOWN, MAX_COOLDOWN, data.companionPetCooldown);
-                        break;
-                    case "skillUnlocked":
-                        parseSkillEntry(data, value);
-                        break;
-                    case "quest":
-                        data.questLines.add(value.trim());
-                        break;
-                    case "achievement":
-                        parseAchievementEntry(data, value);
-                        break;
-                    case "stat":
-                        parseStatEntry(data, value);
-                        break;
-                    default:
-                        LOGGER.fine("Ignoring unknown save key: " + key);
-                        break;
-                }
-            }
-
-            if (declaredInventorySize >= 0 && data.items.size() > declaredInventorySize) {
-                LOGGER.warning("Save inventory exceeds declared size. Trimming to declared capacity.");
-                while (data.items.size() > declaredInventorySize) {
-                    data.items.remove(data.items.size() - 1);
-                }
-            }
-
-            return sanitize(data);
+            return parseSaveText(file.readString());
         } catch (GdxRuntimeException | SecurityException ex) {
             LOGGER.log(Level.SEVERE, "Failed to load save from " + SAVE_FILE, ex);
             return null;
         }
     }
 
+    /**
+     * Move the legacy {@link #SAVE_FILE} to profile1's path so there is only one copy
+     * (and dying deletes it). Returns false if the move failed.
+     */
+    private static boolean migrateLegacySave(FileHandle legacy, FileHandle profileFile) {
+        try {
+            writeAtomically(profileFile, legacy.readString());
+            legacy.delete();
+            LOGGER.info("Migrated legacy save " + SAVE_FILE + " to " + profileFile.path());
+            return true;
+        } catch (GdxRuntimeException | SecurityException | IOException ex) {
+            LOGGER.log(Level.WARNING, "Failed to migrate legacy save " + SAVE_FILE, ex);
+            return false;
+        }
+    }
+
     public static boolean hasSave() {
         try {
             return getActiveSaveFile().exists()
-                    || ("profile1".equals(activeProfile) && Gdx.files.local(SAVE_FILE).exists());
+                    || ("profile1".equals(activeProfile) && localFile(SAVE_FILE).exists());
         } catch (GdxRuntimeException | SecurityException ex) {
             LOGGER.log(Level.WARNING, "Failed checking save existence for " + SAVE_FILE, ex);
             return false;
         }
     }
 
+    /**
+     * Parse save-file text into sanitized {@link SaveData}. This is the only save
+     * parser: {@link #loadGame()} reads the file and calls it. Malformed lines and
+     * unknown keys are logged and skipped.
+     */
     public static SaveData parseSaveText(String content) {
+        if (content == null)
+            content = "";
         SaveData data = new SaveData();
-        if (content == null || content.isBlank())
-            return data;
+        int declaredInventorySize = -1;
         String[] lines = content.split("\n");
-        for (String rawLine : lines) {
-            String line = rawLine.trim();
+
+        for (int lineNo = 0; lineNo < lines.length; lineNo++) {
+            String line = lines[lineNo];
+            line = line.trim();
             if (line.isEmpty())
                 continue;
+
             String[] parts = line.split("=", 2);
-            if (parts.length < 2)
+            if (parts.length < 2) {
+                LOGGER.warning("Ignoring malformed save line " + (lineNo + 1) + ": " + line);
                 continue;
+            }
+
             String key = parts[0];
             String value = parts[1];
+
             switch (key) {
+                case "floor":
+                    data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                    break;
                 case "version":
                     data.version = parseIntBounded("version", value, 1, SAVE_VERSION, data.version);
                     break;
@@ -407,8 +293,80 @@ public class SaveManager {
                 case "skillPoints":
                     data.skillPoints = parseIntBounded("skillPoints", value, 0, 999, data.skillPoints);
                     break;
-                case "floor":
-                    data.floor = parseIntBounded("floor", value, MIN_FLOOR, MAX_FLOOR, data.floor);
+                case "health":
+                    data.health = parseIntBounded("health", value, MIN_HEALTH, MAX_HEALTH, data.health);
+                    break;
+                case "maxHealth":
+                    data.maxHealth = parseIntBounded("maxHealth", value, 1, MAX_HEALTH, data.maxHealth);
+                    break;
+                case "hunger":
+                    data.hunger = parseIntBounded("hunger", value, MIN_HUNGER, MAX_HUNGER, data.hunger);
+                    break;
+                case "level":
+                    data.level = parseIntBounded("level", value, MIN_LEVEL, MAX_LEVEL, data.level);
+                    break;
+                case "xp":
+                    data.xp = parseIntBounded("xp", value, 0, Integer.MAX_VALUE, data.xp);
+                    break;
+                case "xpNext":
+                    data.xpNext = parseIntBounded("xpNext", value, 1, Integer.MAX_VALUE, data.xpNext);
+                    break;
+                case "stamina":
+                    data.stamina = parseFloatBounded("stamina", value, MIN_STAMINA, MAX_STAMINA, data.stamina);
+                    break;
+                case "enemiesKilled":
+                    data.enemiesKilled = parseIntBounded("enemiesKilled", value, 0, Integer.MAX_VALUE,
+                            data.enemiesKilled);
+                    break;
+                case "finalBossDefeated":
+                    data.finalBossDefeated = parseBoolean("finalBossDefeated", value, data.finalBossDefeated);
+                    break;
+                case "poisonRemaining":
+                    data.poisonRemaining = parseFloatBounded("poisonRemaining", value, MIN_DURATION, MAX_DURATION,
+                            data.poisonRemaining);
+                    break;
+                case "torch":
+                    data.torchDuration = parseFloatBounded("torch", value, MIN_DURATION, MAX_DURATION,
+                            data.torchDuration);
+                    break;
+                case "attackBuff":
+                    data.attackBuffBattles = parseIntBounded("attackBuff", value, 0, MAX_BUFF_BATTLES,
+                            data.attackBuffBattles);
+                    break;
+                case "defenseBuff":
+                    data.defenseBuffBattles = parseIntBounded("defenseBuff", value, 0, MAX_BUFF_BATTLES,
+                            data.defenseBuffBattles);
+                    break;
+                case "inventorySize":
+                    declaredInventorySize = parseIntBounded("inventorySize", value, 0, MAX_INVENTORY_SLOTS,
+                            declaredInventorySize < 0 ? 0 : declaredInventorySize);
+                    break;
+                case "characterName":
+                    data.characterAppearance.setName(sanitizeCharacterName(value));
+                    break;
+                case "characterTunic":
+                    data.characterAppearance
+                            .setTunicColor(parseColor("characterTunic", value, data.characterAppearance.getTunicColor()));
+                    break;
+                case "characterSkin":
+                    data.characterAppearance
+                            .setSkinColor(parseColor("characterSkin", value, data.characterAppearance.getSkinColor()));
+                    break;
+                case "characterHair":
+                    data.characterAppearance
+                            .setHairColor(parseColor("characterHair", value, data.characterAppearance.getHairColor()));
+                    break;
+                case "characterPants":
+                    data.characterAppearance
+                            .setPantsColor(parseColor("characterPants", value, data.characterAppearance.getPantsColor()));
+                    break;
+                case "characterBoots":
+                    data.characterAppearance
+                            .setBootColor(parseColor("characterBoots", value, data.characterAppearance.getBootColor()));
+                    break;
+                case "characterCape":
+                    data.characterAppearance
+                            .setCapeColor(parseColor("characterCape", value, data.characterAppearance.getCapeColor()));
                     break;
                 case "item":
                     parseItemEntry(data, value);
@@ -425,6 +383,33 @@ public class SaveManager {
                 case "boots":
                     data.equippedBoots = parseItemType("boots", value, Item.Category.BOOTS);
                     break;
+                case "companionType":
+                    data.companionType = parseCompanionType("companionType", value, data.companionType);
+                    break;
+                case "companionHealth":
+                    data.companionHealth = parseIntBounded("companionHealth", value,
+                            MIN_COMPANION_HEALTH, MAX_COMPANION_HEALTH, data.companionHealth);
+                    break;
+                case "companionLove":
+                    data.companionLove = parseFloatBounded("companionLove", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionLove);
+                    break;
+                case "companionHunger":
+                    data.companionHunger = parseFloatBounded("companionHunger", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHunger);
+                    break;
+                case "companionHappiness":
+                    data.companionHappiness = parseFloatBounded("companionHappiness", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionHappiness);
+                    break;
+                case "companionFatigue":
+                    data.companionFatigue = parseFloatBounded("companionFatigue", value,
+                            MIN_COMPANION_STAT, MAX_COMPANION_STAT, data.companionFatigue);
+                    break;
+                case "companionPetCooldown":
+                    data.companionPetCooldown = parseFloatBounded("companionPetCooldown", value,
+                            MIN_COOLDOWN, MAX_COOLDOWN, data.companionPetCooldown);
+                    break;
                 case "skillUnlocked":
                     parseSkillEntry(data, value);
                     break;
@@ -438,20 +423,40 @@ public class SaveManager {
                     parseStatEntry(data, value);
                     break;
                 default:
+                    LOGGER.fine("Ignoring unknown save key: " + key);
                     break;
             }
         }
+
+        if (declaredInventorySize >= 0 && data.items.size() > declaredInventorySize) {
+            LOGGER.warning("Save inventory exceeds declared size. Trimming to declared capacity.");
+            while (data.items.size() > declaredInventorySize) {
+                data.items.remove(data.items.size() - 1);
+            }
+        }
+
         return sanitize(data);
     }
 
+    /**
+     * Delete the active profile's save (and, for profile1, the legacy save file),
+     * so a dead run can't be continued.
+     */
     public static void deleteSave() {
         try {
             FileHandle file = getActiveSaveFile();
-            if (file.exists())
-                file.delete();
+            deleteIfExists(file);
+            deleteIfExists(file.sibling(file.name() + ".tmp"));
+            if ("profile1".equals(activeProfile))
+                deleteIfExists(localFile(SAVE_FILE));
         } catch (GdxRuntimeException | SecurityException ex) {
             LOGGER.log(Level.WARNING, "Failed deleting save file " + SAVE_FILE, ex);
         }
+    }
+
+    private static void deleteIfExists(FileHandle file) {
+        if (file.exists())
+            file.delete();
     }
 
     private static void appendAppearance(StringBuilder sb, CharacterAppearance appearance) {
@@ -683,6 +688,8 @@ public class SaveManager {
         out.finalBossDefeated = in.finalBossDefeated;
         out.poisonRemaining = clampFloat(in.poisonRemaining, MIN_DURATION, MAX_DURATION);
         out.torchDuration = clampFloat(in.torchDuration, MIN_DURATION, MAX_DURATION);
+        out.attackBuffBattles = clampInt(in.attackBuffBattles, 0, MAX_BUFF_BATTLES);
+        out.defenseBuffBattles = clampInt(in.defenseBuffBattles, 0, MAX_BUFF_BATTLES);
 
         CharacterAppearance appearance = in.characterAppearance != null
                 ? in.characterAppearance.copy()
@@ -786,7 +793,16 @@ public class SaveManager {
     }
 
     private static FileHandle getActiveSaveFile() {
-        return Gdx.files.local(PROFILE_DIR + "/" + sanitizeProfile(activeProfile) + ".dat");
+        return localFile(PROFILE_DIR + "/" + sanitizeProfile(activeProfile) + ".dat");
+    }
+
+    private static FileHandle localFile(String path) {
+        return saveDirOverride != null ? saveDirOverride.child(path) : Gdx.files.local(path);
+    }
+
+    /** Test seam: keep save files under {@code dir} instead of local storage (null resets). */
+    static void setSaveDirForTest(FileHandle dir) {
+        saveDirOverride = dir;
     }
 
     public static String getActiveProfile() {
@@ -860,7 +876,9 @@ public class SaveManager {
         public int enemiesKilled = 0;
         public boolean finalBossDefeated = false;
         public float poisonRemaining = 0f;
-        public float torchDuration = 30f;
+        public float torchDuration = Balance.STARTING_TORCH_SECONDS;
+        public int attackBuffBattles = 0;
+        public int defenseBuffBattles = 0;
         public java.util.List<Item> items = new java.util.ArrayList<>();
         public Item.ItemType equippedWeapon = null;
         public Item.ItemType equippedArmor = null;

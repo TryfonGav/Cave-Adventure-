@@ -48,6 +48,34 @@ public class GameMap {
     }
 
     /**
+     * Breadth-first walking distance (4-directional, passable tiles only, so locked
+     * doors block) from (startX, startY) to every tile. Unreachable tiles are -1.
+     */
+    public int[][] stepDistancesFrom(int startX, int startY) {
+        int[][] dist = new int[width][height];
+        for (int[] col : dist)
+            java.util.Arrays.fill(col, -1);
+        if (startX < 0 || startX >= width || startY < 0 || startY >= height)
+            return dist;
+        java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+        dist[startX][startY] = 0;
+        queue.add(new int[] { startX, startY });
+        int[][] dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            int d = dist[cur[0]][cur[1]];
+            for (int[] dir : dirs) {
+                int nx = cur[0] + dir[0], ny = cur[1] + dir[1];
+                if (nx < 0 || ny < 0 || nx >= width || ny >= height || dist[nx][ny] >= 0 || !isPassable(nx, ny))
+                    continue;
+                dist[nx][ny] = d + 1;
+                queue.add(new int[] { nx, ny });
+            }
+        }
+        return dist;
+    }
+
+    /**
      * Render only the tiles visible to the camera.
      */
     public void render(ShapeRenderer renderer, Camera2D camera) {

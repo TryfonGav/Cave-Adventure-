@@ -60,13 +60,23 @@ public class ShopUI {
             new ShopItem(Item.ItemType.ICE_SHARD, 4, "20 dmg + stun in battle"),
             new ShopItem(Item.ItemType.STAMINA_ELIXIR, 4, "Fully restores stamina"),
             new ShopItem(Item.ItemType.MANA_CRYSTAL, 5, "-30% stamina costs this battle"),
-            new ShopItem(Item.ItemType.IRON_SWORD, 5, "+8 ATK weapon"),
-            new ShopItem(Item.ItemType.STEEL_SWORD, 8, "+15 ATK weapon"),
-            new ShopItem(Item.ItemType.CHAIN_MAIL, 6, "+5 DEF armor"),
-            new ShopItem(Item.ItemType.PLATE_ARMOR, 10, "+10 DEF armor"),
+            weapon(Item.ItemType.IRON_SWORD, 5),
+            weapon(Item.ItemType.STEEL_SWORD, 8),
+            armor(Item.ItemType.CHAIN_MAIL, 6),
+            armor(Item.ItemType.PLATE_ARMOR, 10),
             new ShopItem(Item.ItemType.ELIXIR, 6, "Full HP restore"),
             new ShopItem(Item.ItemType.MEAT, 3, "Restores 50 hunger"),
     };
+
+    /** Shop entry for a weapon; the description comes from the item's real ATK bonus. */
+    private static ShopItem weapon(Item.ItemType type, int price) {
+        return new ShopItem(type, price, "+" + type.attackBonus + " ATK weapon");
+    }
+
+    /** Shop entry for armor; the description comes from the item's real DEF bonus. */
+    private static ShopItem armor(Item.ItemType type, int price) {
+        return new ShopItem(type, price, "+" + type.defenseBonus + " DEF armor");
+    }
 
     public ShopUI(CaveAdventure game) {
         this.game = game;
@@ -151,11 +161,15 @@ public class ShopUI {
                 int effectivePrice = hagglerPrice(item.price);
                 int gold = countGold(player);
                 if (gold >= effectivePrice) {
-                    removeGold(player, effectivePrice);
-                    player.getInventory().addItem(new Item(item.type));
-                    statusMessage = "Bought " + item.type.displayName + "!";
+                    // Add first and charge only if it fit, so a full bag doesn't eat the gold
+                    if (player.getInventory().addItem(new Item(item.type))) {
+                        removeGold(player, effectivePrice);
+                        statusMessage = "Bought " + item.type.displayName + "!";
+                        purchased = true;
+                    } else {
+                        statusMessage = "Inventory full!";
+                    }
                     statusTimer = 2f;
-                    purchased = true;
                 } else {
                     statusMessage = "Not enough gold! (" + gold + "/" + effectivePrice + ")";
                     statusTimer = 2f;

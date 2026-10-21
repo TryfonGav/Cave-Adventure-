@@ -51,6 +51,8 @@ public class Companion extends Entity {
     private static final Color WARM_EYE = new Color(1f, 0.86f, 0.24f, 1f);
     private static final Color SPRITE_CORE = new Color(1f, 0.96f, 0.48f, 1f);
     private static final Color CAT_EYE = new Color(0.42f, 1f, 0.45f, 1f);
+    private static final float FOLLOW_OFFSET_X = 20f;
+    private static final float FOLLOW_OFFSET_Y = 10f;
     private static final float CARE_TICK_SECONDS = 20f;
     private static final float PET_COOLDOWN_SECONDS = 25f;
     private static final float LOW_LOVE_THRESHOLD = 25f;
@@ -72,10 +74,22 @@ public class Companion extends Entity {
     }
 
     public void followPlayer(float playerPixelX, float playerPixelY, float delta) {
-        float targetX = playerPixelX - 20;
-        float targetY = playerPixelY - 10;
+        float targetX = playerPixelX - FOLLOW_OFFSET_X;
+        float targetY = playerPixelY - FOLLOW_OFFSET_Y;
         followX += (targetX - followX) * delta * 4f;
         followY += (targetY - followY) * delta * 4f;
+        pixelX = followX;
+        pixelY = followY;
+    }
+
+    /**
+     * Places the companion at its follow spot beside a player standing on grid tile
+     * (gx, gy), without gliding there. Use after the player teleports (new floor).
+     */
+    public void snapTo(int gx, int gy) {
+        setPosition(gx, gy);
+        followX = pixelX - FOLLOW_OFFSET_X;
+        followY = pixelY - FOLLOW_OFFSET_Y;
         pixelX = followX;
         pixelY = followY;
     }

@@ -3,6 +3,7 @@ package com.caveadventure.entity;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
+import com.caveadventure.engine.Balance;
 import com.caveadventure.engine.Difficulty;
 import com.caveadventure.world.GameMap;
 
@@ -114,27 +115,24 @@ public class Enemy extends Entity {
     }
 
     /**
-     * Scale this enemy's HP and damage to the player's current level.
+     * Scale this enemy's HP and damage to the floor and the current difficulty.
+     * The player's level plays no part, so levelling up makes the player stronger.
      * Call once at the start of each battle.
      */
-    public void scaleToPlayer(int playerLevel) {
-        scaleToPlayer(playerLevel, 1);
-    }
-
-    /**
-     * Scale this enemy's HP and damage to the player's current level AND
-     * the current floor (for difficulty floor-scaling).
-     */
-    public void scaleToPlayer(int playerLevel, int floor) {
+    public void scaleForFloor(int floor) {
         Difficulty diff = Difficulty.getCurrent();
-        float levelFactor = 1.0f + (playerLevel - 1) * 0.12f;
-        float hpFactor    = levelFactor * diff.getEnemyHealthForFloor(floor);
-        float dmgFactor   = levelFactor * diff.getEnemyDamageForFloor(floor);
+        float hpFactor    = diff.getEnemyHealthForFloor(floor, type.isBoss());
+        float dmgFactor   = diff.getEnemyDamageForFloor(floor, type.isBoss());
 
         this.maxHealth        = Math.round(type.maxHealth * hpFactor);
         this.health           = this.maxHealth;
         this.scaledMinDamage  = Math.round(type.minDamage  * dmgFactor);
         this.scaledMaxDamage  = Math.round(type.maxDamage  * dmgFactor);
+    }
+
+    /** XP for killing this enemy on the given floor. */
+    public int getXpReward(int floor) {
+        return Balance.enemyXp(type.xpReward, floor);
     }
 
     public int getScaledMinDamage() { return scaledMinDamage; }
@@ -310,6 +308,27 @@ public class Enemy extends Entity {
         targetGridY = newGridY;
         startPixelX = pixelX;
         startPixelY = pixelY;
+    }
+
+    /**
+     * Move to a new grid position for good: cancels any move in progress, makes the
+     * new position the patrol origin and resets the AI to idle.
+     */
+    public void relocate(int gridX, int gridY) {
+        setPosition(gridX, gridY);
+        isMoving = false;
+        moveProgress = 0;
+        targetGridX = gridX;
+        targetGridY = gridY;
+        patrolOriginX = gridX;
+        patrolOriginY = gridY;
+        aiState = AIState.IDLE;
+        idleTimer = 0;
+    }
+
+    /** Whether a tile-to-tile move is in progress. */
+    public boolean isMoving() {
+        return isMoving;
     }
 
     @Override

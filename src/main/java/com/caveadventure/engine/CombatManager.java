@@ -21,9 +21,17 @@ public class CombatManager {
     private final List<Enemy> enemies;
     private final List<DamageNumber> damageNumbers;
     private final GameMap gameMap;
-    private final Random random = new Random();
+    private final Random random;
 
     public CombatManager(GameMap gameMap) {
+        this(gameMap, new Random());
+    }
+
+    /**
+     * Test seam: combat manager whose spawns and rolls come from the given {@link Random}.
+     */
+    CombatManager(GameMap gameMap, Random random) {
+        this.random = random;
         this.enemies = new ArrayList<>();
         this.damageNumbers = new ArrayList<>();
         this.gameMap = gameMap;
@@ -34,12 +42,22 @@ public class CombatManager {
     }
 
     public void spawnEnemies(int count, int floor, Biome biome) {
+        spawnEnemies(count, floor, biome, 0, 0, -1);
+    }
+
+    /**
+     * Spawn enemies on random FLOOR tiles, skipping any tile within
+     * {@code clearance} tiles (Manhattan, so also walking steps) of the player's
+     * spawn at (spawnX, spawnY). A negative clearance disables the check.
+     */
+    public void spawnEnemies(int count, int floor, Biome biome, int spawnX, int spawnY, int clearance) {
         Tile[][] tiles = gameMap.getTiles();
         List<int[]> floorTiles = new ArrayList<>();
 
         for (int x = 3; x < gameMap.getWidth() - 3; x++) {
             for (int y = 3; y < gameMap.getHeight() - 3; y++) {
-                if (tiles[x][y] == Tile.FLOOR) {
+                boolean nearSpawn = Math.abs(x - spawnX) + Math.abs(y - spawnY) <= clearance;
+                if (tiles[x][y] == Tile.FLOOR && !nearSpawn) {
                     floorTiles.add(new int[] { x, y });
                 }
             }
@@ -232,9 +250,30 @@ public class CombatManager {
             }
         }
 
-        if (!farTiles.isEmpty()) {
-            int[] pos = farTiles.get(random.nextInt(farTiles.size()));
-            enemy.setPosition(pos[0], pos[1]);
+        int[] pos = !farTiles.isEmpty()
+                ? farTiles.get(random.nextInt(farTiles.size()))
+                : farthestReachableFloor(player.getGridX(), player.getGridY());
+        if (pos != null) {
+            enemy.relocate(pos[0], pos[1]);
         }
+    }
+
+    /**
+     * Breadth-first search over passable tiles from (startX, startY); returns the
+     * FLOOR tile with the greatest walking distance, or null if none is reachable.
+     */
+    private int[] farthestReachableFloor(int startX, int startY) {
+        int[][] dist = gameMap.stepDistancesFrom(startX, startY);
+        int[] best = null;
+        int bestDist = 0;
+        for (int x = 0; x < gameMap.getWidth(); x++) {
+            for (int y = 0; y < gameMap.getHeight(); y++) {
+                if (dist[x][y] > bestDist && gameMap.getTile(x, y) == Tile.FLOOR) {
+                    bestDist = dist[x][y];
+                    best = new int[] { x, y };
+                }
+            }
+        }
+        return best;
     }
 }

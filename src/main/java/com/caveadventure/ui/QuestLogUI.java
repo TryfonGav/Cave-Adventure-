@@ -67,7 +67,7 @@ public class QuestLogUI {
         nf.setColor(CaveUIStyle.GOLD);
         nf.draw(game.batch, "QUEST LOG", px + 18, py + panelH - 12);
         sf.setColor(CaveUIStyle.MUTED_TEXT);
-        sf.draw(game.batch, "Talk to NPCs for new quests. J / Esc closes.", px + 18, py + panelH - 36);
+        sf.draw(game.batch, "New quests start as you go deeper. J / Esc closes.", px + 18, py + panelH - 36);
 
         float y = py + panelH - 72;
         if (questManager.getVisibleQuests().isEmpty()) {
