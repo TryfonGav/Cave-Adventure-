@@ -1,5 +1,7 @@
 package com.caveadventure.item;
 
+import com.caveadventure.engine.Balance;
+import com.caveadventure.engine.Difficulty;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.world.Biome;
 
@@ -7,10 +9,20 @@ import java.util.*;
 
 /**
  * Generates loot drops from enemies and chests based on weighted tables.
+ * Every drop chance is scaled by the difficulty's lootMultiplier; weapons and
+ * armor follow the floor bands in {@link Balance}.
  */
 public class LootTable {
 
-    private static final Random RANDOM = new Random();
+    /** First floor on which Ice Drakes can drop Crystal gear (floor band 7–9). */
+    private static final int CRYSTAL_GEAR_MIN_FLOOR = 7;
+
+    private static Random RANDOM = new Random();
+
+    /** Test seam: make every loot roll come from the given {@link Random}. */
+    public static void setRandomForTest(Random random) {
+        RANDOM = random == null ? new Random() : random;
+    }
 
     /**
      * Generate loot from killing an enemy.
@@ -119,9 +131,9 @@ public class LootTable {
                     loot.add(new Item(Item.ItemType.FROST_ORE));
                 if (chance(20))
                     loot.add(new Item(Item.ItemType.GOLD_NUGGET, 3));
-                if (chance(8) && floor > 5)
+                if (chance(8) && floor >= CRYSTAL_GEAR_MIN_FLOOR)
                     loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
-                if (chance(8))
+                if (chance(8) && floor >= CRYSTAL_GEAR_MIN_FLOOR)
                     loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
                 if (chance(5))
                     loot.add(new Item(Item.ItemType.SILVER_KEY));
@@ -191,20 +203,15 @@ public class LootTable {
         } else if (roll < 0.90f) {
             loot.add(new Item(Item.ItemType.SMOKE_BOMB));
         } else if (roll < 0.94f) {
-            if (floor <= 3) {
-                loot.add(new Item(Item.ItemType.FIRE_AXE));
-            } else if (floor <= 7) {
-                loot.add(new Item(Item.ItemType.GREEN_BLADE));
-            } else {
-                if (chance(50))
-                    loot.add(new Item(Item.ItemType.CRYSTAL_BLADE));
-                else
-                    loot.add(new Item(Item.ItemType.CRYSTAL_ARMOR));
-            }
+            // Rare slot: the floor band's weapon (Crystal band: blade or armor)
+            Item.ItemType rare = Balance.bandWeapon(floor);
+            if (rare == Item.ItemType.CRYSTAL_BLADE && RANDOM.nextBoolean())
+                rare = Item.ItemType.CRYSTAL_ARMOR;
+            loot.add(new Item(rare));
         } else if (roll < 0.98f) {
             loot.add(new Item(Item.ItemType.MANA_CRYSTAL));
         } else {
-            if (chance(50))
+            if (RANDOM.nextBoolean())
                 loot.add(new Item(Item.ItemType.FIRE_RUNE));
             else
                 loot.add(new Item(Item.ItemType.FROST_RUNE));
@@ -271,7 +278,9 @@ public class LootTable {
         }
     }
 
+    /** A drop roll: {@code percent} scaled by the difficulty's lootMultiplier, capped at 100. */
     private static boolean chance(int percent) {
-        return RANDOM.nextInt(100) < percent;
+        int scaled = Math.min(100, Math.round(percent * Difficulty.getCurrent().lootMultiplier));
+        return RANDOM.nextInt(100) < scaled;
     }
 }

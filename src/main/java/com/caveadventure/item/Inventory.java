@@ -96,7 +96,9 @@ public class Inventory {
                 setMessage("Fully restored HP!");
                 break;
             case FOOD_RATION:
+            case BREAD:
             case COOKED_MEAT:
+            case MEAT:
                 player.modifyHunger(type.restoreAmount);
                 setMessage("Restored " + type.restoreAmount + " hunger");
                 break;

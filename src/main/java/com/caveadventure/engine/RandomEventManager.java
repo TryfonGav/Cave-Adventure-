@@ -33,6 +33,11 @@ public class RandomEventManager {
         }
     }
 
+    /**
+     * What a choice does. Rewards scale with the floor (see {@link Balance}): HEAL_30
+     * heals 30 % of max HP, XP_BONUS and GIVE_GOLD grow per floor, GIVE_WEAPON gives
+     * the floor band's weapon. Result texts show the real amounts through {@code %d}/{@code %s}.
+     */
     public enum EventEffect {
         HEAL_30, HEAL_FULL, DAMAGE_20, GIVE_POTION, GIVE_KEY, GIVE_GOLD,
         GIVE_WEAPON, BUFF_ATTACK, BUFF_DEFENSE, POISON, NOTHING, XP_BONUS,
@@ -66,28 +71,28 @@ public class RandomEventManager {
                     new Color(0.5f, 0.3f, 0.8f, 1f),
                     new EventChoice("Pray", "Divine energy surges through you! Full HP restored!",
                             EventEffect.HEAL_FULL),
-                    new EventChoice("Touch symbols", "A surge of power! Your attack increases!",
+                    new EventChoice("Touch symbols", "A surge of power! +25% damage for 3 battles!",
                             EventEffect.BUFF_ATTACK),
                     new EventChoice("Leave it", "Wise caution. You move on.", EventEffect.NOTHING)),
 
             new GameEvent("Trapped Merchant",
                     "A merchant is trapped under fallen rocks. They promise a reward if freed...",
                     new Color(0.7f, 0.6f, 0.2f, 1f),
-                    new EventChoice("Free them", "The merchant gives you gold nuggets!", EventEffect.GIVE_GOLD),
+                    new EventChoice("Free them", "The merchant gives you %d gold nuggets!", EventEffect.GIVE_GOLD),
                     new EventChoice("Demand payment first", "They toss you a key before you help.",
                             EventEffect.GIVE_KEY)),
 
             new GameEvent("Strange Mushrooms",
                     "Bioluminescent mushrooms grow in a cluster. They look edible... maybe.",
                     new Color(0.3f, 0.8f, 0.4f, 1f),
-                    new EventChoice("Eat them", "They're healing mushrooms! +30 HP!", EventEffect.HEAL_30),
+                    new EventChoice("Eat them", "They're healing mushrooms! +%d HP!", EventEffect.HEAL_30),
                     new EventChoice("Avoid them", "Probably wise. Who eats cave mushrooms?", EventEffect.NOTHING)),
 
             new GameEvent("Hollow Echo",
                     "You hear a hollow echo behind a thin wall. Something is hidden there...",
                     new Color(0.4f, 0.5f, 0.6f, 1f),
-                    new EventChoice("Break the wall", "You find a hidden weapon stash!", EventEffect.GIVE_WEAPON),
-                    new EventChoice("Listen closer", "You learn from the echoes. +50 XP!", EventEffect.XP_BONUS)),
+                    new EventChoice("Break the wall", "You find a hidden %s!", EventEffect.GIVE_WEAPON),
+                    new EventChoice("Listen closer", "You learn from the echoes. +%d XP!", EventEffect.XP_BONUS)),
 
             new GameEvent("Poison Gas",
                     "Green gas seeps from cracks in the floor. It burns your lungs...",
@@ -98,8 +103,8 @@ public class RandomEventManager {
             new GameEvent("Ancient Spirit",
                     "A translucent spirit appears before you, its eyes filled with wisdom...",
                     new Color(0.6f, 0.7f, 0.9f, 1f),
-                    new EventChoice("Ask for blessing", "The spirit grants you defense!", EventEffect.BUFF_DEFENSE),
-                    new EventChoice("Ask for knowledge", "Ancient knowledge flows in. +75 XP!", EventEffect.XP_BONUS)),
+                    new EventChoice("Ask for blessing", "The spirit shields you! -25% damage taken for 3 battles!", EventEffect.BUFF_DEFENSE),
+                    new EventChoice("Ask for knowledge", "Ancient knowledge flows in. +%d XP!", EventEffect.XP_BONUS)),
 
             new GameEvent("Whimpering Wolf",
                     "A wounded cave wolf pup lies curled near a rock, growling softly. It eyes you cautiously...",
@@ -120,6 +125,15 @@ public class RandomEventManager {
                     new EventChoice("Back away slowly", "The cat vanishes into the shadows.", EventEffect.NOTHING)),
     };
 
+    /** Chance that a completed exploration step starts an event. */
+    public static final float EVENT_CHANCE_PER_STEP = 0.008f;
+    /** Seconds of exploration after an event before another can start. */
+    public static final float EVENT_COOLDOWN_SECONDS = 30f;
+    /** Seconds after arriving on a floor before the first event can start. */
+    public static final float EVENT_GRACE_SECONDS = 10f;
+    /** Battles an attack or defense blessing lasts. */
+    public static final int BUFF_BATTLES = 3;
+
     private final CaveAdventure game;
     private final OrthographicCamera camera;
     private final GlyphLayout glayout;
@@ -132,15 +146,23 @@ public class RandomEventManager {
     private String resultText;
     private EventEffect pendingEffect;
     private float eventCooldown;
+    private int floor = 1;
     private EventEffect lastEffect;
     private Companion.PetType lastCompanionType;
     private String lastEventTitle;
 
     public RandomEventManager(CaveAdventure game) {
+        this(game, new Random());
+    }
+
+    /**
+     * Test seam: event manager whose rolls come from the given {@link Random}.
+     */
+    RandomEventManager(CaveAdventure game, Random random) {
         this.game = game;
         this.camera = new OrthographicCamera();
         this.glayout = new GlyphLayout();
-        this.random = new Random();
+        this.random = random;
         this.active = false;
         this.eventCooldown = 0;
     }
@@ -150,13 +172,40 @@ public class RandomEventManager {
     }
 
     /**
-     * Random chance to trigger an event when player moves.
+     * Counts the cooldown down. Call every exploration frame.
      */
-    public boolean tryTrigger() {
+    public void tick(float delta) {
+        if (eventCooldown > 0)
+            eventCooldown = Math.max(0f, eventCooldown - delta);
+    }
+
+    /**
+     * Closes any open event and starts the arrival grace period. Call on a new game
+     * and on every floor load, so an event can't start the moment the player spawns.
+     * {@code floor} sets the scale of event rewards.
+     */
+    public void reset(int floor) {
+        this.floor = Math.max(1, floor);
+        active = false;
+        showingResult = false;
+        currentEvent = null;
+        eventCooldown = EVENT_GRACE_SECONDS;
+    }
+
+    /**
+     * Rolls for an event; call once per completed step. Companion events are left out
+     * of the pool when the player already has a companion. Returns true if one started.
+     */
+    public boolean tryTrigger(boolean hasCompanion) {
         if (eventCooldown > 0 || active)
             return false;
-        if (random.nextFloat() < 0.008f) { // ~0.8% per step
-            currentEvent = ALL_EVENTS[random.nextInt(ALL_EVENTS.length)];
+        if (random.nextFloat() < EVENT_CHANCE_PER_STEP) {
+            List<GameEvent> pool = new ArrayList<>();
+            for (GameEvent event : ALL_EVENTS) {
+                if (!hasCompanion || !offersCompanion(event))
+                    pool.add(event);
+            }
+            currentEvent = pool.get(random.nextInt(pool.size()));
             choiceSelection = 0;
             active = true;
             showingResult = false;
@@ -165,12 +214,28 @@ public class RandomEventManager {
         return false;
     }
 
-    public void update(InputHandler input, Player player, float delta) {
-        if (!active) {
-            if (eventCooldown > 0)
-                eventCooldown -= delta;
-            return;
+    /** True if one of the event's choices gives the player a companion. */
+    static boolean offersCompanion(GameEvent event) {
+        for (EventChoice choice : event.choices) {
+            if (choice.effect == EventEffect.SPAWN_COMPANION)
+                return true;
         }
+        return false;
+    }
+
+    /** Seconds until the next event can start (exposed for tests). */
+    float getEventCooldown() {
+        return eventCooldown;
+    }
+
+    /** The event being shown, or the last one if none is open (exposed for tests). */
+    GameEvent getCurrentEvent() {
+        return currentEvent;
+    }
+
+    public void update(InputHandler input, Player player, float delta) {
+        if (!active)
+            return;
 
         if (showingResult) {
             if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
@@ -179,7 +244,7 @@ public class RandomEventManager {
                 lastEventTitle = currentEvent.title;
                 applyEffect(pendingEffect, player);
                 active = false;
-                eventCooldown = 30f; // 30s cooldown
+                eventCooldown = EVENT_COOLDOWN_SECONDS;
             }
             return;
         }
@@ -191,16 +256,33 @@ public class RandomEventManager {
 
         if (input.isKeyJustPressed(Input.Keys.ENTER) || input.isKeyJustPressed(Input.Keys.SPACE)) {
             EventChoice choice = currentEvent.choices[choiceSelection];
-            resultText = choice.result;
+            resultText = resultTextFor(choice, player);
             pendingEffect = choice.effect;
             showingResult = true;
         }
     }
 
-    private void applyEffect(EventEffect effect, Player player) {
+    /** The choice's result text with the real reward amount for this floor filled in. */
+    String resultTextFor(EventChoice choice, Player player) {
+        switch (choice.effect) {
+            case HEAL_30:
+                return String.format(choice.result, Balance.eventHeal(player.getMaxHealth()));
+            case XP_BONUS:
+                return String.format(choice.result, Balance.eventXp(floor));
+            case GIVE_GOLD:
+                return String.format(choice.result, Balance.eventGold(floor));
+            case GIVE_WEAPON:
+                return String.format(choice.result, Balance.bandWeapon(floor).displayName);
+            default:
+                return choice.result;
+        }
+    }
+
+    /** Applies a choice's effect to the player (package-private for tests). */
+    void applyEffect(EventEffect effect, Player player) {
         switch (effect) {
             case HEAL_30:
-                player.heal(30);
+                player.heal(Balance.eventHeal(player.getMaxHealth()));
                 break;
             case HEAL_FULL:
                 player.heal(999);
@@ -215,21 +297,23 @@ public class RandomEventManager {
                 player.getInventory().addItem(new Item(Item.ItemType.BRONZE_KEY));
                 break;
             case GIVE_GOLD:
-                player.getInventory().addItem(new Item(Item.ItemType.GOLD_NUGGET, 3));
+                player.getInventory().addItem(new Item(Item.ItemType.GOLD_NUGGET, Balance.eventGold(floor)));
                 break;
             case GIVE_WEAPON:
-                player.getInventory().addItem(new Item(Item.ItemType.STEEL_SWORD));
+                player.getInventory().addItem(new Item(Balance.bandWeapon(floor)));
                 break;
             case BUFF_ATTACK:
-                break; // handled by temporary buff system
+                player.grantAttackBuff(BUFF_BATTLES);
+                break;
             case BUFF_DEFENSE:
+                player.grantDefenseBuff(BUFF_BATTLES);
                 break;
             case POISON:
                 player.applyPoison(5f);
                 player.getInventory().addItem(new Item(Item.ItemType.GOLD_NUGGET, 2));
                 break;
             case XP_BONUS:
-                player.addXP(75);
+                player.addXP(Balance.eventXp(floor));
                 break;
             case SPAWN_COMPANION:
                 break; // handled by GameScreen

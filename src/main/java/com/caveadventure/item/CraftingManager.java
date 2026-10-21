@@ -22,14 +22,20 @@ public class CraftingManager {
         return Collections.unmodifiableList(recipes);
     }
 
+    /**
+     * The recipe list. Weapons form an upgrade chain (Steel Sword → Crystal Blade →
+     * Fire Axe); Frost Ore (Ice Drakes, floor 6+) keeps the Crystal Blade out of the
+     * first floor band.
+     */
     public static List<Recipe> defaultRecipes() {
         List<Recipe> list = new ArrayList<>();
         list.add(Recipe.of("crystal_blade", "Crystal Blade", new Item(Item.ItemType.CRYSTAL_BLADE),
                 Item.ItemType.CRYSTAL_SHARD, 4,
-                Item.ItemType.IRON_SWORD, 1));
+                Item.ItemType.FROST_ORE, 2,
+                Item.ItemType.STEEL_SWORD, 1));
         list.add(Recipe.of("ember_axe", "Fire Axe", new Item(Item.ItemType.FIRE_AXE),
                 Item.ItemType.EMBER_CORE, 3,
-                Item.ItemType.STEEL_SWORD, 1));
+                Item.ItemType.CRYSTAL_BLADE, 1));
         list.add(Recipe.of("shadow_charm", "Shadow Charm", new Item(Item.ItemType.SHADOW_CHARM),
                 Item.ItemType.SHADOW_ESSENCE, 3,
                 Item.ItemType.ANCIENT_RELIC, 1));

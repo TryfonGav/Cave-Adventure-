@@ -12,8 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 public class QuestManager {
+    /** A REACH quest is handed out this many floors before its target floor. */
+    public static final int REACH_QUEST_LEAD_FLOORS = 3;
+
     private final Map<String, Quest> quests = new LinkedHashMap<>();
-    private String availableQuestId;
     private String lastMessage;
 
     public QuestManager() {
@@ -25,15 +27,38 @@ public class QuestManager {
         for (QuestDefinition definition : defaultDefinitions()) {
             quests.put(definition.id(), new Quest(definition));
         }
-        availableQuestId = null;
         lastMessage = null;
     }
 
-    public void offerQuestForBiome(Biome biome, int floor) {
-        if (biome == null) {
-            return;
+    /**
+     * Call on arriving at a floor. Auto-accepts the quests handed out there: the
+     * biome's quest, and any REACH quest whose target floor is at most
+     * {@link #REACH_QUEST_LEAD_FLOORS} ahead. Then records the arrival for REACH
+     * objectives. Returns the titles of the newly accepted quests.
+     */
+    public List<String> enterFloor(int floor, Biome biome) {
+        List<String> accepted = new ArrayList<>();
+        for (Quest quest : quests.values()) {
+            if (quest.getState() == QuestState.AVAILABLE && isHandedOut(quest.getDefinition(), floor, biome)) {
+                quest.accept();
+                accepted.add(quest.getDefinition().title());
+                lastMessage = "New quest: " + quest.getDefinition().title();
+            }
         }
-        String id = switch (biome) {
+        recordReach(floor, biome);
+        return accepted;
+    }
+
+    private static boolean isHandedOut(QuestDefinition definition, int floor, Biome biome) {
+        if (definition.objectiveType() == QuestObjectiveType.REACH && definition.targetFloor() > 0
+                && floor >= definition.targetFloor() - REACH_QUEST_LEAD_FLOORS) {
+            return true;
+        }
+        return biome != null && definition.id().equals(biomeQuestId(biome));
+    }
+
+    private static String biomeQuestId(Biome biome) {
+        return switch (biome) {
             case CRYSTAL_CAVES -> "fetch_crystal_shards";
             case MUSHROOM_GROTTO -> "fetch_glowcaps";
             case LAVA_CAVERNS -> "kill_lava_guardians";
@@ -41,23 +66,6 @@ public class QuestManager {
             case FROST_VAULTS -> "reach_frost_vaults";
             case TOXIC_MIRE -> "fetch_toxin_sacs";
         };
-        Quest quest = quests.get(id);
-        if (quest != null && quest.getState() == QuestState.AVAILABLE) {
-            availableQuestId = id;
-            lastMessage = "Quest available: " + quest.getDefinition().title();
-        }
-    }
-
-    public boolean acceptAvailableQuest() {
-        Quest quest = quests.get(availableQuestId);
-        if (quest == null || quest.getState() != QuestState.AVAILABLE) {
-            lastMessage = "No new quest right now.";
-            return false;
-        }
-        quest.accept();
-        lastMessage = "Accepted: " + quest.getDefinition().title();
-        availableQuestId = null;
-        return true;
     }
 
     public int claimReady(Player player) {
@@ -138,8 +146,12 @@ public class QuestManager {
                 return quest.getDefinition().title() + ":\n" + quest.getDefinition().description();
             }
         }
-        Quest available = quests.get(availableQuestId);
-        return available != null ? available.getDefinition().title() + ":\nTalk to NPC" : "No active quest";
+        return "No active quest";
+    }
+
+    /** The quest with the given id, or null (exposed for tests). */
+    Quest getQuest(String id) {
+        return quests.get(id);
     }
 
     public String getLastMessage() {

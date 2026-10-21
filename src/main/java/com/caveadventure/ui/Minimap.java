@@ -1,6 +1,7 @@
 package com.caveadventure.ui;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -8,6 +9,7 @@ import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.Enemy;
 import com.caveadventure.entity.Player;
 import com.caveadventure.world.GameMap;
+import com.caveadventure.world.Palette;
 import com.caveadventure.world.Tile;
 
 import com.caveadventure.engine.SkillTree;
@@ -18,6 +20,21 @@ import java.util.List;
  * player.
  */
 public class Minimap {
+
+    // Map colours: palette entries (this also fixes the old 0-255 values that clamped to magenta).
+    private static final Color MAP_WALL = Palette.alpha(Palette.STONE_LIGHT, 0.85f);
+    private static final Color MAP_FLOOR = Palette.alpha(Palette.STONE, 0.8f);
+    private static final Color MAP_STAIRS = Palette.alpha(Palette.VIOLET, 0.95f);
+    private static final Color MAP_CHEST = Palette.alpha(Palette.GOLD, 0.9f);
+    private static final Color MAP_LOCKED_DOOR = Palette.alpha(Palette.RED, 0.9f);
+    private static final Color MAP_LAVA = Palette.alpha(Palette.FLAME, 0.85f);
+    private static final Color MAP_WATER = Palette.alpha(Palette.SEA, 0.8f);
+    private static final Color MAP_TRAP = Palette.alpha(Palette.CRIMSON, 0.8f);
+    private static final Color MAP_SHOP = new Color(Palette.GREEN_BRIGHT);
+    private static final Color MAP_OTHER = Palette.alpha(Palette.STONE_DARK, 0.6f);
+    private static final Color MAP_ENEMY = Palette.alpha(Palette.RED, 0.95f);
+    private static final Color MAP_PLAYER = new Color(Palette.CYAN);
+    private static final Color MAP_DIM = Palette.alpha(Palette.VOID, 0.7f);
 
     private final CaveAdventure game;
     private final OrthographicCamera camera;
@@ -94,7 +111,7 @@ public class Minimap {
                             && tiles[x][y] == Tile.CHEST) {
                         float px2 = mapX + x * tileW;
                         float py2 = mapY + y * tileH;
-                        game.shapeRenderer.setColor(255f, 253f, 0f, 0.8f);
+                        game.shapeRenderer.setColor(MAP_CHEST);
                         game.shapeRenderer.rect(px2, py2, Math.max(1, tileW), Math.max(1, tileH));
                     }
                     continue;
@@ -104,27 +121,7 @@ public class Minimap {
                 float py = mapY + y * tileH;
                 Tile tile = tiles[x][y];
 
-                if (tile == Tile.WALL) {
-                    game.shapeRenderer.setColor(0.25f, 0.2f, 0.18f, 0.8f);
-                } else if (tile == Tile.FLOOR) {
-                    game.shapeRenderer.setColor(0.12f, 0.12f, 0.1f, 0.6f);
-                } else if (tile == Tile.STAIRS_DOWN) {
-                    game.shapeRenderer.setColor(194f, 0f, 235f, 0.8f);
-                } else if (tile == Tile.CHEST) {
-                    game.shapeRenderer.setColor(255f, 253f, 0f, 0.8f);
-                } else if (tile == Tile.DOOR_LOCKED) {
-                    game.shapeRenderer.setColor(255f, 0f, 0f, 0.8f);
-                } else if (tile == Tile.LAVA) {
-                    game.shapeRenderer.setColor(0.8f, 0.2f, 0.05f, 0.8f);
-                } else if (tile == Tile.WATER) {
-                    game.shapeRenderer.setColor(0.1f, 0.3f, 0.6f, 0.7f);
-                } else if (tile == Tile.TRAP_SPIKES || tile == Tile.TRAP_ARROW) {
-                    game.shapeRenderer.setColor(0.5f, 0.1f, 0.1f, 0.7f);
-                } else if (tile == Tile.SHOP_FLOOR) {
-                    game.shapeRenderer.setColor(0f,255f,0f,1f);
-                } else {
-                    game.shapeRenderer.setColor(0.1f, 0.1f, 0.08f, 0.5f);
-                }
+                game.shapeRenderer.setColor(tileColor(tile));
 
                 game.shapeRenderer.rect(px, py, Math.max(1, tileW), Math.max(1, tileH));
             }
@@ -140,7 +137,7 @@ public class Minimap {
                 float px = mapX + ex * tileW;
                 float py = mapY + ey * tileH;
                 float dotSize = Math.max(2, tileW * 2);
-                game.shapeRenderer.setColor(1f, 0.2f, 0.15f, 0.9f);
+                game.shapeRenderer.setColor(MAP_ENEMY);
                 game.shapeRenderer.rect(px, py, dotSize, dotSize);
             }
         }
@@ -149,7 +146,7 @@ public class Minimap {
         float ppx = mapX + player.getGridX() * tileW;
         float ppy = mapY + player.getGridY() * tileH;
         float playerDotSize = Math.max(3, tileW * 3);
-        game.shapeRenderer.setColor(0.2f, 0.8f, 1f, 1f);
+        game.shapeRenderer.setColor(MAP_PLAYER);
         game.shapeRenderer.rect(ppx - 1, ppy - 1, playerDotSize, playerDotSize);
 
         game.shapeRenderer.end();
@@ -199,7 +196,7 @@ public class Minimap {
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
         // Semi-transparent black background
-        game.shapeRenderer.setColor(0, 0, 0, 0.7f);
+        game.shapeRenderer.setColor(MAP_DIM);
         game.shapeRenderer.rect(0, 0, screenW, screenH);
 
         // Draw stone panel around map
@@ -216,7 +213,7 @@ public class Minimap {
                             && tiles[x][y] == Tile.CHEST) {
                         float px = mapX + x * tileSize;
                         float py = mapY + y * tileSize;
-                        game.shapeRenderer.setColor(255f, 253f, 0f, 0.8f);
+                        game.shapeRenderer.setColor(MAP_CHEST);
                         game.shapeRenderer.rect(px, py, Math.max(1, tileSize), Math.max(1, tileSize));
                     }
                     continue;
@@ -226,27 +223,7 @@ public class Minimap {
                 float py = mapY + y * tileSize;
                 Tile tile = tiles[x][y];
 
-                if (tile == Tile.WALL) {
-                    game.shapeRenderer.setColor(0.25f, 0.2f, 0.18f, 0.8f);
-                } else if (tile == Tile.FLOOR) {
-                    game.shapeRenderer.setColor(0.12f, 0.12f, 0.1f, 0.6f);
-                } else if (tile == Tile.STAIRS_DOWN) {
-                    game.shapeRenderer.setColor(194f, 0f, 235f, 0.8f);
-                } else if (tile == Tile.CHEST) {
-                    game.shapeRenderer.setColor(255f, 253f, 0f, 0.8f);
-                } else if (tile == Tile.DOOR_LOCKED) {
-                    game.shapeRenderer.setColor(255f, 0f, 0f, 0.8f);
-                } else if (tile == Tile.LAVA) {
-                    game.shapeRenderer.setColor(0.8f, 0.2f, 0.05f, 0.8f);
-                } else if (tile == Tile.WATER) {
-                    game.shapeRenderer.setColor(0.1f, 0.3f, 0.6f, 0.7f);
-                } else if (tile == Tile.TRAP_SPIKES || tile == Tile.TRAP_ARROW) {
-                    game.shapeRenderer.setColor(0.5f, 0.1f, 0.1f, 0.7f);
-                } else if (tile == Tile.SHOP_FLOOR) {
-                    game.shapeRenderer.setColor(0f,255f,0f,1f);
-                } else {
-                    game.shapeRenderer.setColor(0.1f, 0.1f, 0.08f, 0.5f);
-                }
+                game.shapeRenderer.setColor(tileColor(tile));
 
                 game.shapeRenderer.rect(px, py, Math.max(1, tileSize), Math.max(1, tileSize));
             }
@@ -262,7 +239,7 @@ public class Minimap {
                 float px = mapX + ex * tileSize;
                 float py = mapY + ey * tileSize;
                 float dotSize = Math.max(4, tileSize * 1.5f);
-                game.shapeRenderer.setColor(1f, 0.2f, 0.15f, 0.9f);
+                game.shapeRenderer.setColor(MAP_ENEMY);
                 game.shapeRenderer.rect(px, py, dotSize, dotSize);
             }
         }
@@ -271,7 +248,7 @@ public class Minimap {
         float ppx = mapX + player.getGridX() * tileSize;
         float ppy = mapY + player.getGridY() * tileSize;
         float playerDotSize = Math.max(5, tileSize * 2);
-        game.shapeRenderer.setColor(0.2f, 0.8f, 1f, 1f);
+        game.shapeRenderer.setColor(MAP_PLAYER);
         game.shapeRenderer.rect(ppx, ppy, playerDotSize, playerDotSize);
 
         game.shapeRenderer.end();
@@ -293,5 +270,32 @@ public class Minimap {
         
         game.batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
+    }
+
+    /** Map colour for an explored tile. */
+    private static Color tileColor(Tile tile) {
+        switch (tile) {
+            case WALL:
+                return MAP_WALL;
+            case FLOOR:
+                return MAP_FLOOR;
+            case STAIRS_DOWN:
+                return MAP_STAIRS;
+            case CHEST:
+                return MAP_CHEST;
+            case DOOR_LOCKED:
+                return MAP_LOCKED_DOOR;
+            case LAVA:
+                return MAP_LAVA;
+            case WATER:
+                return MAP_WATER;
+            case TRAP_SPIKES:
+            case TRAP_ARROW:
+                return MAP_TRAP;
+            case SHOP_FLOOR:
+                return MAP_SHOP;
+            default:
+                return MAP_OTHER;
+        }
     }
 }

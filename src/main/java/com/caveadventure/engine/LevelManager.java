@@ -35,10 +35,29 @@ public class LevelManager {
     private static final int BASE_TRAP_ARROW = 5;
     private static final int TRAP_ARROW_PER_FLOOR = 2;
     private static final float TRAP_ARROW_POISON_CHANCE = 0.3f;
+    /** Stairs go on a random tile among this share of reachable floor tiles farthest from spawn. */
+    private static final float STAIRS_FARTHEST_FRACTION = 0.10f;
+    /**
+     * No enemy spawns within this many tiles (Manhattan) of the player's spawn:
+     * enemy detection range 8 + patrol radius 5 + 1, so none starts a chase on arrival.
+     */
+    static final int ENEMY_SPAWN_CLEARANCE = 14;
+    private static final int MAX_LOCKED_DOORS = 2;
+    private static final float LOCK_CHANCE = 0.08f;
 
-    private final Random random = new Random();
+    private final Random random;
 
     public LevelManager() {
+        this(new Random());
+    }
+
+    /**
+     * Test seam: level manager whose generation is driven by the given {@link Random}.
+     * Seeds for the cave generator and combat manager are drawn from it, so a seeded
+     * {@code Random} reproduces the same floors.
+     */
+    LevelManager(Random random) {
+        this.random = random;
         this.currentFloor = 1;
     }
 
@@ -63,14 +82,21 @@ public class LevelManager {
         int height = 60 + (floor - 1) * 3;
         float wallDensity = 0.43f + floor * 0.005f;
 
-        CaveGenerator generator = new CaveGenerator(width, height, wallDensity, 5, currentBiome);
+        CaveGenerator generator = new CaveGenerator(width, height, wallDensity, 5, currentBiome, random.nextLong());
         Tile[][] tiles = generator.generate();
         this.currentMap = new GameMap(tiles, width, height);
+        int[] spawn = findSpawnPoint(tiles, width, height);
 
-        // Setup combat
-        this.combatManager = new CombatManager(currentMap);
-        int enemyCount = BASE_ENEMIES + (floor - 1) * ENEMIES_PER_FLOOR;
-        combatManager.spawnEnemies(enemyCount, floor, currentBiome);
+        // Stairs far from spawn, then locked doors that never cut them off
+        int[] stairs = placeStairs(tiles, width, height, spawn);
+        if (floor >= 2)
+            placeLocks(tiles, width, height, spawn, stairs);
+        int[][] stepsFromSpawn = currentMap.stepDistancesFrom(spawn[0], spawn[1]);
+
+        // Setup combat, keeping the area around spawn clear
+        this.combatManager = new CombatManager(currentMap, new Random(random.nextLong()));
+        int enemyCount = enemyCountForFloor(floor);
+        combatManager.spawnEnemies(enemyCount, floor, currentBiome, spawn[0], spawn[1], ENEMY_SPAWN_CLEARANCE);
 
         // Spawn boss on every 5th floor
         if (floor % 5 == 0) {
@@ -81,20 +107,21 @@ public class LevelManager {
             }
         }
 
-        // Place locked doors
-        if (floor >= 2)
-            placeLocks(tiles, width, height);
-
         // Place traps (more on deeper floors)
-        placeTraps(tiles, width, height, floor);
+        placeTraps(tiles, width, height, floor, spawn);
 
         // Spawn shopkeeper on every 2nd floor
         shopkeeper = null;
         if (floor % 2 == 0) {
-            spawnShopkeeper(tiles, width, height);
+            spawnShopkeeper(tiles, width, height, stepsFromSpawn);
         }
 
-        return findSpawnPoint(tiles, width, height);
+        return spawn;
+    }
+
+    /** Enemies spawned on a regular floor (before the spawn-clearance filter). */
+    static int enemyCountForFloor(int floor) {
+        return BASE_ENEMIES + (floor - 1) * ENEMIES_PER_FLOOR;
     }
 
     private int[] generateFinalBossFloor() {
@@ -154,7 +181,7 @@ public class LevelManager {
         tiles[centerX][stairsY] = Tile.FLOOR;
 
         this.currentMap = new GameMap(tiles, width, height);
-        this.combatManager = new CombatManager(currentMap);
+        this.combatManager = new CombatManager(currentMap, new Random(random.nextLong()));
         this.currentBiome = Biome.TOXIC_MIRE;
         this.combatManager.spawnBoss(centerX, bossY, Enemy.EnemyType.BOSS_WYRM);
         this.shopkeeper = null;
@@ -168,7 +195,7 @@ public class LevelManager {
         }
     }
 
-    private void placeTraps(Tile[][] tiles, int width, int height, int floor) {
+    private void placeTraps(Tile[][] tiles, int width, int height, int floor, int[] spawn) {
         int trapCount = 3 + floor * 2;
         int placed = 0;
         List<int[]> candidates = new ArrayList<>();
@@ -185,6 +212,8 @@ public class LevelManager {
         for (int[] pos : candidates) {
             if (placed >= trapCount)
                 break;
+            if (pos[0] == spawn[0] && pos[1] == spawn[1])
+                continue;
             // Don't place traps near other traps or special tiles
             boolean safe = true;
             for (int dx = -1; dx <= 1 && safe; dx++) {
@@ -209,14 +238,15 @@ public class LevelManager {
         }
     }
 
-    private void spawnShopkeeper(Tile[][] tiles, int width, int height) {
-        // Find a floor tile in a more central area
+    private void spawnShopkeeper(Tile[][] tiles, int width, int height, int[][] stepsFromSpawn) {
+        // Find a reachable floor tile (not the spawn tile) in a more central area
         List<int[]> candidates = new ArrayList<>();
         int cx = width / 2;
         int cy = height / 2;
         for (int x = cx - 15; x < cx + 15; x++) {
             for (int y = cy - 10; y < cy + 10; y++) {
-                if (x > 2 && x < width - 2 && y > 2 && y < height - 2 && tiles[x][y] == Tile.FLOOR) {
+                if (x > 2 && x < width - 2 && y > 2 && y < height - 2 && tiles[x][y] == Tile.FLOOR
+                        && stepsFromSpawn[x][y] > 0) {
                     candidates.add(new int[] { x, y });
                 }
             }
@@ -262,7 +292,7 @@ public class LevelManager {
         if (damage <= 0)
             return 0;
         int scaled = scaleTrapDamage(damage);
-        player.takeDamage(scaled);
+        player.takeTrueDamage(scaled); // terrain hazards ignore armor
         if (tile == Tile.TOXIC_MIST)
             player.applyPoison(2.5f);
         return scaled;
@@ -317,21 +347,86 @@ public class LevelManager {
         return null;
     }
 
-    private void placeLocks(Tile[][] tiles, int width, int height) {
+    /**
+     * Put the stairs on a random tile among the {@link #STAIRS_FARTHEST_FRACTION} of
+     * floor tiles farthest (in walking steps) from spawn. Returns its position, or
+     * null if nothing else is reachable.
+     */
+    private int[] placeStairs(Tile[][] tiles, int width, int height, int[] spawn) {
+        int[][] dist = currentMap.stepDistancesFrom(spawn[0], spawn[1]);
+        List<int[]> reachable = new ArrayList<>();
+        for (int x = 2; x < width - 2; x++) {
+            for (int y = 2; y < height - 2; y++) {
+                if (tiles[x][y] == Tile.FLOOR && dist[x][y] > 0) {
+                    reachable.add(new int[] { x, y, dist[x][y] });
+                }
+            }
+        }
+        if (reachable.isEmpty())
+            return null;
+        reachable.sort((a, b) -> Integer.compare(b[2], a[2]));
+        int pool = Math.max(1, Math.round(reachable.size() * STAIRS_FARTHEST_FRACTION));
+        int[] pos = reachable.get(random.nextInt(pool));
+        tiles[pos[0]][pos[1]] = Tile.STAIRS_DOWN;
+        return new int[] { pos[0], pos[1] };
+    }
+
+    /**
+     * Lock up to {@link #MAX_LOCKED_DOORS} one-tile corridors. A door that would cut
+     * the stairs off from spawn is reverted, so doors only guard optional pockets;
+     * each kept door gets a chest in the pocket it seals, if the pocket has room.
+     */
+    private void placeLocks(Tile[][] tiles, int width, int height, int[] spawn, int[] stairs) {
+        if (stairs == null)
+            return;
         int lockCount = 0;
-        for (int x = 3; x < width - 3 && lockCount < 2; x++) {
-            for (int y = 3; y < height - 3 && lockCount < 2; y++) {
-                if (tiles[x][y] == Tile.FLOOR) {
+        for (int x = 3; x < width - 3 && lockCount < MAX_LOCKED_DOORS; x++) {
+            for (int y = 3; y < height - 3 && lockCount < MAX_LOCKED_DOORS; y++) {
+                if (tiles[x][y] == Tile.FLOOR && (x != spawn[0] || y != spawn[1])) {
                     boolean vert = tiles[x - 1][y].isSolid() && tiles[x + 1][y].isSolid()
                             && !tiles[x][y - 1].isSolid() && !tiles[x][y + 1].isSolid();
                     boolean horiz = tiles[x][y - 1].isSolid() && tiles[x][y + 1].isSolid()
                             && !tiles[x - 1][y].isSolid() && !tiles[x + 1][y].isSolid();
-                    if ((vert || horiz) && random.nextFloat() < 0.08f) {
+                    if ((vert || horiz) && random.nextFloat() < LOCK_CHANCE) {
                         tiles[x][y] = Tile.DOOR_LOCKED;
-                        lockCount++;
+                        int[][] dist = currentMap.stepDistancesFrom(spawn[0], spawn[1]);
+                        if (dist[stairs[0]][stairs[1]] < 0) {
+                            tiles[x][y] = Tile.FLOOR; // would cut off the stairs
+                        } else {
+                            placeChestBehindDoor(tiles, dist, x, y);
+                            lockCount++;
+                        }
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * If the locked door at (doorX, doorY) seals off a pocket (tiles unreachable from
+     * spawn per {@code distFromSpawn}), turn the pocket's floor tile farthest from the
+     * door into a chest.
+     */
+    private void placeChestBehindDoor(Tile[][] tiles, int[][] distFromSpawn, int doorX, int doorY) {
+        int[][] dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+        for (int[] d : dirs) {
+            int sx = doorX + d[0], sy = doorY + d[1];
+            if (!currentMap.isPassable(sx, sy) || distFromSpawn[sx][sy] >= 0)
+                continue;
+            int[][] pocket = currentMap.stepDistancesFrom(sx, sy);
+            int[] best = null;
+            int bestDist = -1;
+            for (int x = 0; x < currentMap.getWidth(); x++) {
+                for (int y = 0; y < currentMap.getHeight(); y++) {
+                    if (pocket[x][y] > bestDist && tiles[x][y] == Tile.FLOOR) {
+                        bestDist = pocket[x][y];
+                        best = new int[] { x, y };
+                    }
+                }
+            }
+            if (best != null)
+                tiles[best[0]][best[1]] = Tile.CHEST;
+            return;
         }
     }
 

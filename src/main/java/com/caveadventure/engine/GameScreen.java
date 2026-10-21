@@ -3,12 +3,15 @@ package com.caveadventure.engine;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
+import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.Viewport;
+import com.badlogic.gdx.graphics.glutils.HdpiUtils;
 import com.caveadventure.CaveAdventure;
 import com.caveadventure.entity.CharacterAppearance;
 import com.caveadventure.entity.Companion;
@@ -20,6 +23,7 @@ import com.caveadventure.ui.*;
 import com.caveadventure.quest.QuestManager;
 import com.caveadventure.world.Biome;
 import com.caveadventure.world.GameMap;
+import com.caveadventure.world.Palette;
 
 /**
  * The primary game screen managing all game states and sub-systems.
@@ -34,7 +38,11 @@ public class GameScreen extends ScreenAdapter {
     private final CaveAdventure game;
     private Camera2D camera;
     private final InputHandler inputHandler;
-    private Viewport viewport;
+    /** Integer scale of the low-resolution world buffer for the current window (P5-T1). */
+    private PixelScale pixelScale;
+    /** The world is drawn here in art pixels, then copied to the window at {@code pixelScale}. */
+    private FrameBuffer worldBuffer;
+    private final OrthographicCamera blitCamera = new OrthographicCamera();
 
     // Game objects
     private Player player;
@@ -92,7 +100,6 @@ public class GameScreen extends ScreenAdapter {
         Gdx.input.setInputProcessor(inputHandler);
 
         OrthographicCamera cam = new OrthographicCamera();
-        this.viewport = new FitViewport(960, 640, cam);
         this.camera = new Camera2D(cam, 80 * GameMap.TILE_SIZE, 60 * GameMap.TILE_SIZE);
 
         // Systems
@@ -133,7 +140,7 @@ public class GameScreen extends ScreenAdapter {
 
     @Override
     public void show() {
-        viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+        applyPixelScale();
     }
 
     // --- Game Setup ---
@@ -148,7 +155,11 @@ public class GameScreen extends ScreenAdapter {
         questManager.reset();
         achievements.restoreUnlocked(java.util.Collections.emptySet());
         statsScreen.reset();
-        setupFloor(1);
+        int[] spawn = loadFloor(1);
+        player = new Player(spawn[0], spawn[1]);
+        player.setAppearance(selectedAppearance);
+        enterFloorQuests();
+        saveCurrentGame();
     }
 
     private void loadSavedGame() {
@@ -161,7 +172,9 @@ public class GameScreen extends ScreenAdapter {
 
         selectedAppearance = data.characterAppearance.copy();
         Difficulty.setCurrent(data.difficulty);
-        setupFloor(data.floor);
+        int[] spawn = loadFloor(data.floor);
+        player = new Player(spawn[0], spawn[1]);
+        player.setAppearance(selectedAppearance);
         skillTree.restoreUnlockedSkills(data.unlockedSkills);
         skillTree.restoreSkillPoints(data.skillPoints);
         questManager.restore(data.questLines);
@@ -210,6 +223,8 @@ public class GameScreen extends ScreenAdapter {
             player.applyPoison(data.poisonRemaining);
         player.addTorchDuration(data.torchDuration - player.getTorchDuration());
         player.setStamina(data.stamina);
+        player.grantAttackBuff(data.attackBuffBattles);
+        player.grantDefenseBuff(data.defenseBuffBattles);
         bossKilledThisFloor = data.finalBossDefeated;
         companion = null;
         if (data.companionType != null) {
@@ -224,29 +239,31 @@ public class GameScreen extends ScreenAdapter {
             combatManager.getEnemies().removeIf(enemy -> enemy.getType() == Enemy.EnemyType.BOSS_GOLEM);
         }
         enemiesKilledTotal = data.enemiesKilled;
+        enterFloorQuests();
         saveCurrentGame();
     }
 
-    private void setupFloor(int floor) {
+    /**
+     * Generates a floor and resets the per-floor systems (map, enemies, camera,
+     * minimap, shop, event grace). Returns the spawn tile {x, y}. Doesn't touch the
+     * player and doesn't save; callers place the player, then save once.
+     */
+    private int[] loadFloor(int floor) {
         int[] spawn = levelManager.generateFloor(floor);
         this.gameMap = levelManager.getCurrentMap();
         this.combatManager = levelManager.getCombatManager();
-        this.player = new Player(spawn[0], spawn[1]);
-        this.player.setAppearance(selectedAppearance);
         this.currentBiome = levelManager.getCurrentBiome();
-        questManager.offerQuestForBiome(currentBiome, floor);
-        questManager.recordReach(floor, currentBiome);
         SoundManager.getInstance().playAmbient(currentBiome);
 
         OrthographicCamera cam = new OrthographicCamera();
-        this.viewport = new FitViewport(960, 640, cam);
         this.camera = new Camera2D(cam, gameMap.getWidth() * GameMap.TILE_SIZE,
                 gameMap.getHeight() * GameMap.TILE_SIZE);
-        viewport.update(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+        applyPixelScale();
 
         minimap.init(gameMap.getWidth(), gameMap.getHeight());
         shopUI.generateShopItems();
         particles.clear();
+        eventManager.reset(levelManager.getCurrentFloor());
         bossKilledThisFloor = false;
 
         state = GameState.PLAYING;
@@ -254,7 +271,19 @@ public class GameScreen extends ScreenAdapter {
         terrainHazardCooldown = 0.5f;
         autosaveTimer = 0f;
         transition.fadeIn(0.8f);
-        saveCurrentGame();
+        return spawn;
+    }
+
+    /**
+     * Quests on arriving at the current floor: auto-accepts the ones handed out here
+     * and records the arrival for REACH objectives. New quests get a toast.
+     */
+    private void enterFloorQuests() {
+        java.util.List<String> accepted = questManager.enterFloor(levelManager.getCurrentFloor(), currentBiome);
+        if (!accepted.isEmpty()) {
+            trapMessage = "New quest: " + String.join(", ", accepted);
+            trapMessageTimer = 4.0f;
+        }
     }
 
     private void saveCurrentGame() {
@@ -293,6 +322,7 @@ public class GameScreen extends ScreenAdapter {
     @Override
     public void render(float delta) {
         delta = Math.min(delta, 1 / 30f);
+        applyFullScreenViewport();
 
         boolean inventoryPaused = state == GameState.PLAYING && (inventoryUI.isVisible() || questLogUI.isVisible());
         boolean carePaused = state == GameState.COMPANION_CARE;
@@ -559,24 +589,14 @@ public class GameScreen extends ScreenAdapter {
             return;
         } else {
             // Player movement
-            int prevX = player.getGridX(), prevY = player.getGridY();
             player.setMovementSpeedBonus(skillTree.getMovementSpeedBonus());
             player.handleInput(inputHandler, gameMap, delta);
-
-            // Track steps
-            if (player.getGridX() != prevX || player.getGridY() != prevY) {
-                statsScreen.stepsTaken++;
-                // Footstep dust
-                particles.emitDust(player.getPixelX() + 16, player.getPixelY());
-            }
 
             // Interactions
             if (inputHandler.isKeyJustPressed(Input.Keys.F) || inputHandler.isKeyJustPressed(Input.Keys.ENTER)) {
                 if (levelManager.isNearShopkeeper(player)) {
-                    questManager.acceptAvailableQuest();
                     state = GameState.NPC_DIALOGUE;
-                    npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor())
-                            + "\n\n" + questManager.getLastMessage();
+                    npcDialogueMessage = "Shopkeeper:\n" + levelManager.getShopkeeper().getGreeting(levelManager.getCurrentFloor());
                     return;
                 }
                 boolean lucky = skillTree.hasSkill(SkillTree.Skill.LUCKY);
@@ -594,6 +614,12 @@ public class GameScreen extends ScreenAdapter {
         }
 
         player.update(delta);
+        boolean stepCompleted = player.consumeStepCompleted();
+        if (stepCompleted) {
+            statsScreen.stepsTaken++;
+            // Footstep dust
+            particles.emitDust(player.getPixelX() + 16, player.getPixelY());
+        }
         player.tickPassiveRegen(skillTree, delta); // REGEN skill: passive heal outside battle
         combatManager.update(player, delta);
 
@@ -651,18 +677,17 @@ public class GameScreen extends ScreenAdapter {
             }
         }
 
-        // Random events
-        if (!player.isMoving() && !inventoryUI.isVisible()) {
-            if (eventManager.tryTrigger()) {
-                state = GameState.EVENT;
-                return;
-            }
+        // Random events: one roll per completed step
+        eventManager.tick(delta);
+        if (stepCompleted && eventManager.tryTrigger(companion != null)) {
+            state = GameState.EVENT;
+            return;
         }
 
         // Level-up detection (skill tree)
         if (player.getLevel() > lastPlayerLevel) {
+            skillTree.grantSkillPoints(player.getLevel() - lastPlayerLevel);
             lastPlayerLevel = player.getLevel();
-            skillTree.grantSkillPoint();
             skillTree.showPicker();
             state = GameState.SKILL_PICK;
             SoundManager.getInstance().playLevelUp();
@@ -691,9 +716,7 @@ public class GameScreen extends ScreenAdapter {
 
         // Death check
         if (!player.isAlive()) {
-            gameOverScreen.setup(false, player.getLevel(), levelManager.getCurrentFloor() - 1, enemiesKilledTotal, false);
-            state = GameState.GAME_OVER;
-            SaveManager.deleteSave();
+            handlePlayerDeath();
             return;
         }
 
@@ -718,15 +741,24 @@ public class GameScreen extends ScreenAdapter {
     }
 
     private void drawPlaying() {
-        // Biome-themed background
-        float br = currentBiome != null ? currentBiome.floorColor.r * 0.2f : 0.05f;
-        float bg = currentBiome != null ? currentBiome.floorColor.g * 0.2f : 0.05f;
-        float bb = currentBiome != null ? currentBiome.floorColor.b * 0.2f : 0.08f;
-        Gdx.gl.glClearColor(br, bg, bb, 1f);
+        // The world is drawn in art pixels into the low-resolution buffer (P5-T1).
+        if (worldBuffer == null)
+            applyPixelScale();
+        if (worldBuffer == null)
+            return; // minimised: no back buffer to draw into
+        worldBuffer.begin();
+        Gdx.gl.glClearColor(Palette.VOID.r, Palette.VOID.g, Palette.VOID.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        game.batch.setProjectionMatrix(camera.getCamera().combined);
-        game.shapeRenderer.setProjectionMatrix(camera.getCamera().combined);
+        // Snap the camera to whole art pixels for drawing only; the smooth position is kept.
+        OrthographicCamera worldCam = camera.getCamera();
+        float logicX = worldCam.position.x;
+        float logicY = worldCam.position.y;
+        worldCam.position.x = PixelScale.snapCameraCentre(logicX, worldCam.viewportWidth);
+        worldCam.position.y = PixelScale.snapCameraCentre(logicY, worldCam.viewportHeight);
+        worldCam.update();
+        game.batch.setProjectionMatrix(worldCam.combined);
+        game.shapeRenderer.setProjectionMatrix(worldCam.combined);
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -765,6 +797,13 @@ public class GameScreen extends ScreenAdapter {
         game.batch.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
+        worldCam.position.set(logicX, logicY, 0);
+        worldCam.update();
+        worldBuffer.end();
+
+        // HUD and overlays use window-sized cameras, so they need the full back buffer.
+        applyFullScreenViewport();
+        blitWorldBuffer();
 
         // HUD
         hud.render(player, combatManager.getEnemyCount(), levelManager.getCurrentFloor(), levelManager.getMaxFloors(),
@@ -789,13 +828,9 @@ public class GameScreen extends ScreenAdapter {
         game.batch.setProjectionMatrix(uiCam.combined);
         game.batch.begin();
         com.badlogic.gdx.graphics.g2d.BitmapFont sf = game.fontSmall != null ? game.fontSmall : game.font;
-        float previousScaleX = sf.getData().scaleX;
-        float previousScaleY = sf.getData().scaleY;
-        sf.getData().setScale(1.1f, 1.1f);
         sf.setColor(currentBiome.accentColor.r, currentBiome.accentColor.g, currentBiome.accentColor.b, 0.5f);
         sf.draw(game.batch, currentBiome.name + " - Floor " + levelManager.getCurrentFloor(), 10,
                 Gdx.graphics.getHeight() - 10);
-        sf.getData().setScale(previousScaleX, previousScaleY);
         game.batch.end();
     }
 
@@ -854,7 +889,6 @@ public class GameScreen extends ScreenAdapter {
         if (!eventManager.isActive()) {
             state = GameState.PLAYING;
             statsScreen.eventsCompleted++;
-            questManager.offerQuestForBiome(currentBiome, levelManager.getCurrentFloor());
             if (eventManager.getLastEffect() == RandomEventManager.EventEffect.SPAWN_COMPANION
                     && companion == null) {
                 companion = new Companion(player.getGridX(), player.getGridY(),
@@ -893,11 +927,23 @@ public class GameScreen extends ScreenAdapter {
 
     // --- Battle ---
 
+    /** Game over after the player dies: show the results and delete the run's save. */
+    private void handlePlayerDeath() {
+        gameOverScreen.setup(false, player.getLevel(), levelManager.getCurrentFloor() - 1, enemiesKilledTotal, false);
+        state = GameState.GAME_OVER;
+        SaveManager.deleteSave();
+    }
+
     private void updateBattle(float delta) {
         battleScreen.update(inputHandler, delta);
 
         if (!battleScreen.isActive()) {
-            if (battleScreen.getResult()) {
+            BattleScreen.Outcome outcome = battleScreen.getOutcome();
+            if (outcome == BattleScreen.Outcome.DEFEAT) {
+                handlePlayerDeath();
+                return;
+            }
+            if (outcome == BattleScreen.Outcome.VICTORY) {
                 combatManager.removeEnemy(battleScreen.getEnemy());
                 enemiesKilledTotal++;
                 questManager.recordKill(battleScreen.getEnemy().getType());
@@ -913,7 +959,7 @@ public class GameScreen extends ScreenAdapter {
                         achievements.tryUnlock(AchievementManager.Achievement.WYRM_SLAYER);
                 }
                 SoundManager.getInstance().playVictory();
-            } else if (battleScreen.getEnemy().isAlive()) {
+            } else if (outcome == BattleScreen.Outcome.FLED) {
                 combatManager.relocateEnemy(battleScreen.getEnemy(), player);
                 statsScreen.timesFled++;
             }
@@ -936,57 +982,13 @@ public class GameScreen extends ScreenAdapter {
     private void updateTransition(float delta) {
         floorTransitionTimer += delta;
         if (floorTransitionTimer >= 2.0f) {
-            com.caveadventure.item.Inventory oldInv = player.getInventory();
-            selectedAppearance = player.getAppearance().copy();
-            int oldHunger = player.getHunger();
-            int oldLevel = player.getLevel();
-            boolean oldPoisoned = player.isPoisoned();
-            float oldTorch = player.getTorchDuration();
-
-            setupFloor(transitionToFloor);
-
-            for (int i = 0; i < oldInv.getSize(); i++) {
-                player.getInventory().addItem(oldInv.getItem(i));
-            }
-            if (oldInv.getEquippedWeapon() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedWeapon().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedArmor() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedArmor().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedAccessory() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedAccessory().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            if (oldInv.getEquippedBoots() != null) {
-                for (int i = 0; i < player.getInventory().getSize(); i++) {
-                    if (player.getInventory().getItem(i).getType() == oldInv.getEquippedBoots().getType()) {
-                        player.getInventory().equipItem(i);
-                        break;
-                    }
-                }
-            }
-            while (player.getLevel() < oldLevel)
-                player.addXP(player.getXPToNextLevel());
-            lastPlayerLevel = player.getLevel();
-            player.modifyHunger(oldHunger - player.getHunger());
-            player.addTorchDuration(oldTorch - player.getTorchDuration());
-            if (oldPoisoned)
-                player.applyPoison(3f);
+            // Same Player object across floors: level, XP, inventory, stamina and
+            // buffs carry over; enterNewFloor heals 25% and resets Berserker stacks.
+            int[] spawn = loadFloor(transitionToFloor);
+            player.enterNewFloor(spawn[0], spawn[1]);
+            if (companion != null)
+                companion.snapTo(spawn[0], spawn[1]);
+            enterFloorQuests();
             saveCurrentGame();
         }
     }
@@ -1077,6 +1079,54 @@ public class GameScreen extends ScreenAdapter {
 
     // --- Rendering Helpers ---
 
+    /**
+     * Resets the GL viewport to the whole back buffer. UI classes draw with cameras
+     * sized to the window, so they must not inherit the world viewport's rectangle.
+     */
+    private void applyFullScreenViewport() {
+        HdpiUtils.glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+    }
+
+    /**
+     * Sizes the world camera and the low-resolution world buffer for the current back buffer.
+     * The buffer is recreated only when its size changes, and not while the window is minimised.
+     */
+    private void applyPixelScale() {
+        int w = Gdx.graphics.getBackBufferWidth();
+        int h = Gdx.graphics.getBackBufferHeight();
+        pixelScale = PixelScale.forWindow(w, h);
+        OrthographicCamera cam = camera.getCamera();
+        cam.viewportWidth = pixelScale.worldWidth();
+        cam.viewportHeight = pixelScale.worldHeight();
+        cam.update();
+        if (w <= 0 || h <= 0)
+            return;
+        if (worldBuffer == null || worldBuffer.getWidth() != pixelScale.bufferWidth
+                || worldBuffer.getHeight() != pixelScale.bufferHeight) {
+            if (worldBuffer != null)
+                worldBuffer.dispose();
+            worldBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, pixelScale.bufferWidth, pixelScale.bufferHeight,
+                    false);
+            worldBuffer.getColorBufferTexture().setFilter(Texture.TextureFilter.Nearest,
+                    Texture.TextureFilter.Nearest);
+        }
+    }
+
+    /** Copies the world buffer to the window at the integer scale, cropping the remainder evenly. */
+    private void blitWorldBuffer() {
+        blitCamera.setToOrtho(false, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+        blitCamera.update();
+        game.batch.setProjectionMatrix(blitCamera.combined);
+        game.batch.setColor(Color.WHITE);
+        game.batch.disableBlending();
+        game.batch.begin();
+        game.batch.draw(worldBuffer.getColorBufferTexture(), pixelScale.offsetX, pixelScale.offsetY,
+                pixelScale.bufferWidth * pixelScale.scale, pixelScale.bufferHeight * pixelScale.scale,
+                0, 0, pixelScale.bufferWidth, pixelScale.bufferHeight, false, true);
+        game.batch.end();
+        game.batch.enableBlending();
+    }
+
     private void renderFogOfWar() {
         float lightRadius = player.getLightRadius() * GameMap.TILE_SIZE;
         float cx = player.getPixelX() + GameMap.TILE_SIZE / 2f;
@@ -1093,12 +1143,12 @@ public class GameScreen extends ScreenAdapter {
                 float dist = (float) Math.sqrt((tx - cx) * (tx - cx) + (ty - cy) * (ty - cy));
 
                 if (dist > lightRadius) {
-                    game.shapeRenderer.setColor(0, 0, 0, 0.85f);
+                    game.shapeRenderer.setColor(Palette.VOID.r, Palette.VOID.g, Palette.VOID.b, 0.85f);
                     game.shapeRenderer.rect(x * GameMap.TILE_SIZE, y * GameMap.TILE_SIZE,
                             GameMap.TILE_SIZE, GameMap.TILE_SIZE);
                 } else if (dist > lightRadius * 0.7f) {
                     float t = (dist - lightRadius * 0.7f) / (lightRadius * 0.3f);
-                    game.shapeRenderer.setColor(0, 0, 0, t * 0.7f);
+                    game.shapeRenderer.setColor(Palette.VOID.r, Palette.VOID.g, Palette.VOID.b, t * 0.7f);
                     game.shapeRenderer.rect(x * GameMap.TILE_SIZE, y * GameMap.TILE_SIZE,
                             GameMap.TILE_SIZE, GameMap.TILE_SIZE);
                 }
@@ -1144,7 +1194,7 @@ public class GameScreen extends ScreenAdapter {
 
     @Override
     public void resize(int width, int height) {
-        viewport.update(width, height, false);
+        applyPixelScale();
         if (player != null) {
             camera.getCamera().position.set(
                     player.getPixelX() + GameMap.TILE_SIZE / 2f,
@@ -1155,5 +1205,7 @@ public class GameScreen extends ScreenAdapter {
     @Override
     public void dispose() {
         hud.dispose();
+        if (worldBuffer != null)
+            worldBuffer.dispose();
     }
 }

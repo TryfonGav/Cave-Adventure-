@@ -32,14 +32,22 @@ public class Camera2D {
     }
 
     /**
-     * Prevent camera from showing outside the map.
+     * Prevent camera from showing outside the map. On an axis where the map is
+     * smaller than the view, the camera is centred on the map instead.
      */
     private void clampToMap() {
-        float halfW = camera.viewportWidth / 2f;
-        float halfH = camera.viewportHeight / 2f;
+        camera.position.x = clampAxis(camera.position.x, camera.viewportWidth / 2f, mapPixelWidth);
+        camera.position.y = clampAxis(camera.position.y, camera.viewportHeight / 2f, mapPixelHeight);
+    }
 
-        camera.position.x = MathUtils.clamp(camera.position.x, halfW, mapPixelWidth - halfW);
-        camera.position.y = MathUtils.clamp(camera.position.y, halfH, mapPixelHeight - halfH);
+    /**
+     * Clamp one camera axis so the view stays inside {@code [0, mapSize]}, or centre it
+     * when the view is wider than the map.
+     */
+    static float clampAxis(float position, float halfView, float mapSize) {
+        if (mapSize <= halfView * 2f)
+            return mapSize / 2f;
+        return MathUtils.clamp(position, halfView, mapSize - halfView);
     }
 
     public void update() {

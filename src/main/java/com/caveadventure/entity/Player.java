@@ -2,7 +2,9 @@ package com.caveadventure.entity;
 
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.caveadventure.engine.Balance;
 import com.caveadventure.engine.InputHandler;
+import com.caveadventure.engine.PixelScale;
 import com.caveadventure.item.Inventory;
 import com.caveadventure.world.GameMap;
 import com.badlogic.gdx.Input;
@@ -33,6 +35,7 @@ public class Player extends Entity {
     private float startPixelY;
     private static final float MOVE_DURATION = 0.15f;
     private float movementSpeedBonus;
+    private boolean stepCompleted;
 
     // Animation
     private float animTimer;
@@ -55,10 +58,20 @@ public class Player extends Entity {
     // Skill: Berserker kill stacks (persist across battles within a floor)
     private int berserkerKillCount = 0;
 
-    // Passive regen outside of battle (REGEN skill)
+    // Arriving on a new floor heals this fraction of max HP
+    private static final float NEW_FLOOR_HEAL_FRACTION = 0.25f;
+
+    // Event buffs (Mysterious Altar / Ancient Spirit): battles left
+    private int attackBuffBattles = 0;
+    private int defenseBuffBattles = 0;
+
+    // Regeneration skill: per battle round, and passive outside of battle
     private float passiveRegenTimer = 0f;
-    private static final float PASSIVE_REGEN_INTERVAL = 4.0f;
-    private static final int   PASSIVE_REGEN_AMOUNT   = 1;
+    private static final float BATTLE_REGEN_FRACTION  = 0.05f;
+    private static final int   BATTLE_REGEN_MIN       = 5;
+    private static final float PASSIVE_REGEN_INTERVAL = 2.0f;
+    private static final float PASSIVE_REGEN_FRACTION = 0.01f;
+    private static final int   PASSIVE_REGEN_MIN      = 1;
 
     // Mana Crystal: reduce stamina costs until end of next battle
     private boolean manaCrystalActive = false;
@@ -82,14 +95,14 @@ public class Player extends Entity {
         this.maxHunger = 100;
         this.level = 1;
         this.xp = 0;
-        this.xpToNextLevel = 100;
+        this.xpToNextLevel = Balance.FIRST_LEVEL_XP;
         this.maxStamina = BASE_STAMINA;
         this.stamina = maxStamina;
         this.targetGridX = gridX;
         this.targetGridY = gridY;
         this.currentMoveDuration = MOVE_DURATION;
         this.inventory = new Inventory();
-        this.torchDuration = 30f;
+        this.torchDuration = Balance.STARTING_TORCH_SECONDS;
         this.appearance = CharacterAppearance.defaultAppearance();
     }
 
@@ -180,6 +193,7 @@ public class Player extends Entity {
                 pixelX = targetGridX * SIZE;
                 pixelY = targetGridY * SIZE;
                 isMoving = false;
+                stepCompleted = true;
             } else {
                 float t = easeOutQuad(moveProgress);
                 pixelX = startPixelX + (targetGridX * SIZE - startPixelX) * t;
@@ -203,7 +217,7 @@ public class Player extends Entity {
             if (hunger > 0)
                 hunger--;
             else
-                takeDamage(2);
+                takeTrueDamage(2);
         }
 
         // Poison
@@ -212,7 +226,7 @@ public class Player extends Entity {
             poisonDamageTimer += delta;
             if (poisonDamageTimer >= 1.5f) {
                 poisonDamageTimer = 0;
-                takeDamage(3);
+                takeTrueDamage(3);
             }
             if (poisonTimer <= 0)
                 poisoned = false;
@@ -231,12 +245,47 @@ public class Player extends Entity {
         return 1 - (1 - t) * (1 - t);
     }
 
+    /**
+     * True once after a move onto a new tile finishes, then false until the next one.
+     */
+    public boolean consumeStepCompleted() {
+        boolean completed = stepCompleted;
+        stepCompleted = false;
+        return completed;
+    }
+
+    /**
+     * Moves the player to a grid tile instantly, cancelling any move in progress.
+     */
+    public void teleport(int gridX, int gridY) {
+        setPosition(gridX, gridY);
+        isMoving = false;
+        moveProgress = 0;
+        targetGridX = gridX;
+        targetGridY = gridY;
+        startPixelX = pixelX;
+        startPixelY = pixelY;
+        stepCompleted = false;
+    }
+
+    /**
+     * Places the player at a new floor's spawn: heals 25% of max HP and resets the
+     * Berserker stacks. Level, XP, inventory and everything else carry over.
+     */
+    public void enterNewFloor(int spawnX, int spawnY) {
+        teleport(spawnX, spawnY);
+        if (isAlive())
+            heal(Math.round(maxHealth * NEW_FLOOR_HEAL_FRACTION));
+        resetBerserkerKills();
+    }
+
     @Override
     public void render(ShapeRenderer renderer) {
-        float px = pixelX;
-        float py = pixelY;
-        float bobOffset = isMoving ? (float) Math.sin(moveProgress * Math.PI) * 3f : 0;
-        float step = isMoving ? (float) Math.sin(moveProgress * Math.PI * 2f) * 1.5f : 0;
+        // Draw on whole art pixels (P5-T1); the logic position stays smooth.
+        float px = PixelScale.snap(pixelX);
+        float py = PixelScale.snap(pixelY);
+        float bobOffset = isMoving ? PixelScale.snap((float) Math.sin(moveProgress * Math.PI) * 3f) : 0;
+        float step = isMoving ? PixelScale.snap((float) Math.sin(moveProgress * Math.PI * 2f) * 1.5f) : 0;
 
         boolean flashWhite = damageFlashTimer > 0 && ((int) (damageFlashTimer * 10)) % 2 == 0;
 
@@ -362,12 +411,22 @@ public class Player extends Entity {
         }
     }
 
+    /**
+     * A hit that armor reduces by percentage ({@link Balance#applyArmor}). Returns
+     * true if the player died.
+     */
     @Override
     public boolean takeDamage(int amount) {
-        int defense = inventory.getTotalDefenseBonus();
-        int reduced = Math.max(1, amount - defense / 3);
+        return takeTrueDamage(Balance.applyArmor(amount, inventory.getTotalDefenseBonus()));
+    }
+
+    /**
+     * Damage that ignores armor: poison, burn, hunger and terrain hazards. Returns
+     * true if the player died.
+     */
+    public boolean takeTrueDamage(int amount) {
         damageFlashTimer = 0.4f;
-        return super.takeDamage(reduced);
+        return super.takeDamage(amount);
     }
 
     public void heal(int amount) {
@@ -397,8 +456,22 @@ public class Player extends Entity {
         passiveRegenTimer += delta;
         if (passiveRegenTimer >= PASSIVE_REGEN_INTERVAL) {
             passiveRegenTimer = 0f;
-            heal(PASSIVE_REGEN_AMOUNT);
+            heal(getPassiveRegenAmount());
         }
+    }
+
+    /**
+     * HP the Regeneration skill heals per battle round: 5% of max HP, at least 5.
+     */
+    public int getBattleRegenAmount() {
+        return Math.max(BATTLE_REGEN_MIN, Math.round(maxHealth * BATTLE_REGEN_FRACTION));
+    }
+
+    /**
+     * HP the Regeneration skill heals per tick while exploring: 1% of max HP, at least 1.
+     */
+    public int getPassiveRegenAmount() {
+        return Math.max(PASSIVE_REGEN_MIN, Math.round(maxHealth * PASSIVE_REGEN_FRACTION));
     }
 
     public void addTorchDuration(float seconds) {
@@ -424,8 +497,8 @@ public class Player extends Entity {
         while (xp >= xpToNextLevel) {
             xp -= xpToNextLevel;
             level++;
-            xpToNextLevel = (int) (xpToNextLevel * 1.25f);
-            maxHealth += 10;
+            xpToNextLevel = (int) (xpToNextLevel * Balance.XP_CURVE);
+            maxHealth += Balance.PLAYER_HP_PER_LEVEL;
             health = maxHealth;
             maxStamina = BASE_STAMINA + (level - 1) * STAMINA_PER_LEVEL;
             stamina = maxStamina;
@@ -517,8 +590,9 @@ public class Player extends Entity {
         return torchDuration;
     }
 
+    /** Attack from level ({@link Balance#playerAttackForLevel}) plus equipment. */
     public int getTotalAttack() {
-        return 10 + inventory.getTotalAttackBonus();
+        return Balance.playerAttackForLevel(level) + inventory.getTotalAttackBonus();
     }
 
     public float getCritBonusFromEquipment() {
@@ -534,6 +608,28 @@ public class Player extends Entity {
     public boolean isManaCrystalActive() { return manaCrystalActive; }
     /** Call at end of battle to consume the effect. */
     public void consumeManaCrystal()   { manaCrystalActive = false; }
+
+    // --- Event buffs ---
+    /** Battles left with +25% damage dealt. */
+    public int getAttackBuffBattles() { return attackBuffBattles; }
+    /** Battles left with -25% damage taken. */
+    public int getDefenseBuffBattles() { return defenseBuffBattles; }
+
+    /** Grants the attack buff for the next {@code battles} battles (keeps the longer of old and new). */
+    public void grantAttackBuff(int battles) {
+        attackBuffBattles = Math.max(attackBuffBattles, Math.max(0, battles));
+    }
+
+    /** Grants the defense buff for the next {@code battles} battles (keeps the longer of old and new). */
+    public void grantDefenseBuff(int battles) {
+        defenseBuffBattles = Math.max(defenseBuffBattles, Math.max(0, battles));
+    }
+
+    /** Call when a battle ends (any outcome): uses up one battle of each active buff. */
+    public void consumeBattleBuffs() {
+        attackBuffBattles = Math.max(0, attackBuffBattles - 1);
+        defenseBuffBattles = Math.max(0, defenseBuffBattles - 1);
+    }
 
     // --- Companion Ability ---
     public boolean isCompanionAbilityUsed()  { return companionAbilityUsed; }

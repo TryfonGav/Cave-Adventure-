@@ -32,7 +32,7 @@ public class SkillTree {
 
         // Defensive
         IRON_SKIN("Iron Skin", SkillPath.DEFENSIVE, "-15% damage taken", new Color(0.4f, 0.6f, 0.8f, 1f)),
-        REGEN("Regeneration", SkillPath.DEFENSIVE, "Heal 2HP per turn in battle", new Color(0.3f, 0.8f, 0.4f, 1f), IRON_SKIN, 1),
+        REGEN("Regeneration", SkillPath.DEFENSIVE, "Heal 5% max HP per turn in battle; slow regen while exploring", new Color(0.3f, 0.8f, 0.4f, 1f), IRON_SKIN, 1),
         STATUS_RESIST("Status Resist", SkillPath.DEFENSIVE, "50% chance to resist status",
                 new Color(0.5f, 0.7f, 0.3f, 1f), REGEN, 2),
         LAST_STAND("Last Stand", SkillPath.DEFENSIVE, "Survive lethal hit once", new Color(0.3f, 0.5f, 0.9f, 1f), STATUS_RESIST, 2),
@@ -136,8 +136,11 @@ public class SkillTree {
         return skillPoints;
     }
 
-    public void grantSkillPoint() {
-        skillPoints++;
+    /**
+     * Adds skill points, e.g. one per level gained (several when one XP gain spans levels).
+     */
+    public void grantSkillPoints(int points) {
+        skillPoints += Math.max(0, points);
     }
 
     /**
@@ -511,10 +514,6 @@ public class SkillTree {
 
     public float getDamageReduction() {
         return hasSkill(Skill.IRON_SKIN) ? 0.15f : 0f;
-    }
-
-    public int getRegenPerTurn() {
-        return hasSkill(Skill.REGEN) ? 2 : 0;
     }
 
     public boolean canResistStatus() {

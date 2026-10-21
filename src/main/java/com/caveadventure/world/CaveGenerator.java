@@ -9,7 +9,10 @@ import java.util.*;
  * 1. Random fill with given wall probability
  * 2. Multiple smoothing passes (4-5 rule)
  * 3. Flood-fill to ensure connectivity
- * 4. Place features (chests, traps, stairs, water pools)
+ * 4. Place features (chests, traps, water pools, biome hazards)
+ *
+ * Stairs are not placed here: {@code LevelManager} puts them far from the
+ * player's spawn once that is known.
  */
 public class CaveGenerator {
 
@@ -255,7 +258,7 @@ public class CaveGenerator {
     }
 
     /**
-     * Place interactive features: chests, traps, water pools, stairs.
+     * Place interactive features: chests, traps, water pools, hazards.
      */
     private void placeFeatures(Tile[][] map) {
         List<int[]> floorTiles = new ArrayList<>();
@@ -287,7 +290,7 @@ public class CaveGenerator {
         for (int i = 0; i < trapCount && featureIndex < floorTiles.size(); i++) {
             int[] pos = floorTiles.get(featureIndex++);
             // Some traps are visible, some are hidden
-            map[pos[0]][pos[1]] = random.nextFloat() < 0.4f ? Tile.TRAP_SPIKE : Tile.TRAP_HIDDEN;
+            map[pos[0]][pos[1]] = random.nextFloat() < 0.4f ? Tile.TRAP_SPIKES : Tile.TRAP_HIDDEN;
         }
 
         // Place 1-2 water pools (clusters)
@@ -316,11 +319,6 @@ public class CaveGenerator {
                     biome == Biome.TOXIC_MIRE ? 3 : 2);
         }
 
-        // Place stairs at a distant floor tile
-        if (featureIndex < floorTiles.size()) {
-            int[] pos = floorTiles.get(floorTiles.size() - 1); // furthest from start features
-            map[pos[0]][pos[1]] = Tile.STAIRS_DOWN;
-        }
     }
 
     private boolean isDeadEnd(Tile[][] map, int x, int y) {

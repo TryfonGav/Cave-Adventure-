@@ -1,0 +1,38 @@
+{
+  "panel": {
+    "x": 0,
+    "y": 0,
+    "w": 5,
+    "h": 7,
+    "left": 2,
+    "right": 2,
+    "top": 2,
+    "bottom": 4
+  },
+  "inset": {
+    "x": 7,
+    "y": 0,
+    "w": 5,
+    "h": 5,
+    "left": 2,
+    "right": 2,
+    "top": 2,
+    "bottom": 2
+  },
+  "selection": {
+    "x": 14,
+    "y": 0,
+    "w": 5,
+    "h": 5,
+    "left": 2,
+    "right": 2,
+    "top": 2,
+    "bottom": 2
+  },
+  "cursor": {
+    "x": 21,
+    "y": 0,
+    "w": 8,
+    "h": 12
+  }
+}
